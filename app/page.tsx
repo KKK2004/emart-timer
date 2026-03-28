@@ -61,14 +61,6 @@ type SummaryRow = {
   waitingTimeGiay: number | "";
   serviceTimeGiay: number | "";
   systemTimeGiay: number | "";
-
-  arenaEntityType: string;
-  arenaArrivalTime: string;
-  arenaInterarrivalS: number | "";
-  arenaServiceS: number | "";
-  arenaQueue: string;
-  arenaResource: string;
-  arenaProcessType: string;
 };
 
 const STORAGE_KEY = "emart_timer_event_log";
@@ -257,45 +249,6 @@ function getSystemEndEvent(loai: CustomerType): EventName {
       return "NHAN_PIZZA_ROI_HANG";
     case "PIZZA_COMBO":
       return "NHAN_PIZZA_MON_DA_THANH_TOAN_ROI_HANG";
-  }
-}
-
-function getArenaQueue(loai: CustomerType): string {
-  switch (loai) {
-    case "SAN":
-      return "Q_ThanhToan_DoAnSan";
-    case "CHUAN":
-      return "Q_ThanhToan_MonBep";
-    case "PIZZA":
-      return "Q_Order_Pizza";
-    case "PIZZA_COMBO":
-      return "Q_Pizza_Combo";
-  }
-}
-
-function getArenaResource(loai: CustomerType): string {
-  switch (loai) {
-    case "SAN":
-      return "Cashier_DoAnSan";
-    case "CHUAN":
-      return "Cashier_MonBep";
-    case "PIZZA":
-      return "Cashier_Pizza";
-    case "PIZZA_COMBO":
-      return "Cashier_PizzaCombo";
-  }
-}
-
-function getArenaProcessType(loai: CustomerType): string {
-  switch (loai) {
-    case "SAN":
-      return "ThanhToan";
-    case "CHUAN":
-      return "ThanhToan_MonBep";
-    case "PIZZA":
-      return "Order_TinhTien_Pizza";
-    case "PIZZA_COMBO":
-      return "Order_TinhTien_PizzaCombo";
   }
 }
 
@@ -507,14 +460,6 @@ export default function Page() {
         waitingTimeGiay: diffSeconds(arrivalQueue, serviceStart),
         serviceTimeGiay: diffSeconds(serviceStart, systemEnd),
         systemTimeGiay: diffSeconds(heThongStart, systemEnd),
-
-        arenaEntityType: loai,
-        arenaArrivalTime: arrivalQueue,
-        arenaInterarrivalS: "",
-        arenaServiceS: diffSeconds(serviceStart, systemEnd),
-        arenaQueue: getArenaQueue(loai),
-        arenaResource: getArenaResource(loai),
-        arenaProcessType: getArenaProcessType(loai),
       });
     });
 
@@ -527,33 +472,67 @@ export default function Page() {
     for (let i = 0; i < arrivalSorted.length; i++) {
       if (i === 0) {
         arrivalSorted[i].interarrivalTimeGiay = "";
-        arrivalSorted[i].arenaInterarrivalS = "";
       } else {
-        const ia = diffSeconds(
+        arrivalSorted[i].interarrivalTimeGiay = diffSeconds(
           arrivalSorted[i - 1].batDauXepHang,
           arrivalSorted[i].batDauXepHang
         );
-        arrivalSorted[i].interarrivalTimeGiay = ia;
-        arrivalSorted[i].arenaInterarrivalS = ia;
       }
     }
 
-    const mapBack = new Map(
-      arrivalSorted.map((r) => [
-        r.maKH,
-        {
-          interarrival: r.interarrivalTimeGiay,
-          arenaInterarrival: r.arenaInterarrivalS,
-        },
-      ])
+    const interarrivalMap = new Map(
+      arrivalSorted.map((r) => [r.maKH, r.interarrivalTimeGiay])
     );
 
     return sorted.map((row) => ({
       ...row,
-      interarrivalTimeGiay: mapBack.get(row.maKH)?.interarrival ?? "",
-      arenaInterarrivalS: mapBack.get(row.maKH)?.arenaInterarrival ?? "",
+      interarrivalTimeGiay: interarrivalMap.get(row.maKH) ?? "",
     }));
   }, [eventLog]);
+
+  function exportEventLogExcel() {
+    const rows = [...eventLog].reverse().map((row, idx) => ({
+      STT: idx + 1,
+      MaKH: row.maKH,
+      LoaiKH: getLoaiKhachLabel(row.loaiKH),
+      SuKien: row.suKien,
+      ThoiGian: parseDateTime(row.thoiGian),
+      NhanVien: row.nhanVien,
+      Quay: row.quay,
+      GhiChu: row.ghiChu,
+    }));
+
+    const ws = XLSX.utils.json_to_sheet(rows, {
+      cellDates: true,
+      dateNF: "yyyy-mm-dd hh:mm:ss",
+    });
+
+    const range = XLSX.utils.decode_range(ws["!ref"] || "A1");
+    for (let r = 1; r <= range.e.r; r++) {
+      const timeCell = XLSX.utils.encode_cell({ r, c: 4 });
+      if (ws[timeCell] && ws[timeCell].v instanceof Date) {
+        ws[timeCell].z = "yyyy-mm-dd hh:mm:ss";
+      }
+
+      const sttCell = XLSX.utils.encode_cell({ r, c: 0 });
+      if (ws[sttCell]) ws[sttCell].z = "0";
+    }
+
+    ws["!cols"] = [
+      { wch: 8 },
+      { wch: 10 },
+      { wch: 28 },
+      { wch: 55 },
+      { wch: 22 },
+      { wch: 12 },
+      { wch: 12 },
+      { wch: 25 },
+    ];
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "EventLog");
+    XLSX.writeFileXLSX(wb, "event_log.xlsx", { compression: true });
+  }
 
   function exportSummaryExcel() {
     const rows = summaryRows.map((row) => ({
@@ -579,16 +558,6 @@ export default function Page() {
       SystemTime_Giay:
         row.systemTimeGiay === "" ? "" : row.systemTimeGiay,
 
-      Arena_EntityType: row.arenaEntityType,
-      Arena_ArrivalTime: parseDateTime(row.arenaArrivalTime),
-      Arena_Interarrival_s:
-        row.arenaInterarrivalS === "" ? "" : row.arenaInterarrivalS,
-      Arena_Service_s:
-        row.arenaServiceS === "" ? "" : row.arenaServiceS,
-      Arena_Queue: row.arenaQueue,
-      Arena_Resource: row.arenaResource,
-      Arena_ProcessType: row.arenaProcessType,
-
       Buoc_1: row.buoc1Label,
       TG_Buoc_1: parseDateTime(row.T_B1),
       Buoc_2: row.buoc2Label,
@@ -607,8 +576,8 @@ export default function Page() {
     const range = XLSX.utils.decode_range(ws["!ref"] || "A1");
 
     for (let r = 1; r <= range.e.r; r++) {
-      const numberCols = [0, 6, 11, 12, 13, 14, 17, 18];
-      const dateCols = [7, 8, 9, 10, 16, 22, 24, 26, 28];
+      const numberCols = [0, 6, 11, 12, 13, 14];
+      const dateCols = [7, 8, 9, 10, 16, 18, 20, 22];
 
       for (const c of numberCols) {
         const cell = XLSX.utils.encode_cell({ r, c });
@@ -626,36 +595,29 @@ export default function Page() {
     }
 
     ws["!cols"] = [
-      { wch: 8 },   // STT
-      { wch: 10 },  // MaKH
-      { wch: 28 },  // LoaiKH
-      { wch: 12 },  // NhanVien
-      { wch: 10 },  // Quay
-      { wch: 20 },  // GhiChu
-      { wch: 8 },   // SoBuoc
-      { wch: 22 },  // DenHT
-      { wch: 22 },  // VaoHang
-      { wch: 22 },  // BatDauPV
-      { wch: 22 },  // RoiHT
-      { wch: 18 },  // Interarrival
-      { wch: 16 },  // Waiting
-      { wch: 16 },  // Service
-      { wch: 16 },  // System
-      { wch: 18 },  // Arena Entity
-      { wch: 22 },  // Arena Arrival
-      { wch: 18 },  // Arena IA
-      { wch: 16 },  // Arena Service
-      { wch: 22 },  // Arena Queue
-      { wch: 22 },  // Arena Resource
-      { wch: 22 },  // Arena Process
-      { wch: 40 },  // Buoc1
-      { wch: 22 },  // TG B1
-      { wch: 40 },  // Buoc2
-      { wch: 22 },  // TG B2
-      { wch: 40 },  // Buoc3
-      { wch: 22 },  // TG B3
-      { wch: 40 },  // Buoc4
-      { wch: 22 },  // TG B4
+      { wch: 8 },
+      { wch: 10 },
+      { wch: 28 },
+      { wch: 12 },
+      { wch: 10 },
+      { wch: 20 },
+      { wch: 8 },
+      { wch: 22 },
+      { wch: 22 },
+      { wch: 22 },
+      { wch: 22 },
+      { wch: 18 },
+      { wch: 16 },
+      { wch: 16 },
+      { wch: 16 },
+      { wch: 40 },
+      { wch: 22 },
+      { wch: 40 },
+      { wch: 22 },
+      { wch: 40 },
+      { wch: 22 },
+      { wch: 40 },
+      { wch: 22 },
     ];
 
     const wb = XLSX.utils.book_new();
@@ -688,7 +650,7 @@ export default function Page() {
   return (
     <main
       style={{
-        maxWidth: 1550,
+        maxWidth: 1450,
         margin: "0 auto",
         padding: 24,
         fontFamily: "Arial, sans-serif",
@@ -696,7 +658,7 @@ export default function Page() {
     >
       <h1 style={{ fontSize: 32, marginBottom: 8 }}>Web bấm giờ mô phỏng eMart</h1>
       <p style={{ marginBottom: 24 }}>
-        Đã thêm nhóm cột Arena Input Table để đưa trực tiếp sang Arena.
+        Summary đã sửa đúng công thức Interarrival, Waiting, Service, System.
       </p>
 
       <div
@@ -805,7 +767,13 @@ export default function Page() {
 
           <h3 style={{ marginBottom: 10 }}>Bấm theo đúng thứ tự thực tế</h3>
           {loaiKH ? (
-            <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 10 }}>
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "1fr",
+                gap: 10,
+              }}
+            >
               {currentFlow.map((step, index) => {
                 const disabled = !currentMaKH || nextStepIndex !== index;
                 return (
@@ -855,11 +823,14 @@ export default function Page() {
           <div
             style={{
               display: "grid",
-              gridTemplateColumns: "1fr",
+              gridTemplateColumns: "1fr 1fr",
               gap: 10,
               marginTop: 16,
             }}
           >
+            <button onClick={exportEventLogExcel} style={buttonStyle(false)}>
+              XUẤT EVENT LOG XLSX
+            </button>
             <button onClick={exportSummaryExcel} style={buttonStyle(false)}>
               XUẤT SUMMARY XLSX
             </button>
@@ -875,16 +846,31 @@ export default function Page() {
               gap: 10,
             }}
           >
-            <button onClick={() => startNewCustomer("SAN")} style={typeButtonStyle(loaiKH === "SAN")}>
+            <button
+              onClick={() => startNewCustomer("SAN")}
+              style={typeButtonStyle(loaiKH === "SAN")}
+            >
               ĐỒ ĂN LÀM SẴN
             </button>
-            <button onClick={() => startNewCustomer("CHUAN")} style={typeButtonStyle(loaiKH === "CHUAN")}>
+
+            <button
+              onClick={() => startNewCustomer("CHUAN")}
+              style={typeButtonStyle(loaiKH === "CHUAN")}
+            >
               MÓN CẦN ĐẦU BẾP LÀM
             </button>
-            <button onClick={() => startNewCustomer("PIZZA")} style={typeButtonStyle(loaiKH === "PIZZA")}>
+
+            <button
+              onClick={() => startNewCustomer("PIZZA")}
+              style={typeButtonStyle(loaiKH === "PIZZA")}
+            >
               PIZZA
             </button>
-            <button onClick={() => startNewCustomer("PIZZA_COMBO")} style={typeButtonStyle(loaiKH === "PIZZA_COMBO")}>
+
+            <button
+              onClick={() => startNewCustomer("PIZZA_COMBO")}
+              style={typeButtonStyle(loaiKH === "PIZZA_COMBO")}
+            >
               PIZZA KẾT HỢP MÓN KHÁC
             </button>
           </div>
@@ -919,39 +905,83 @@ export default function Page() {
                   <th style={{ borderBottom: "1px solid #ddd", padding: 6 }}>STT</th>
                   <th style={{ borderBottom: "1px solid #ddd", padding: 6 }}>MaKH</th>
                   <th style={{ borderBottom: "1px solid #ddd", padding: 6 }}>LoaiKH</th>
-                  <th style={{ borderBottom: "1px solid #ddd", padding: 6 }}>Interarrival(s)</th>
-                  <th style={{ borderBottom: "1px solid #ddd", padding: 6 }}>Waiting(s)</th>
-                  <th style={{ borderBottom: "1px solid #ddd", padding: 6 }}>Service(s)</th>
-                  <th style={{ borderBottom: "1px solid #ddd", padding: 6 }}>System(s)</th>
-                  <th style={{ borderBottom: "1px solid #ddd", padding: 6 }}>Arena_EntityType</th>
-                  <th style={{ borderBottom: "1px solid #ddd", padding: 6 }}>Arena_Interarrival_s</th>
-                  <th style={{ borderBottom: "1px solid #ddd", padding: 6 }}>Arena_Service_s</th>
-                  <th style={{ borderBottom: "1px solid #ddd", padding: 6 }}>Arena_Queue</th>
-                  <th style={{ borderBottom: "1px solid #ddd", padding: 6 }}>Arena_Resource</th>
+                  <th style={{ borderBottom: "1px solid #ddd", padding: 6 }}>NhanVien</th>
+                  <th style={{ borderBottom: "1px solid #ddd", padding: 6 }}>Quay</th>
+                  <th style={{ borderBottom: "1px solid #ddd", padding: 6 }}>GhiChu</th>
+                  <th style={{ borderBottom: "1px solid #ddd", padding: 6 }}>SoBuoc</th>
+                  <th style={{ borderBottom: "1px solid #ddd", padding: 6 }}>DenHT</th>
+                  <th style={{ borderBottom: "1px solid #ddd", padding: 6 }}>VaoHang</th>
+                  <th style={{ borderBottom: "1px solid #ddd", padding: 6 }}>BatDauPV</th>
+                  <th style={{ borderBottom: "1px solid #ddd", padding: 6 }}>RoiHT</th>
+                  <th style={{ borderBottom: "1px solid #ddd", padding: 6 }}>
+                    Interarrival(s)
+                  </th>
+                  <th style={{ borderBottom: "1px solid #ddd", padding: 6 }}>
+                    Waiting(s)
+                  </th>
+                  <th style={{ borderBottom: "1px solid #ddd", padding: 6 }}>
+                    Service(s)
+                  </th>
+                  <th style={{ borderBottom: "1px solid #ddd", padding: 6 }}>
+                    System(s)
+                  </th>
                 </tr>
               </thead>
               <tbody>
                 {summaryRows.length === 0 ? (
                   <tr>
-                    <td colSpan={12} style={{ padding: 12, textAlign: "center" }}>
+                    <td colSpan={15} style={{ padding: 12, textAlign: "center" }}>
                       Chưa có dữ liệu
                     </td>
                   </tr>
                 ) : (
                   summaryRows.map((row) => (
                     <tr key={row.maKH}>
-                      <td style={{ borderBottom: "1px solid #f0f0f0", padding: 6 }}>{row.stt}</td>
-                      <td style={{ borderBottom: "1px solid #f0f0f0", padding: 6 }}>{row.maKH}</td>
-                      <td style={{ borderBottom: "1px solid #f0f0f0", padding: 6 }}>{row.loaiKH}</td>
-                      <td style={{ borderBottom: "1px solid #f0f0f0", padding: 6 }}>{row.interarrivalTimeGiay}</td>
-                      <td style={{ borderBottom: "1px solid #f0f0f0", padding: 6 }}>{row.waitingTimeGiay}</td>
-                      <td style={{ borderBottom: "1px solid #f0f0f0", padding: 6 }}>{row.serviceTimeGiay}</td>
-                      <td style={{ borderBottom: "1px solid #f0f0f0", padding: 6 }}>{row.systemTimeGiay}</td>
-                      <td style={{ borderBottom: "1px solid #f0f0f0", padding: 6 }}>{row.arenaEntityType}</td>
-                      <td style={{ borderBottom: "1px solid #f0f0f0", padding: 6 }}>{row.arenaInterarrivalS}</td>
-                      <td style={{ borderBottom: "1px solid #f0f0f0", padding: 6 }}>{row.arenaServiceS}</td>
-                      <td style={{ borderBottom: "1px solid #f0f0f0", padding: 6 }}>{row.arenaQueue}</td>
-                      <td style={{ borderBottom: "1px solid #f0f0f0", padding: 6 }}>{row.arenaResource}</td>
+                      <td style={{ borderBottom: "1px solid #f0f0f0", padding: 6 }}>
+                        {row.stt}
+                      </td>
+                      <td style={{ borderBottom: "1px solid #f0f0f0", padding: 6 }}>
+                        {row.maKH}
+                      </td>
+                      <td style={{ borderBottom: "1px solid #f0f0f0", padding: 6 }}>
+                        {row.loaiKH}
+                      </td>
+                      <td style={{ borderBottom: "1px solid #f0f0f0", padding: 6 }}>
+                        {row.nhanVien}
+                      </td>
+                      <td style={{ borderBottom: "1px solid #f0f0f0", padding: 6 }}>
+                        {row.quay}
+                      </td>
+                      <td style={{ borderBottom: "1px solid #f0f0f0", padding: 6 }}>
+                        {row.ghiChu}
+                      </td>
+                      <td style={{ borderBottom: "1px solid #f0f0f0", padding: 6 }}>
+                        {row.soBuoc}
+                      </td>
+                      <td style={{ borderBottom: "1px solid #f0f0f0", padding: 6 }}>
+                        {row.thoiGianDenHeThong}
+                      </td>
+                      <td style={{ borderBottom: "1px solid #f0f0f0", padding: 6 }}>
+                        {row.batDauXepHang}
+                      </td>
+                      <td style={{ borderBottom: "1px solid #f0f0f0", padding: 6 }}>
+                        {row.batDauPhucVu}
+                      </td>
+                      <td style={{ borderBottom: "1px solid #f0f0f0", padding: 6 }}>
+                        {row.ketThucPhucVuRoiHeThong}
+                      </td>
+                      <td style={{ borderBottom: "1px solid #f0f0f0", padding: 6 }}>
+                        {row.interarrivalTimeGiay}
+                      </td>
+                      <td style={{ borderBottom: "1px solid #f0f0f0", padding: 6 }}>
+                        {row.waitingTimeGiay}
+                      </td>
+                      <td style={{ borderBottom: "1px solid #f0f0f0", padding: 6 }}>
+                        {row.serviceTimeGiay}
+                      </td>
+                      <td style={{ borderBottom: "1px solid #f0f0f0", padding: 6 }}>
+                        {row.systemTimeGiay}
+                      </td>
                     </tr>
                   ))
                 )}
