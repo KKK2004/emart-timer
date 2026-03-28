@@ -70,6 +70,35 @@ const COUNTER_KEY = "emart_timer_customer_counter";
 const CURRENT_KEY = "emart_timer_current_customer";
 const CURRENT_TYPE_KEY = "emart_timer_current_type";
 
+async function loadEventLog() {
+  const { data, error } = await supabase
+    .from("event_log")
+    .select("*")
+    .order("thoi_gian", { ascending: false });
+
+  if (error) {
+    console.error(error);
+    return;
+  }
+
+  if (data) {
+    const mapped = data.map((row: any) => ({
+      id: row.id,
+      maKH: row.ma_kh,
+      loaiKH: row.loai_kh,
+      suKien: row.su_kien,
+      thoiGian: row.thoi_gian
+        ? new Date(row.thoi_gian).toLocaleString("sv-SE").replace("T", " ")
+        : "",
+      nhanVien: row.nhan_vien,
+      quay: row.quay,
+      ghiChu: row.ghi_chu || "",
+    }));
+
+    setEventLog(mapped);
+  }
+}
+
 function pad2(n: number) {
   return String(n).padStart(2, "0");
 }
