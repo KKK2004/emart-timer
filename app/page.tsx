@@ -1147,10 +1147,32 @@ export default function Page() {
                         }}
                       >
                         <div style={{ fontWeight: 800, marginBottom: 8 }}>Mốc mô phỏng</div>
-                        <div>Đến hệ thống: {row.thoiGianDenHeThong ? formatEventTime(row.thoiGianDenHeThong) : "Chưa có"}</div>
-                        <div>Bắt đầu xếp hàng: {row.batDauXepHang ? formatEventTime(row.batDauXepHang) : "Chưa có"}</div>
-                        <div>Bắt đầu phục vụ: {row.batDauPhucVu ? formatEventTime(row.batDauPhucVu) : "Chưa có"}</div>
-                        <div>Rời hệ thống: {row.ketThucPhucVuRoiHeThong ? formatEventTime(row.ketThucPhucVuRoiHeThong) : "Chưa có"}</div>
+                       <div>
+  Đến hệ thống:{" "}
+  <strong>
+    {row.thoiGianDenHeThong ? formatEventTime(row.thoiGianDenHeThong) : "Chưa có"}
+  </strong>
+</div>
+<div>
+  Bắt đầu xếp hàng:{" "}
+  <strong>
+    {row.batDauXepHang ? formatEventTime(row.batDauXepHang) : "Chưa có"}
+  </strong>
+</div>
+<div>
+  Bắt đầu phục vụ:{" "}
+  <strong>
+    {row.batDauPhucVu ? formatEventTime(row.batDauPhucVu) : "Chưa có"}
+  </strong>
+</div>
+<div>
+  Rời hệ thống:{" "}
+  <strong>
+    {row.ketThucPhucVuRoiHeThong
+      ? formatEventTime(row.ketThucPhucVuRoiHeThong)
+      : "Chưa có"}
+  </strong>
+</div>
                       </div>
 
                       <div
