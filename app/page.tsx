@@ -806,7 +806,8 @@ export default function Page() {
             </h1>
             <p style={{ margin: "8px 0 0", color: palette.sub }}>
               Tác giả: Bùi Văn Cường
-
+</p> {/* <--- THÊM THẺ NÀY */}
+          </div> {/* <--- THÊM THẺ NÀY */}
           <div
             style={{
               display: "grid",
