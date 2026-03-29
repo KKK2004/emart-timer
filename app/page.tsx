@@ -839,12 +839,24 @@ export default function Page() {
                 <div>Nhân viên: {row.nhanVien}</div>
                 <div>Quầy: {row.quay}</div>
                 <div>Ghi chú: {row.ghiChu}</div>
-                <div>Interarrival(s): {row.interarrivalTimeGiay}</div>
-                <div>Waiting(s): {row.waitingTimeGiay}</div>
-                <div>Service(s): {row.serviceTimeGiay}</div>
-                <div>System(s): {row.systemTimeGiay}</div>
-                <div>Arena Queue: {row.arenaQueue}</div>
-                <div>Arena Resource: {row.arenaResource}</div>
+               <div>Bước 1: {row.T_B1 || "Chưa có"}</div>
+<div>Bước 2: {row.T_B2 || "Chưa có"}</div>
+<div>Bước 3: {row.T_B3 || "Chưa có"}</div>
+<div>Bước 4: {row.T_B4 || "Chưa có"}</div>
+
+<div>Đến hệ thống: {row.thoiGianDenHeThong || "Chưa có"}</div>
+<div>Vào hàng: {row.batDauXepHang || "Chưa có"}</div>
+<div>Bắt đầu phục vụ: {row.batDauPhucVu || "Chưa có"}</div>
+<div>Rời hệ thống: {row.ketThucPhucVuRoiHeThong || "Chưa có"}</div>
+
+<div>Interarrival(s): {row.interarrivalTimeGiay === "" ? "Chưa đủ dữ liệu" : row.interarrivalTimeGiay}</div>
+<div>Waiting(s): {row.waitingTimeGiay === "" ? "Chưa đủ dữ liệu" : row.waitingTimeGiay}</div>
+<div>Service(s): {row.serviceTimeGiay === "" ? "Chưa đủ dữ liệu" : row.serviceTimeGiay}</div>
+<div>System(s): {row.systemTimeGiay === "" ? "Chưa đủ dữ liệu" : row.systemTimeGiay}</div>
+
+<div>Arena Queue: {row.arenaQueue}</div>
+<div>Arena Resource: {row.arenaResource}</div>
+
               </div>
             ))
           )}
