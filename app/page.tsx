@@ -27,7 +27,7 @@ type EventRow = {
   maKH: string;
   loaiKH: CustomerType;
   suKien: EventName;
-  thoiGian: string; // ISO string từ DB
+  thoiGian: string; // ISO từ DB
   nhanVien: string;
   quay: string;
   ghiChu: string;
@@ -94,12 +94,6 @@ function pad3(n: number) {
   return String(n).padStart(3, "0");
 }
 
-function formatDateTimeVNms(date: Date) {
-  return `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())} ${pad2(
-    date.getHours()
-  )}:${pad2(date.getMinutes())}:${pad2(date.getSeconds())}.${pad3(date.getMilliseconds())}`;
-}
-
 function parseDateTime(value: string): Date | null {
   if (!value) return null;
 
@@ -123,21 +117,40 @@ function parseDateTime(value: string): Date | null {
   );
 }
 
-function diffSecondsPrecise(start: string, end: string): number | "" {
-  const s = parseDateTime(start);
-  const e = parseDateTime(end);
-  if (!s || !e) return "";
-  const diffMs = e.getTime() - s.getTime();
-  return Number(Math.max(0, diffMs / 1000).toFixed(3));
-}
-
-function formatCustomerCode(n: number) {
-  return `KH${String(n).padStart(3, "0")}`;
+function formatDateTimeVNms(date: Date) {
+  return `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())} ${pad2(
+    date.getHours()
+  )}:${pad2(date.getMinutes())}:${pad2(date.getSeconds())}.${pad3(date.getMilliseconds())}`;
 }
 
 function formatEventTime(value: string) {
   const d = parseDateTime(value);
   return d ? formatDateTimeVNms(d) : "";
+}
+
+function diffSecondsPrecise(start: string, end: string): number | "" {
+  const s = parseDateTime(start);
+  const e = parseDateTime(end);
+  if (!s || !e) return "";
+  return Number(Math.max(0, (e.getTime() - s.getTime()) / 1000).toFixed(3));
+}
+
+function generateDeviceId() {
+  return `DV-${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
+}
+
+function generateUniqueCustomerCode(deviceId: string) {
+  const now = new Date();
+  const yyyy = now.getFullYear();
+  const mm = pad2(now.getMonth() + 1);
+  const dd = pad2(now.getDate());
+  const hh = pad2(now.getHours());
+  const mi = pad2(now.getMinutes());
+  const ss = pad2(now.getSeconds());
+  const ms = pad3(now.getMilliseconds());
+  const randomPart = Math.random().toString(36).slice(2, 6).toUpperCase();
+
+  return `KH-${yyyy}${mm}${dd}-${hh}${mi}${ss}${ms}-${deviceId}-${randomPart}`;
 }
 
 function getLoaiKhachLabel(loai: CustomerType) {
@@ -325,21 +338,29 @@ const palette = {
 };
 
 export default function Page() {
-  const [customerCounter, setCustomerCounter] = useState<number>(1);
   const [currentMaKH, setCurrentMaKH] = useState<string>("");
   const [loaiKH, setLoaiKH] = useState<CustomerType | "">("");
   const [nhanVien, setNhanVien] = useState<string>("NV1");
   const [quay, setQuay] = useState<string>("Q1");
   const [ghiChu, setGhiChu] = useState<string>("");
   const [tenNguoiBam, setTenNguoiBam] = useState<string>("");
+  const [deviceId, setDeviceId] = useState<string>("");
   const [eventLog, setEventLog] = useState<EventRow[]>([]);
   const [loading, setLoading] = useState(false);
   const loadedRef = useRef(false);
 
   function upsertEventRow(newRow: EventRow) {
     setEventLog((prev) => {
-      const exists = prev.some((x) => x.id === newRow.id);
-      if (exists) return prev;
+      const idx = prev.findIndex((x) => x.id === newRow.id);
+      if (idx >= 0) {
+        const copy = [...prev];
+        copy[idx] = newRow;
+        return copy.sort((a, b) => {
+          const t = new Date(b.thoiGian).getTime() - new Date(a.thoiGian).getTime();
+          if (t !== 0) return t;
+          return b.id - a.id;
+        });
+      }
       return [newRow, ...prev].sort((a, b) => {
         const t = new Date(b.thoiGian).getTime() - new Date(a.thoiGian).getTime();
         if (t !== 0) return t;
@@ -366,14 +387,6 @@ export default function Page() {
 
     const mapped = ((data || []) as DbRow[]).map(mapDbRowToEventRow);
     setEventLog(mapped);
-
-    const maxKH = mapped.reduce((max, row) => {
-      const m = row.maKH.match(/^KH(\d+)$/);
-      if (!m) return max;
-      return Math.max(max, Number(m[1]));
-    }, 0);
-
-    setCustomerCounter(maxKH + 1 || 1);
     setLoading(false);
   }
 
@@ -388,6 +401,15 @@ export default function Page() {
         localStorage.setItem("emart_ten_nguoi_bam", finalName);
         setTenNguoiBam(finalName);
       }
+    }
+
+    const savedDeviceId = localStorage.getItem("emart_device_id");
+    if (savedDeviceId) {
+      setDeviceId(savedDeviceId);
+    } else {
+      const newDeviceId = generateDeviceId();
+      localStorage.setItem("emart_device_id", newDeviceId);
+      setDeviceId(newDeviceId);
     }
 
     if (!loadedRef.current) {
@@ -425,18 +447,22 @@ export default function Page() {
   }, []);
 
   function startNewCustomer(selectedType: CustomerType) {
+    if (!deviceId) {
+      alert("Thiết bị chưa sẵn sàng, vui lòng thử lại.");
+      return;
+    }
+
     if (currentMaKH) {
       const ok = window.confirm(
-        `Bạn đang ở khách ${currentMaKH}. Tạo khách mới sẽ chuyển sang mã tiếp theo. Tiếp tục?`
+        `Bạn đang ở khách ${currentMaKH}. Tạo khách mới sẽ chuyển sang mã khác. Tiếp tục?`
       );
       if (!ok) return;
     }
 
-    const newCode = formatCustomerCode(customerCounter);
+    const newCode = generateUniqueCustomerCode(deviceId);
     setLoaiKH(selectedType);
     setCurrentMaKH(newCode);
     setGhiChu("");
-    setCustomerCounter((prev) => prev + 1);
   }
 
   const currentFlow = loaiKH ? getFlow(loaiKH) : [];
@@ -490,7 +516,7 @@ export default function Page() {
       return;
     }
 
-    const inserted = (data?.[0] as DbRow | undefined);
+    const inserted = data?.[0] as DbRow | undefined;
     if (inserted) {
       upsertEventRow(mapDbRowToEventRow(inserted));
     }
@@ -507,7 +533,10 @@ export default function Page() {
 
     const idsToDelete = eventLog.filter((x) => x.maKH === currentMaKH).map((x) => x.id);
 
-    const { error } = await supabase.from("event_log").delete().eq("ma_kh", currentMaKH);
+    const { error } = await supabase
+      .from("event_log")
+      .delete()
+      .eq("ma_kh", currentMaKH);
 
     if (error) {
       console.error("Supabase delete error:", error);
@@ -534,7 +563,6 @@ export default function Page() {
     }
 
     setEventLog([]);
-    setCustomerCounter(1);
     setCurrentMaKH("");
     setLoaiKH("");
     setNhanVien("NV1");
@@ -544,15 +572,14 @@ export default function Page() {
 
   const summaryRows = useMemo<SummaryRow[]>(() => {
     const grouped = new Map<string, EventRow[]>();
-    const sortedOldToNew = [...eventLog]
-      .slice()
-      .sort((a, b) => {
-        const t = new Date(a.thoiGian).getTime() - new Date(b.thoiGian).getTime();
-        if (t !== 0) return t;
-        return a.id - b.id;
-      });
 
-    for (const row of sortedOldToNew) {
+    const sortedEvents = [...eventLog].sort((a, b) => {
+      const t = new Date(a.thoiGian).getTime() - new Date(b.thoiGian).getTime();
+      if (t !== 0) return t;
+      return a.id - b.id;
+    });
+
+    for (const row of sortedEvents) {
       if (!grouped.has(row.maKH)) grouped.set(row.maKH, []);
       grouped.get(row.maKH)!.push(row);
     }
@@ -581,6 +608,7 @@ export default function Page() {
         quay: firstRow?.quay || "",
         ghiChu: firstRow?.ghiChu || "",
         nguoiBam: firstRow?.nguoiBam || "",
+
         soBuoc: flow.length,
 
         buoc1Label: flow[0]?.label || "",
@@ -613,13 +641,19 @@ export default function Page() {
       });
     });
 
-    const sorted = result.sort((a, b) => a.maKH.localeCompare(b.maKH));
+    const sorted = result.sort((a, b) => {
+      const ta = parseDateTime(a.thoiGianDenHeThong)?.getTime() || 0;
+      const tb = parseDateTime(b.thoiGianDenHeThong)?.getTime() || 0;
+      if (tb !== ta) return tb - ta;
+      return a.maKH.localeCompare(b.maKH);
+    });
 
     const arrivalSorted = [...sorted]
       .filter((r) => r.batDauXepHang)
       .sort((a, b) => {
-        const t = new Date(a.batDauXepHang).getTime() - new Date(b.batDauXepHang).getTime();
-        if (t !== 0) return t;
+        const ta = parseDateTime(a.batDauXepHang)?.getTime() || 0;
+        const tb = parseDateTime(b.batDauXepHang)?.getTime() || 0;
+        if (ta !== tb) return ta - tb;
         return a.maKH.localeCompare(b.maKH);
       });
 
@@ -699,7 +733,7 @@ export default function Page() {
     });
 
     ws["!cols"] = [
-      { wch: 8 }, { wch: 10 }, { wch: 24 }, { wch: 12 }, { wch: 10 }, { wch: 18 }, { wch: 14 },
+      { wch: 8 }, { wch: 30 }, { wch: 24 }, { wch: 12 }, { wch: 10 }, { wch: 18 }, { wch: 14 },
       { wch: 8 }, { wch: 24 }, { wch: 24 }, { wch: 24 }, { wch: 24 }, { wch: 16 }, { wch: 16 },
       { wch: 16 }, { wch: 16 }, { wch: 18 }, { wch: 24 }, { wch: 18 }, { wch: 16 }, { wch: 22 },
       { wch: 22 }, { wch: 22 }, { wch: 36 }, { wch: 24 }, { wch: 36 }, { wch: 24 }, { wch: 36 },
@@ -790,7 +824,7 @@ export default function Page() {
               Web bấm giờ mô phỏng eMart
             </h1>
             <p style={{ margin: "8px 0 0", color: palette.sub }}>
-              Dữ liệu dùng chung qua Supabase. Thời gian hiển thị tới mili giây.
+              Dữ liệu dùng chung qua Supabase. Mỗi khách có mã unique toàn cục.
             </p>
           </div>
 
@@ -814,6 +848,11 @@ export default function Page() {
             <div style={infoItemStyle}>
               <div style={{ color: palette.sub, fontSize: 13 }}>Người đang bấm</div>
               <div style={{ fontWeight: 700 }}>{tenNguoiBam || "Chưa nhập tên"}</div>
+            </div>
+
+            <div style={infoItemStyle}>
+              <div style={{ color: palette.sub, fontSize: 13 }}>Mã thiết bị</div>
+              <div style={{ fontWeight: 700 }}>{deviceId || "Đang tạo..."}</div>
             </div>
 
             <div style={infoItemStyle}>
@@ -1032,7 +1071,7 @@ export default function Page() {
             Summary {loading ? "(đang tải...)" : ""}
           </h2>
           <p style={{ margin: "6px 0 14px", color: palette.sub }}>
-            Web ẩn Arena Input, nhưng file Excel vẫn có đầy đủ.
+            Mỗi card là một khách unique, không gộp nhầm giữa nhiều máy.
           </p>
 
           <div style={{ display: "grid", gap: 14 }}>
@@ -1072,7 +1111,9 @@ export default function Page() {
                         alignItems: "center",
                       }}
                     >
-                      <div style={{ fontSize: 20, fontWeight: 800 }}>{row.maKH}</div>
+                      <div style={{ fontSize: 20, fontWeight: 800, wordBreak: "break-word" }}>
+                        {row.maKH}
+                      </div>
 
                       <div
                         style={{
