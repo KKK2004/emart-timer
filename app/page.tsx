@@ -321,6 +321,46 @@ function mapDbRowToEventRow(row: DbRow): EventRow {
   };
 }
 
+function getCustomerTypeTheme(loaiLabel: string) {
+  switch (loaiLabel) {
+    case "ĐỒ ĂN LÀM SẴN":
+      return {
+        badgeBg: "#dbeafe",
+        badgeText: "#1d4ed8",
+        cardBorder: "#93c5fd",
+        cardBg: "#eff6ff",
+      };
+    case "MÓN CẦN ĐẦU BẾP LÀM":
+      return {
+        badgeBg: "#fef3c7",
+        badgeText: "#b45309",
+        cardBorder: "#fcd34d",
+        cardBg: "#fffbeb",
+      };
+    case "PIZZA":
+      return {
+        badgeBg: "#fee2e2",
+        badgeText: "#b91c1c",
+        cardBorder: "#fca5a5",
+        cardBg: "#fef2f2",
+      };
+    case "PIZZA KẾT HỢP MÓN KHÁC":
+      return {
+        badgeBg: "#ede9fe",
+        badgeText: "#6d28d9",
+        cardBorder: "#c4b5fd",
+        cardBg: "#f5f3ff",
+      };
+    default:
+      return {
+        badgeBg: "#e5e7eb",
+        badgeText: "#374151",
+        cardBorder: "#d1d5db",
+        cardBg: "#f9fafb",
+      };
+  }
+}
+
 const palette = {
   bg: "#f6f8fb",
   card: "#ffffff",
@@ -435,7 +475,6 @@ export default function Page() {
     await loadEventLog();
   }
 
-
   async function resetCurrentCustomer() {
     if (!currentMaKH) {
       alert("Chưa có khách hiện tại để reset.");
@@ -515,6 +554,7 @@ export default function Page() {
         nhanVien: firstRow?.nhanVien || "",
         quay: firstRow?.quay || "",
         ghiChu: firstRow?.ghiChu || "",
+
         soBuoc: flow.length,
 
         buoc1Label: flow[0]?.label || "",
@@ -685,7 +725,10 @@ export default function Page() {
     color: palette.text,
   };
 
-  const buttonStyle = (disabled = false, tone: "normal" | "danger" | "primary" = "normal"): React.CSSProperties => {
+  const buttonStyle = (
+    disabled = false,
+    tone: "normal" | "danger" | "primary" = "normal"
+  ): React.CSSProperties => {
     const styles = {
       normal: {
         background: "#fff",
@@ -952,21 +995,21 @@ export default function Page() {
             </div>
           )}
 
-         <div
-  style={{
-    display: "grid",
-    gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
-    gap: 10,
-    marginTop: 14,
-  }}
->
-  <button onClick={resetCurrentCustomer} style={buttonStyle(false, "danger")}>
-    RESET KHÁCH NÀY
-  </button>
-  <button onClick={clearAllData} style={buttonStyle(false, "danger")}>
-    XÓA TẤT CẢ
-  </button>
-</div>
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+              gap: 10,
+              marginTop: 14,
+            }}
+          >
+            <button onClick={resetCurrentCustomer} style={buttonStyle(false, "danger")}>
+              RESET KHÁCH NÀY
+            </button>
+            <button onClick={clearAllData} style={buttonStyle(false, "danger")}>
+              XÓA TẤT CẢ
+            </button>
+          </div>
 
           <div style={{ marginTop: 12 }}>
             <button onClick={exportSummaryExcel} style={buttonStyle(false)}>
@@ -984,12 +1027,12 @@ export default function Page() {
             boxShadow: "0 4px 20px rgba(0,0,0,0.04)",
           }}
         >
-          <div style={{ marginBottom: 12 }}>
-            <h2 style={sectionTitleStyle}>Summary</h2>
-            <p style={{ margin: "6px 0 0", color: palette.sub }}>
-              Hiển thị theo dạng card để dễ xem trên điện thoại.
-            </p>
-          </div>
+          <h2 style={sectionTitleStyle}>
+            Summary {loading ? "(đang tải...)" : ""}
+          </h2>
+          <p style={{ margin: "6px 0 14px", color: palette.sub }}>
+            Hiển thị theo dạng card để dễ xem trên điện thoại.
+          </p>
 
           <div style={{ display: "grid", gap: 14 }}>
             {summaryRows.length === 0 ? (
@@ -999,162 +1042,200 @@ export default function Page() {
                   borderRadius: 12,
                   border: `1px dashed ${palette.line}`,
                   color: palette.sub,
+                  background: "#fff",
                 }}
               >
                 Chưa có dữ liệu.
               </div>
             ) : (
-              summaryRows.map((row) => (
-                <div
-                  key={row.maKH}
-                  style={{
-                    border: `1px solid ${palette.line}`,
-                    borderRadius: 16,
-                    padding: 14,
-                    background: "#fff",
-                  }}
-                >
-                  <div
-                    style={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      gap: 10,
-                      flexWrap: "wrap",
-                      marginBottom: 10,
-                    }}
-                  >
-                    <div style={{ fontSize: 20, fontWeight: 800 }}>
-                      {row.maKH}
-                    </div>
-                    <div
-                      style={{
-                        padding: "6px 10px",
-                        borderRadius: 999,
-                        background: palette.blueSoft,
-                        color: palette.blue,
-                        fontWeight: 700,
-                        fontSize: 13,
-                      }}
-                    >
-                      {row.loaiKH}
-                    </div>
-                  </div>
+              summaryRows.map((row) => {
+                const theme = getCustomerTypeTheme(row.loaiKH);
 
+                return (
                   <div
+                    key={row.maKH}
                     style={{
-                      display: "grid",
-                      gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
-                      gap: 8,
-                      marginBottom: 12,
-                    }}
-                  >
-                    <div style={infoItemStyle}>Nhân viên: <strong>{row.nhanVien || "Chưa có"}</strong></div>
-                    <div style={infoItemStyle}>Quầy: <strong>{row.quay || "Chưa có"}</strong></div>
-                    <div style={infoItemStyle}>Ghi chú: <strong>{row.ghiChu || "Chưa có"}</strong></div>
-                    <div style={infoItemStyle}>Số bước: <strong>{row.soBuoc || "Chưa có"}</strong></div>
-                  </div>
-
-                  <div
-                    style={{
-                      display: "grid",
-                      gap: 12,
+                      border: `2px solid ${theme.cardBorder}`,
+                      borderRadius: 16,
+                      padding: 14,
+                      background: theme.cardBg,
                     }}
                   >
                     <div
                       style={{
-                        border: `1px solid ${palette.line}`,
-                        borderRadius: 12,
-                        padding: 12,
-                        background: "#fcfcfd",
+                        display: "flex",
+                        justifyContent: "space-between",
+                        gap: 10,
+                        flexWrap: "wrap",
+                        marginBottom: 12,
+                        alignItems: "center",
                       }}
                     >
-                      <div style={{ fontWeight: 800, marginBottom: 8 }}>Thời gian từng bước</div>
-                      <div>{row.buoc1Label || "Bước 1"}: {row.T_B1 || "Chưa có"}</div>
-                      <div>{row.buoc2Label || "Bước 2"}: {row.T_B2 || "Chưa có"}</div>
-                      <div>{row.buoc3Label || "Bước 3"}: {row.T_B3 || "Chưa có"}</div>
-                      <div>{row.buoc4Label || "Bước 4"}: {row.T_B4 || "Chưa có"}</div>
-                    </div>
+                      <div style={{ fontSize: 20, fontWeight: 800 }}>
+                        {row.maKH}
+                      </div>
 
-                    <div
-                      style={{
-                        border: `1px solid ${palette.line}`,
-                        borderRadius: 12,
-                        padding: 12,
-                        background: "#fcfcfd",
-                      }}
-                    >
-                      <div style={{ fontWeight: 800, marginBottom: 8 }}>Mốc mô phỏng</div>
-                      <div>Đến hệ thống: {row.thoiGianDenHeThong || "Chưa có"}</div>
-                      <div>Bắt đầu xếp hàng: {row.batDauXepHang || "Chưa có"}</div>
-                      <div>Bắt đầu phục vụ: {row.batDauPhucVu || "Chưa có"}</div>
-                      <div>Rời hệ thống: {row.ketThucPhucVuRoiHeThong || "Chưa có"}</div>
-                    </div>
-
-                    <div
-                      style={{
-                        border: `1px solid ${palette.line}`,
-                        borderRadius: 12,
-                        padding: 12,
-                        background: palette.greenSoft,
-                      }}
-                    >
-                      <div style={{ fontWeight: 800, marginBottom: 8, color: palette.green }}>
-                        Chỉ tiêu thời gian
-                      </div>
-                      <div>
-                        Interarrival(s):{" "}
-                        <strong>
-                          {row.interarrivalTimeGiay === "" ? "Chưa đủ dữ liệu" : row.interarrivalTimeGiay}
-                        </strong>
-                      </div>
-                      <div>
-                        Waiting(s):{" "}
-                        <strong>
-                          {row.waitingTimeGiay === "" ? "Chưa đủ dữ liệu" : row.waitingTimeGiay}
-                        </strong>
-                      </div>
-                      <div>
-                        Service(s):{" "}
-                        <strong>
-                          {row.serviceTimeGiay === "" ? "Chưa đủ dữ liệu" : row.serviceTimeGiay}
-                        </strong>
-                      </div>
-                      <div>
-                        System(s):{" "}
-                        <strong>
-                          {row.systemTimeGiay === "" ? "Chưa đủ dữ liệu" : row.systemTimeGiay}
-                        </strong>
+                      <div
+                        style={{
+                          padding: "6px 10px",
+                          borderRadius: 999,
+                          background: theme.badgeBg,
+                          color: theme.badgeText,
+                          fontWeight: 700,
+                          fontSize: 13,
+                        }}
+                      >
+                        {row.loaiKH}
                       </div>
                     </div>
 
                     <div
                       style={{
-                        border: `1px solid ${palette.line}`,
-                        borderRadius: 12,
-                        padding: 12,
-                        background: palette.blueSoft,
+                        display: "grid",
+                        gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
+                        gap: 8,
+                        marginBottom: 12,
                       }}
                     >
-                      <div style={{ fontWeight: 800, marginBottom: 8, color: palette.blue }}>
-                        Arena Input
+                      <div style={infoItemStyle}>
+                        Nhân viên: <strong>{row.nhanVien || "Chưa có"}</strong>
                       </div>
-                      <div>Entity Type: {row.arenaEntityType || "Chưa có"}</div>
-                      <div>Arrival Time: {row.arenaArrivalTime || "Chưa có"}</div>
-                      <div>
-                        Interarrival_s:{" "}
-                        {row.arenaInterarrivalS === "" ? "Chưa đủ dữ liệu" : row.arenaInterarrivalS}
+                      <div style={infoItemStyle}>
+                        Quầy: <strong>{row.quay || "Chưa có"}</strong>
                       </div>
-                      <div>
-                        Service_s:{" "}
-                        {row.arenaServiceS === "" ? "Chưa đủ dữ liệu" : row.arenaServiceS}
+                      <div style={infoItemStyle}>
+                        Ghi chú: <strong>{row.ghiChu || "Chưa có"}</strong>
                       </div>
-                      <div>Queue: {row.arenaQueue || "Chưa có"}</div>
-                      <div>Resource: {row.arenaResource || "Chưa có"}</div>
-                      <div>Process Type: {row.arenaProcessType || "Chưa có"}</div>
+                      <div style={infoItemStyle}>
+                        Số bước: <strong>{row.soBuoc || "Chưa có"}</strong>
+                      </div>
+                    </div>
+
+                    <div style={{ display: "grid", gap: 12 }}>
+                      <div
+                        style={{
+                          border: `1px solid ${palette.line}`,
+                          borderRadius: 12,
+                          padding: 12,
+                          background: "#ffffffcc",
+                        }}
+                      >
+                        <div style={{ fontWeight: 800, marginBottom: 8 }}>
+                          Thời gian từng bước
+                        </div>
+                        <div>{row.buoc1Label || "Bước 1"}: {row.T_B1 || "Chưa có"}</div>
+                        <div>{row.buoc2Label || "Bước 2"}: {row.T_B2 || "Chưa có"}</div>
+                        <div>{row.buoc3Label || "Bước 3"}: {row.T_B3 || "Chưa có"}</div>
+                        <div>{row.buoc4Label || "Bước 4"}: {row.T_B4 || "Chưa có"}</div>
+                      </div>
+
+                      <div
+                        style={{
+                          border: `1px solid ${palette.line}`,
+                          borderRadius: 12,
+                          padding: 12,
+                          background: "#ffffffcc",
+                        }}
+                      >
+                        <div style={{ fontWeight: 800, marginBottom: 8 }}>
+                          Mốc mô phỏng
+                        </div>
+                        <div>Đến hệ thống: {row.thoiGianDenHeThong || "Chưa có"}</div>
+                        <div>Bắt đầu xếp hàng: {row.batDauXepHang || "Chưa có"}</div>
+                        <div>Bắt đầu phục vụ: {row.batDauPhucVu || "Chưa có"}</div>
+                        <div>Rời hệ thống: {row.ketThucPhucVuRoiHeThong || "Chưa có"}</div>
+                      </div>
+
+                      <div
+                        style={{
+                          border: `1px solid ${palette.line}`,
+                          borderRadius: 12,
+                          padding: 12,
+                          background: palette.greenSoft,
+                        }}
+                      >
+                        <div
+                          style={{
+                            fontWeight: 800,
+                            marginBottom: 8,
+                            color: palette.green,
+                          }}
+                        >
+                          Chỉ tiêu thời gian
+                        </div>
+                        <div>
+                          Interarrival(s):{" "}
+                          <strong>
+                            {row.interarrivalTimeGiay === ""
+                              ? "Chưa đủ dữ liệu"
+                              : row.interarrivalTimeGiay}
+                          </strong>
+                        </div>
+                        <div>
+                          Waiting(s):{" "}
+                          <strong>
+                            {row.waitingTimeGiay === ""
+                              ? "Chưa đủ dữ liệu"
+                              : row.waitingTimeGiay}
+                          </strong>
+                        </div>
+                        <div>
+                          Service(s):{" "}
+                          <strong>
+                            {row.serviceTimeGiay === ""
+                              ? "Chưa đủ dữ liệu"
+                              : row.serviceTimeGiay}
+                          </strong>
+                        </div>
+                        <div>
+                          System(s):{" "}
+                          <strong>
+                            {row.systemTimeGiay === ""
+                              ? "Chưa đủ dữ liệu"
+                              : row.systemTimeGiay}
+                          </strong>
+                        </div>
+                      </div>
+
+                      <div
+                        style={{
+                          border: `1px solid ${palette.line}`,
+                          borderRadius: 12,
+                          padding: 12,
+                          background: palette.blueSoft,
+                        }}
+                      >
+                        <div
+                          style={{
+                            fontWeight: 800,
+                            marginBottom: 8,
+                            color: palette.blue,
+                          }}
+                        >
+                          Arena Input
+                        </div>
+                        <div>Entity Type: {row.arenaEntityType || "Chưa có"}</div>
+                        <div>Arrival Time: {row.arenaArrivalTime || "Chưa có"}</div>
+                        <div>
+                          Interarrival_s:{" "}
+                          {row.arenaInterarrivalS === ""
+                            ? "Chưa đủ dữ liệu"
+                            : row.arenaInterarrivalS}
+                        </div>
+                        <div>
+                          Service_s:{" "}
+                          {row.arenaServiceS === ""
+                            ? "Chưa đủ dữ liệu"
+                            : row.arenaServiceS}
+                        </div>
+                        <div>Queue: {row.arenaQueue || "Chưa có"}</div>
+                        <div>Resource: {row.arenaResource || "Chưa có"}</div>
+                        <div>Process Type: {row.arenaProcessType || "Chưa có"}</div>
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))
+                );
+              })
             )}
           </div>
         </section>
