@@ -1071,7 +1071,7 @@ export default function Page() {
             Summary {loading ? "(đang tải...)" : ""}
           </h2>
           <p style={{ margin: "6px 0 14px", color: palette.sub }}>
-            Mỗi card là một khách unique, không gộp nhầm giữa nhiều máy.
+            Dữ liệu đã bấm
           </p>
 
           <div style={{ display: "grid", gap: 14 }}>
