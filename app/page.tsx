@@ -145,32 +145,71 @@ function getFlow(loai: CustomerType) {
   switch (loai) {
     case "SAN":
       return [
-        { code: "CAM_DO_AN" as EventName, label: "Khách cầm đồ ăn" },
-        { code: "VAO_HANG_THANH_TOAN" as EventName, label: "Khách đứng vào hàng đợi thanh toán" },
-        { code: "NV_BAT_DAU_CAM_MON_TINH_TIEN" as EventName, label: "Nhân viên bắt đầu cầm món / tính tiền" },
-        { code: "NHAN_MON_ROI_QUAY" as EventName, label: "Khách nhận món và rời quầy" },
+        { code: "CAM_DO_AN" as EventName, label: "1. Khách cầm đồ ăn" },
+        {
+          code: "VAO_HANG_THANH_TOAN" as EventName,
+          label: "2. Khách đứng vào hàng đợi thanh toán",
+        },
+        {
+          code: "NV_BAT_DAU_CAM_MON_TINH_TIEN" as EventName,
+          label: "3. Nhân viên bắt đầu cầm món / tính tiền",
+        },
+        {
+          code: "NHAN_MON_ROI_QUAY" as EventName,
+          label: "4. Khách nhận món và rời quầy",
+        },
       ];
 
     case "CHUAN":
       return [
-        { code: "NV_DUA_THE_ORDER" as EventName, label: "Nhân viên đưa thẻ / phiếu order" },
-        { code: "VAO_HANG_THANH_TOAN_CHUAN" as EventName, label: "Khách đứng vào hàng đợi thanh toán" },
-        { code: "NV_BAT_DAU_CAM_PHIEU_TINH_TIEN" as EventName, label: "Nhân viên bắt đầu cầm phiếu / tính tiền" },
-        { code: "NHAN_MON_ROI_HANG" as EventName, label: "Khách nhận món và rời hàng" },
+        {
+          code: "NV_DUA_THE_ORDER" as EventName,
+          label: "1. Nhân viên đưa thẻ / phiếu order",
+        },
+        {
+          code: "VAO_HANG_THANH_TOAN_CHUAN" as EventName,
+          label: "2. Khách đứng vào hàng đợi thanh toán",
+        },
+        {
+          code: "NV_BAT_DAU_CAM_PHIEU_TINH_TIEN" as EventName,
+          label: "3. Nhân viên bắt đầu cầm phiếu / tính tiền",
+        },
+        {
+          code: "NHAN_MON_ROI_HANG" as EventName,
+          label: "4. Khách nhận món và rời hàng",
+        },
       ];
 
     case "PIZZA":
       return [
-        { code: "VAO_HANG_ORDER_PIZZA" as EventName, label: "Khách đứng vào hàng đợi order" },
-        { code: "NV_BAT_DAU_NHAN_ORDER_PIZZA_TINH_TIEN" as EventName, label: "Nhân viên bắt đầu nhận order / tính tiền" },
-        { code: "NHAN_PIZZA_ROI_HANG" as EventName, label: "Khách nhận pizza và rời hàng" },
+        {
+          code: "VAO_HANG_ORDER_PIZZA" as EventName,
+          label: "1. Khách đứng vào hàng đợi order",
+        },
+        {
+          code: "NV_BAT_DAU_NHAN_ORDER_PIZZA_TINH_TIEN" as EventName,
+          label: "2. Nhân viên bắt đầu nhận order / tính tiền",
+        },
+        {
+          code: "NHAN_PIZZA_ROI_HANG" as EventName,
+          label: "3. Khách nhận pizza và rời hàng",
+        },
       ];
 
     case "PIZZA_COMBO":
       return [
-        { code: "CAM_MON_KHAC_VAO_HANG_PIZZA" as EventName, label: "Khách cầm món khác và đứng vào hàng đợi quầy pizza" },
-        { code: "NV_BAT_DAU_ORDER_PIZZA_TINH_TIEN_TOAN_BO" as EventName, label: "Nhân viên bắt đầu nhận order pizza và tính tiền toàn bộ đơn" },
-        { code: "NHAN_PIZZA_MON_DA_THANH_TOAN_ROI_HANG" as EventName, label: "Khách nhận pizza cùng các món đã thanh toán và rời hàng" },
+        {
+          code: "CAM_MON_KHAC_VAO_HANG_PIZZA" as EventName,
+          label: "1. Khách cầm món khác và đứng vào hàng đợi quầy pizza",
+        },
+        {
+          code: "NV_BAT_DAU_ORDER_PIZZA_TINH_TIEN_TOAN_BO" as EventName,
+          label: "2. Nhân viên bắt đầu nhận order pizza và tính tiền toàn bộ đơn",
+        },
+        {
+          code: "NHAN_PIZZA_MON_DA_THANH_TOAN_ROI_HANG" as EventName,
+          label: "3. Khách nhận pizza cùng các món đã thanh toán và rời hàng",
+        },
       ];
 
     default:
@@ -282,6 +321,22 @@ function mapDbRowToEventRow(row: DbRow): EventRow {
   };
 }
 
+const palette = {
+  bg: "#f6f8fb",
+  card: "#ffffff",
+  line: "#e5e7eb",
+  text: "#111827",
+  sub: "#6b7280",
+  blue: "#2563eb",
+  blueSoft: "#dbeafe",
+  greenSoft: "#ecfdf5",
+  green: "#059669",
+  amberSoft: "#fffbeb",
+  amber: "#d97706",
+  redSoft: "#fef2f2",
+  red: "#dc2626",
+};
+
 export default function Page() {
   const [customerCounter, setCustomerCounter] = useState<number>(1);
   const [currentMaKH, setCurrentMaKH] = useState<string>("");
@@ -301,8 +356,8 @@ export default function Page() {
       .order("thoi_gian", { ascending: false });
 
     if (error) {
-      console.error(error);
-      alert("Không tải được dữ liệu từ Supabase.");
+      console.error("Supabase load error:", error);
+      alert(`Không tải được dữ liệu: ${error.message}`);
       setLoading(false);
       return;
     }
@@ -372,8 +427,8 @@ export default function Page() {
     });
 
     if (error) {
-      console.error(error);
-      alert("Lưu dữ liệu thất bại.");
+      console.error("Supabase insert error:", error);
+      alert(`Lưu dữ liệu thất bại: ${error.message}`);
       return;
     }
 
@@ -385,6 +440,7 @@ export default function Page() {
       alert("Chưa có khách hiện tại.");
       return;
     }
+
     setCurrentMaKH("");
     setLoaiKH("");
     setGhiChu("");
@@ -405,8 +461,8 @@ export default function Page() {
       .eq("ma_kh", currentMaKH);
 
     if (error) {
-      console.error(error);
-      alert("Xóa dữ liệu thất bại.");
+      console.error("Supabase delete error:", error);
+      alert(`Xóa dữ liệu thất bại: ${error.message}`);
       return;
     }
 
@@ -420,14 +476,11 @@ export default function Page() {
     const ok = window.confirm("Bạn có chắc muốn xóa toàn bộ dữ liệu?");
     if (!ok) return;
 
-    const { error } = await supabase
-      .from("event_log")
-      .delete()
-      .neq("id", 0);
+    const { error } = await supabase.from("event_log").delete().neq("id", 0);
 
     if (error) {
-      console.error(error);
-      alert("Xóa toàn bộ dữ liệu thất bại.");
+      console.error("Supabase clear all error:", error);
+      alert(`Xóa toàn bộ dữ liệu thất bại: ${error.message}`);
       return;
     }
 
@@ -472,7 +525,6 @@ export default function Page() {
         nhanVien: firstRow?.nhanVien || "",
         quay: firstRow?.quay || "",
         ghiChu: firstRow?.ghiChu || "",
-
         soBuoc: flow.length,
 
         buoc1Label: flow[0]?.label || "",
@@ -591,277 +643,535 @@ export default function Page() {
       dateNF: "yyyy-mm-dd hh:mm:ss",
     });
 
+    ws["!cols"] = [
+      { wch: 8 },
+      { wch: 10 },
+      { wch: 24 },
+      { wch: 12 },
+      { wch: 10 },
+      { wch: 18 },
+      { wch: 8 },
+      { wch: 22 },
+      { wch: 22 },
+      { wch: 22 },
+      { wch: 22 },
+      { wch: 16 },
+      { wch: 16 },
+      { wch: 16 },
+      { wch: 16 },
+      { wch: 18 },
+      { wch: 22 },
+      { wch: 18 },
+      { wch: 16 },
+      { wch: 22 },
+      { wch: 22 },
+      { wch: 22 },
+      { wch: 36 },
+      { wch: 22 },
+      { wch: 36 },
+      { wch: 22 },
+      { wch: 36 },
+      { wch: 22 },
+      { wch: 36 },
+      { wch: 22 },
+    ];
+
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Summary");
     XLSX.writeFileXLSX(wb, "summary.xlsx", { compression: true });
   }
 
-  function buttonStyle(disabled = false): React.CSSProperties {
-    return {
-      padding: 14,
-      borderRadius: 10,
-      border: "1px solid #d0d7de",
-      background: disabled ? "#f3f4f6" : "#ffffff",
-      cursor: disabled ? "not-allowed" : "pointer",
-      fontWeight: 600,
-      width: "100%",
-    };
-  }
+  const infoItemStyle: React.CSSProperties = {
+    padding: "10px 12px",
+    borderRadius: 10,
+    border: `1px solid ${palette.line}`,
+    background: "#fff",
+  };
 
-  function typeButtonStyle(active: boolean): React.CSSProperties {
-    return {
-      padding: 14,
-      borderRadius: 10,
-      border: active ? "2px solid #2563eb" : "1px solid #d0d7de",
-      background: active ? "#dbeafe" : "#ffffff",
-      cursor: "pointer",
-      fontWeight: 700,
-      width: "100%",
+  const sectionTitleStyle: React.CSSProperties = {
+    margin: 0,
+    fontSize: 18,
+    fontWeight: 700,
+    color: palette.text,
+  };
+
+  const buttonStyle = (disabled = false, tone: "normal" | "danger" | "primary" = "normal"): React.CSSProperties => {
+    const styles = {
+      normal: {
+        background: "#fff",
+        border: `1px solid ${palette.line}`,
+        color: palette.text,
+      },
+      danger: {
+        background: palette.redSoft,
+        border: `1px solid #fecaca`,
+        color: palette.red,
+      },
+      primary: {
+        background: palette.blue,
+        border: `1px solid ${palette.blue}`,
+        color: "#fff",
+      },
     };
-  }
+
+    return {
+      width: "100%",
+      padding: "14px 16px",
+      borderRadius: 12,
+      cursor: disabled ? "not-allowed" : "pointer",
+      fontWeight: 700,
+      fontSize: 16,
+      opacity: disabled ? 0.55 : 1,
+      ...styles[tone],
+    };
+  };
+
+  const typeButtonStyle = (active: boolean): React.CSSProperties => ({
+    width: "100%",
+    padding: "14px 16px",
+    borderRadius: 12,
+    cursor: "pointer",
+    fontWeight: 700,
+    fontSize: 16,
+    border: active ? `2px solid ${palette.blue}` : `1px solid ${palette.line}`,
+    background: active ? palette.blueSoft : "#fff",
+    color: palette.text,
+  });
 
   return (
     <main
       style={{
-        maxWidth: 900,
-        margin: "0 auto",
+        minHeight: "100vh",
+        background: palette.bg,
         padding: 16,
-        fontFamily: "Arial, sans-serif",
+        color: palette.text,
       }}
     >
-      <h1 style={{ fontSize: 28, marginBottom: 8 }}>Web bấm giờ mô phỏng eMart</h1>
-      <p style={{ marginBottom: 16 }}>
-        Dữ liệu đang dùng chung qua Supabase.
-      </p>
-
-      <section
+      <div
         style={{
-          border: "1px solid #ddd",
-          borderRadius: 12,
-          padding: 16,
-          background: "#fff",
-          marginBottom: 16,
+          maxWidth: 980,
+          margin: "0 auto",
+          display: "grid",
+          gap: 16,
         }}
       >
-        <h2 style={{ marginTop: 0 }}>Thông tin khách hiện tại</h2>
-
-        <div style={{ marginBottom: 12 }}>
-          <label>Mã khách</label>
-          <input
-            value={currentMaKH || "Chưa chọn loại khách"}
-            readOnly
-            style={{
-              width: "100%",
-              padding: 10,
-              marginTop: 4,
-              border: "1px solid #ccc",
-              borderRadius: 8,
-              background: "#f9fafb",
-            }}
-          />
-        </div>
-
-        <div style={{ marginBottom: 12 }}>
-          <label>Loại khách hiện tại</label>
-          <input
-            value={loaiKH ? getLoaiKhachLabel(loaiKH) : "Chưa chọn"}
-            readOnly
-            style={{
-              width: "100%",
-              padding: 10,
-              marginTop: 4,
-              border: "1px solid #ccc",
-              borderRadius: 8,
-              background: "#f9fafb",
-            }}
-          />
-        </div>
-
-        <div style={{ marginBottom: 12 }}>
-          <label>Nhân viên</label>
-          <select
-            value={nhanVien}
-            onChange={(e) => setNhanVien(e.target.value)}
-            style={{
-              width: "100%",
-              padding: 10,
-              marginTop: 4,
-              border: "1px solid #ccc",
-              borderRadius: 8,
-            }}
-          >
-            <option value="NV1">NV1</option>
-            <option value="NV2">NV2</option>
-            <option value="NV3">NV3</option>
-          </select>
-        </div>
-
-        <div style={{ marginBottom: 12 }}>
-          <label>Quầy</label>
-          <select
-            value={quay}
-            onChange={(e) => setQuay(e.target.value)}
-            style={{
-              width: "100%",
-              padding: 10,
-              marginTop: 4,
-              border: "1px solid #ccc",
-              borderRadius: 8,
-            }}
-          >
-            <option value="Q1">Q1</option>
-            <option value="Q2">Q2</option>
-            <option value="Pizza">Quầy Pizza</option>
-          </select>
-        </div>
-
-        <div style={{ marginBottom: 16 }}>
-          <label>Ghi chú</label>
-          <input
-            value={ghiChu}
-            onChange={(e) => setGhiChu(e.target.value)}
-            placeholder="Ví dụ: áo xanh"
-            style={{
-              width: "100%",
-              padding: 10,
-              marginTop: 4,
-              border: "1px solid #ccc",
-              borderRadius: 8,
-            }}
-          />
-        </div>
-
-        <h3 style={{ marginBottom: 10 }}>Chọn loại khách để tạo mã khách mới</h3>
-        <div
+        <section
           style={{
-            display: "grid",
-            gridTemplateColumns: "1fr 1fr",
-            gap: 10,
-            marginBottom: 16,
+            background: palette.card,
+            border: `1px solid ${palette.line}`,
+            borderRadius: 18,
+            padding: 18,
+            boxShadow: "0 4px 20px rgba(0,0,0,0.04)",
           }}
         >
-          <button onClick={() => startNewCustomer("SAN")} style={typeButtonStyle(loaiKH === "SAN")}>
-            ĐỒ ĂN LÀM SẴN
-          </button>
-          <button onClick={() => startNewCustomer("CHUAN")} style={typeButtonStyle(loaiKH === "CHUAN")}>
-            MÓN CẦN ĐẦU BẾP LÀM
-          </button>
-          <button onClick={() => startNewCustomer("PIZZA")} style={typeButtonStyle(loaiKH === "PIZZA")}>
-            PIZZA
-          </button>
-          <button onClick={() => startNewCustomer("PIZZA_COMBO")} style={typeButtonStyle(loaiKH === "PIZZA_COMBO")}>
-            PIZZA KẾT HỢP MÓN KHÁC
-          </button>
-        </div>
-
-        <h3 style={{ marginBottom: 10 }}>Bấm theo đúng thứ tự thực tế</h3>
-        {loaiKH ? (
-          <div style={{ display: "grid", gap: 10 }}>
-            {currentFlow.map((step, index) => {
-              const disabled = !currentMaKH || nextStepIndex !== index;
-              return (
-                <button
-                  key={step.code}
-                  onClick={() => addEvent(step.code)}
-                  disabled={disabled}
-                  style={buttonStyle(disabled)}
-                >
-                  {step.label}
-                </button>
-              );
-            })}
+          <div style={{ marginBottom: 12 }}>
+            <h1 style={{ margin: 0, fontSize: 28, fontWeight: 800 }}>
+              Web bấm giờ mô phỏng eMart
+            </h1>
+            <p style={{ margin: "8px 0 0", color: palette.sub }}>
+              Dữ liệu đang dùng chung qua Supabase. Giao diện tối ưu để thao tác trên điện thoại.
+            </p>
           </div>
-        ) : (
+
           <div
             style={{
-              padding: 16,
-              border: "1px dashed #cbd5e1",
-              borderRadius: 10,
-              background: "#f8fafc",
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+              gap: 10,
             }}
           >
-            Hãy chọn loại khách ở phía trên trước.
+            <div style={infoItemStyle}>
+              <div style={{ color: palette.sub, fontSize: 13 }}>Khách hiện tại</div>
+              <div style={{ fontWeight: 800, fontSize: 18 }}>
+                {currentMaKH || "Chưa chọn"}
+              </div>
+            </div>
+            <div style={infoItemStyle}>
+              <div style={{ color: palette.sub, fontSize: 13 }}>Loại khách</div>
+              <div style={{ fontWeight: 700 }}>
+                {loaiKH ? getLoaiKhachLabel(loaiKH) : "Chưa chọn"}
+              </div>
+            </div>
+            <div style={infoItemStyle}>
+              <div style={{ color: palette.sub, fontSize: 13 }}>Trạng thái tải</div>
+              <div style={{ fontWeight: 700, color: loading ? palette.amber : palette.green }}>
+                {loading ? "Đang tải..." : "Sẵn sàng"}
+              </div>
+            </div>
           </div>
-        )}
+        </section>
 
-        <div
+        <section
           style={{
-            display: "grid",
-            gridTemplateColumns: "1fr 1fr 1fr",
-            gap: 10,
-            marginTop: 16,
+            background: palette.card,
+            border: `1px solid ${palette.line}`,
+            borderRadius: 18,
+            padding: 18,
+            boxShadow: "0 4px 20px rgba(0,0,0,0.04)",
           }}
         >
-          <button onClick={nextCustomer} style={buttonStyle(false)}>
-            KHÁCH TIẾP THEO
-          </button>
-          <button onClick={resetCurrentCustomer} style={buttonStyle(false)}>
-            RESET KHÁCH NÀY
-          </button>
-          <button onClick={clearAllData} style={buttonStyle(false)}>
-            XÓA TẤT CẢ
-          </button>
-        </div>
+          <div style={{ marginBottom: 12 }}>
+            <h2 style={sectionTitleStyle}>Thông tin thao tác</h2>
+          </div>
 
-        <div style={{ marginTop: 16 }}>
-          <button onClick={exportSummaryExcel} style={buttonStyle(false)}>
-            XUẤT SUMMARY XLSX
-          </button>
-        </div>
-      </section>
-
-      <section
-        style={{
-          border: "1px solid #ddd",
-          borderRadius: 12,
-          padding: 16,
-          background: "#fff",
-        }}
-      >
-        <h2 style={{ marginTop: 0 }}>
-          Summary {loading ? "(đang tải...)" : ""}
-        </h2>
-
-        <div style={{ display: "grid", gap: 12 }}>
-          {summaryRows.length === 0 ? (
-            <div>Chưa có dữ liệu</div>
-          ) : (
-            summaryRows.map((row) => (
-              <div
-                key={row.maKH}
+          <div style={{ display: "grid", gap: 12 }}>
+            <div>
+              <label style={{ display: "block", marginBottom: 6, fontWeight: 600 }}>
+                Nhân viên
+              </label>
+              <select
+                value={nhanVien}
+                onChange={(e) => setNhanVien(e.target.value)}
                 style={{
-                  border: "1px solid #e5e7eb",
-                  borderRadius: 10,
+                  width: "100%",
                   padding: 12,
+                  borderRadius: 12,
+                  border: `1px solid ${palette.line}`,
+                  fontSize: 16,
+                  background: "#fff",
                 }}
               >
-                <div><strong>{row.maKH}</strong> - {row.loaiKH}</div>
-                <div>Nhân viên: {row.nhanVien}</div>
-                <div>Quầy: {row.quay}</div>
-                <div>Ghi chú: {row.ghiChu}</div>
-               <div>Bước 1: {row.T_B1 || "Chưa có"}</div>
-<div>Bước 2: {row.T_B2 || "Chưa có"}</div>
-<div>Bước 3: {row.T_B3 || "Chưa có"}</div>
-<div>Bước 4: {row.T_B4 || "Chưa có"}</div>
+                <option value="NV1">NV1</option>
+                <option value="NV2">NV2</option>
+                <option value="NV3">NV3</option>
+              </select>
+            </div>
 
-<div>Đến hệ thống: {row.thoiGianDenHeThong || "Chưa có"}</div>
-<div>Vào hàng: {row.batDauXepHang || "Chưa có"}</div>
-<div>Bắt đầu phục vụ: {row.batDauPhucVu || "Chưa có"}</div>
-<div>Rời hệ thống: {row.ketThucPhucVuRoiHeThong || "Chưa có"}</div>
+            <div>
+              <label style={{ display: "block", marginBottom: 6, fontWeight: 600 }}>
+                Quầy
+              </label>
+              <select
+                value={quay}
+                onChange={(e) => setQuay(e.target.value)}
+                style={{
+                  width: "100%",
+                  padding: 12,
+                  borderRadius: 12,
+                  border: `1px solid ${palette.line}`,
+                  fontSize: 16,
+                  background: "#fff",
+                }}
+              >
+                <option value="Q1">Q1</option>
+                <option value="Q2">Q2</option>
+                <option value="Pizza">Quầy Pizza</option>
+              </select>
+            </div>
 
-<div>Interarrival(s): {row.interarrivalTimeGiay === "" ? "Chưa đủ dữ liệu" : row.interarrivalTimeGiay}</div>
-<div>Waiting(s): {row.waitingTimeGiay === "" ? "Chưa đủ dữ liệu" : row.waitingTimeGiay}</div>
-<div>Service(s): {row.serviceTimeGiay === "" ? "Chưa đủ dữ liệu" : row.serviceTimeGiay}</div>
-<div>System(s): {row.systemTimeGiay === "" ? "Chưa đủ dữ liệu" : row.systemTimeGiay}</div>
+            <div>
+              <label style={{ display: "block", marginBottom: 6, fontWeight: 600 }}>
+                Ghi chú
+              </label>
+              <input
+                value={ghiChu}
+                onChange={(e) => setGhiChu(e.target.value)}
+                placeholder="Ví dụ: áo xanh"
+                style={{
+                  width: "100%",
+                  padding: 12,
+                  borderRadius: 12,
+                  border: `1px solid ${palette.line}`,
+                  fontSize: 16,
+                  background: "#fff",
+                }}
+              />
+            </div>
+          </div>
+        </section>
 
-<div>Arena Queue: {row.arenaQueue}</div>
-<div>Arena Resource: {row.arenaResource}</div>
+        <section
+          style={{
+            background: palette.card,
+            border: `1px solid ${palette.line}`,
+            borderRadius: 18,
+            padding: 18,
+            boxShadow: "0 4px 20px rgba(0,0,0,0.04)",
+          }}
+        >
+          <div style={{ marginBottom: 12 }}>
+            <h2 style={sectionTitleStyle}>Chọn loại khách để tạo mã mới</h2>
+          </div>
 
-              </div>
-            ))
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+              gap: 10,
+            }}
+          >
+            <button onClick={() => startNewCustomer("SAN")} style={typeButtonStyle(loaiKH === "SAN")}>
+              ĐỒ ĂN LÀM SẴN
+            </button>
+            <button onClick={() => startNewCustomer("CHUAN")} style={typeButtonStyle(loaiKH === "CHUAN")}>
+              MÓN CẦN ĐẦU BẾP LÀM
+            </button>
+            <button onClick={() => startNewCustomer("PIZZA")} style={typeButtonStyle(loaiKH === "PIZZA")}>
+              PIZZA
+            </button>
+            <button onClick={() => startNewCustomer("PIZZA_COMBO")} style={typeButtonStyle(loaiKH === "PIZZA_COMBO")}>
+              PIZZA KẾT HỢP MÓN KHÁC
+            </button>
+          </div>
+        </section>
+
+        <section
+          style={{
+            background: palette.card,
+            border: `1px solid ${palette.line}`,
+            borderRadius: 18,
+            padding: 18,
+            boxShadow: "0 4px 20px rgba(0,0,0,0.04)",
+          }}
+        >
+          <div style={{ marginBottom: 12 }}>
+            <h2 style={sectionTitleStyle}>Bấm theo đúng thứ tự thực tế</h2>
+            <p style={{ margin: "6px 0 0", color: palette.sub }}>
+              Chỉ nút hợp lệ tiếp theo mới bấm được.
+            </p>
+          </div>
+
+          {loaiKH ? (
+            <div style={{ display: "grid", gap: 10 }}>
+              {currentFlow.map((step, index) => {
+                const disabled = !currentMaKH || nextStepIndex !== index;
+                return (
+                  <button
+                    key={step.code}
+                    onClick={() => addEvent(step.code)}
+                    disabled={disabled}
+                    style={buttonStyle(disabled, disabled ? "normal" : "primary")}
+                  >
+                    {step.label}
+                  </button>
+                );
+              })}
+            </div>
+          ) : (
+            <div
+              style={{
+                padding: 14,
+                borderRadius: 12,
+                background: palette.amberSoft,
+                border: "1px solid #fde68a",
+                color: palette.amber,
+                fontWeight: 600,
+              }}
+            >
+              Hãy chọn loại khách ở phía trên trước.
+            </div>
           )}
-        </div>
-      </section>
+
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+              gap: 10,
+              marginTop: 14,
+            }}
+          >
+            <button onClick={nextCustomer} style={buttonStyle(false)}>
+              KHÁCH TIẾP THEO
+            </button>
+            <button onClick={resetCurrentCustomer} style={buttonStyle(false, "danger")}>
+              RESET KHÁCH NÀY
+            </button>
+            <button onClick={clearAllData} style={buttonStyle(false, "danger")}>
+              XÓA TẤT CẢ
+            </button>
+          </div>
+
+          <div style={{ marginTop: 12 }}>
+            <button onClick={exportSummaryExcel} style={buttonStyle(false)}>
+              XUẤT SUMMARY XLSX
+            </button>
+          </div>
+        </section>
+
+        <section
+          style={{
+            background: palette.card,
+            border: `1px solid ${palette.line}`,
+            borderRadius: 18,
+            padding: 18,
+            boxShadow: "0 4px 20px rgba(0,0,0,0.04)",
+          }}
+        >
+          <div style={{ marginBottom: 12 }}>
+            <h2 style={sectionTitleStyle}>Summary</h2>
+            <p style={{ margin: "6px 0 0", color: palette.sub }}>
+              Hiển thị theo dạng card để dễ xem trên điện thoại.
+            </p>
+          </div>
+
+          <div style={{ display: "grid", gap: 14 }}>
+            {summaryRows.length === 0 ? (
+              <div
+                style={{
+                  padding: 16,
+                  borderRadius: 12,
+                  border: `1px dashed ${palette.line}`,
+                  color: palette.sub,
+                }}
+              >
+                Chưa có dữ liệu.
+              </div>
+            ) : (
+              summaryRows.map((row) => (
+                <div
+                  key={row.maKH}
+                  style={{
+                    border: `1px solid ${palette.line}`,
+                    borderRadius: 16,
+                    padding: 14,
+                    background: "#fff",
+                  }}
+                >
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      gap: 10,
+                      flexWrap: "wrap",
+                      marginBottom: 10,
+                    }}
+                  >
+                    <div style={{ fontSize: 20, fontWeight: 800 }}>
+                      {row.maKH}
+                    </div>
+                    <div
+                      style={{
+                        padding: "6px 10px",
+                        borderRadius: 999,
+                        background: palette.blueSoft,
+                        color: palette.blue,
+                        fontWeight: 700,
+                        fontSize: 13,
+                      }}
+                    >
+                      {row.loaiKH}
+                    </div>
+                  </div>
+
+                  <div
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
+                      gap: 8,
+                      marginBottom: 12,
+                    }}
+                  >
+                    <div style={infoItemStyle}>Nhân viên: <strong>{row.nhanVien || "Chưa có"}</strong></div>
+                    <div style={infoItemStyle}>Quầy: <strong>{row.quay || "Chưa có"}</strong></div>
+                    <div style={infoItemStyle}>Ghi chú: <strong>{row.ghiChu || "Chưa có"}</strong></div>
+                    <div style={infoItemStyle}>Số bước: <strong>{row.soBuoc || "Chưa có"}</strong></div>
+                  </div>
+
+                  <div
+                    style={{
+                      display: "grid",
+                      gap: 12,
+                    }}
+                  >
+                    <div
+                      style={{
+                        border: `1px solid ${palette.line}`,
+                        borderRadius: 12,
+                        padding: 12,
+                        background: "#fcfcfd",
+                      }}
+                    >
+                      <div style={{ fontWeight: 800, marginBottom: 8 }}>Thời gian từng bước</div>
+                      <div>{row.buoc1Label || "Bước 1"}: {row.T_B1 || "Chưa có"}</div>
+                      <div>{row.buoc2Label || "Bước 2"}: {row.T_B2 || "Chưa có"}</div>
+                      <div>{row.buoc3Label || "Bước 3"}: {row.T_B3 || "Chưa có"}</div>
+                      <div>{row.buoc4Label || "Bước 4"}: {row.T_B4 || "Chưa có"}</div>
+                    </div>
+
+                    <div
+                      style={{
+                        border: `1px solid ${palette.line}`,
+                        borderRadius: 12,
+                        padding: 12,
+                        background: "#fcfcfd",
+                      }}
+                    >
+                      <div style={{ fontWeight: 800, marginBottom: 8 }}>Mốc mô phỏng</div>
+                      <div>Đến hệ thống: {row.thoiGianDenHeThong || "Chưa có"}</div>
+                      <div>Bắt đầu xếp hàng: {row.batDauXepHang || "Chưa có"}</div>
+                      <div>Bắt đầu phục vụ: {row.batDauPhucVu || "Chưa có"}</div>
+                      <div>Rời hệ thống: {row.ketThucPhucVuRoiHeThong || "Chưa có"}</div>
+                    </div>
+
+                    <div
+                      style={{
+                        border: `1px solid ${palette.line}`,
+                        borderRadius: 12,
+                        padding: 12,
+                        background: palette.greenSoft,
+                      }}
+                    >
+                      <div style={{ fontWeight: 800, marginBottom: 8, color: palette.green }}>
+                        Chỉ tiêu thời gian
+                      </div>
+                      <div>
+                        Interarrival(s):{" "}
+                        <strong>
+                          {row.interarrivalTimeGiay === "" ? "Chưa đủ dữ liệu" : row.interarrivalTimeGiay}
+                        </strong>
+                      </div>
+                      <div>
+                        Waiting(s):{" "}
+                        <strong>
+                          {row.waitingTimeGiay === "" ? "Chưa đủ dữ liệu" : row.waitingTimeGiay}
+                        </strong>
+                      </div>
+                      <div>
+                        Service(s):{" "}
+                        <strong>
+                          {row.serviceTimeGiay === "" ? "Chưa đủ dữ liệu" : row.serviceTimeGiay}
+                        </strong>
+                      </div>
+                      <div>
+                        System(s):{" "}
+                        <strong>
+                          {row.systemTimeGiay === "" ? "Chưa đủ dữ liệu" : row.systemTimeGiay}
+                        </strong>
+                      </div>
+                    </div>
+
+                    <div
+                      style={{
+                        border: `1px solid ${palette.line}`,
+                        borderRadius: 12,
+                        padding: 12,
+                        background: palette.blueSoft,
+                      }}
+                    >
+                      <div style={{ fontWeight: 800, marginBottom: 8, color: palette.blue }}>
+                        Arena Input
+                      </div>
+                      <div>Entity Type: {row.arenaEntityType || "Chưa có"}</div>
+                      <div>Arrival Time: {row.arenaArrivalTime || "Chưa có"}</div>
+                      <div>
+                        Interarrival_s:{" "}
+                        {row.arenaInterarrivalS === "" ? "Chưa đủ dữ liệu" : row.arenaInterarrivalS}
+                      </div>
+                      <div>
+                        Service_s:{" "}
+                        {row.arenaServiceS === "" ? "Chưa đủ dữ liệu" : row.arenaServiceS}
+                      </div>
+                      <div>Queue: {row.arenaQueue || "Chưa có"}</div>
+                      <div>Resource: {row.arenaResource || "Chưa có"}</div>
+                      <div>Process Type: {row.arenaProcessType || "Chưa có"}</div>
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </section>
+      </div>
     </main>
   );
 }
