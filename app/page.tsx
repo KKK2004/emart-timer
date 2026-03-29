@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import * as XLSX from "xlsx";
 import { supabase } from "../lib/supabase";
 
@@ -27,7 +27,7 @@ type EventRow = {
   maKH: string;
   loaiKH: CustomerType;
   suKien: EventName;
-  thoiGian: string;
+  thoiGian: string; // ISO string từ DB
   nhanVien: string;
   quay: string;
   ghiChu: string;
@@ -90,43 +90,54 @@ function pad2(n: number) {
   return String(n).padStart(2, "0");
 }
 
-function formatDateTimeVN(date: Date) {
+function pad3(n: number) {
+  return String(n).padStart(3, "0");
+}
+
+function formatDateTimeVNms(date: Date) {
   return `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())} ${pad2(
     date.getHours()
-  )}:${pad2(date.getMinutes())}:${pad2(date.getSeconds())}`;
+  )}:${pad2(date.getMinutes())}:${pad2(date.getSeconds())}.${pad3(date.getMilliseconds())}`;
 }
 
 function parseDateTime(value: string): Date | null {
   if (!value) return null;
 
   const iso = new Date(value);
-  if (!Number.isNaN(iso.getTime()) && value.includes("T")) return iso;
+  if (!Number.isNaN(iso.getTime())) return iso;
 
   const m = value.match(
-    /^(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2}):(\d{2})$/
+    /^(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2}):(\d{2})(?:\.(\d{1,3}))?$/
   );
   if (!m) return null;
 
-  const [, y, mo, d, h, mi, s] = m;
+  const [, y, mo, d, h, mi, s, ms = "0"] = m;
   return new Date(
     Number(y),
     Number(mo) - 1,
     Number(d),
     Number(h),
     Number(mi),
-    Number(s)
+    Number(s),
+    Number(ms.padEnd(3, "0"))
   );
 }
 
-function diffSeconds(start: string, end: string): number | "" {
+function diffSecondsPrecise(start: string, end: string): number | "" {
   const s = parseDateTime(start);
   const e = parseDateTime(end);
   if (!s || !e) return "";
-  return Math.max(0, Math.round((e.getTime() - s.getTime()) / 1000));
+  const diffMs = e.getTime() - s.getTime();
+  return Number(Math.max(0, diffMs / 1000).toFixed(3));
 }
 
 function formatCustomerCode(n: number) {
   return `KH${String(n).padStart(3, "0")}`;
+}
+
+function formatEventTime(value: string) {
+  const d = parseDateTime(value);
+  return d ? formatDateTimeVNms(d) : "";
 }
 
 function getLoaiKhachLabel(loai: CustomerType) {
@@ -149,72 +160,29 @@ function getFlow(loai: CustomerType) {
     case "SAN":
       return [
         { code: "CAM_DO_AN" as EventName, label: "1. Khách cầm đồ ăn" },
-        {
-          code: "VAO_HANG_THANH_TOAN" as EventName,
-          label: "2. Khách đứng vào hàng đợi thanh toán",
-        },
-        {
-          code: "NV_BAT_DAU_CAM_MON_TINH_TIEN" as EventName,
-          label: "3. Nhân viên bắt đầu cầm món / tính tiền",
-        },
-        {
-          code: "NHAN_MON_ROI_QUAY" as EventName,
-          label: "4. Khách nhận món và rời quầy",
-        },
+        { code: "VAO_HANG_THANH_TOAN" as EventName, label: "2. Khách đứng vào hàng đợi thanh toán" },
+        { code: "NV_BAT_DAU_CAM_MON_TINH_TIEN" as EventName, label: "3. Nhân viên bắt đầu cầm món / tính tiền" },
+        { code: "NHAN_MON_ROI_QUAY" as EventName, label: "4. Khách nhận món và rời quầy" },
       ];
-
     case "CHUAN":
       return [
-        {
-          code: "NV_DUA_THE_ORDER" as EventName,
-          label: "1. Nhân viên đưa thẻ / phiếu order",
-        },
-        {
-          code: "VAO_HANG_THANH_TOAN_CHUAN" as EventName,
-          label: "2. Khách đứng vào hàng đợi thanh toán",
-        },
-        {
-          code: "NV_BAT_DAU_CAM_PHIEU_TINH_TIEN" as EventName,
-          label: "3. Nhân viên bắt đầu cầm phiếu / tính tiền",
-        },
-        {
-          code: "NHAN_MON_ROI_HANG" as EventName,
-          label: "4. Khách nhận món và rời hàng",
-        },
+        { code: "NV_DUA_THE_ORDER" as EventName, label: "1. Nhân viên đưa thẻ / phiếu order" },
+        { code: "VAO_HANG_THANH_TOAN_CHUAN" as EventName, label: "2. Khách đứng vào hàng đợi thanh toán" },
+        { code: "NV_BAT_DAU_CAM_PHIEU_TINH_TIEN" as EventName, label: "3. Nhân viên bắt đầu cầm phiếu / tính tiền" },
+        { code: "NHAN_MON_ROI_HANG" as EventName, label: "4. Khách nhận món và rời hàng" },
       ];
-
     case "PIZZA":
       return [
-        {
-          code: "VAO_HANG_ORDER_PIZZA" as EventName,
-          label: "1. Khách đứng vào hàng đợi order",
-        },
-        {
-          code: "NV_BAT_DAU_NHAN_ORDER_PIZZA_TINH_TIEN" as EventName,
-          label: "2. Nhân viên bắt đầu nhận order / tính tiền",
-        },
-        {
-          code: "NHAN_PIZZA_ROI_HANG" as EventName,
-          label: "3. Khách nhận pizza và rời hàng",
-        },
+        { code: "VAO_HANG_ORDER_PIZZA" as EventName, label: "1. Khách đứng vào hàng đợi order" },
+        { code: "NV_BAT_DAU_NHAN_ORDER_PIZZA_TINH_TIEN" as EventName, label: "2. Nhân viên bắt đầu nhận order / tính tiền" },
+        { code: "NHAN_PIZZA_ROI_HANG" as EventName, label: "3. Khách nhận pizza và rời hàng" },
       ];
-
     case "PIZZA_COMBO":
       return [
-        {
-          code: "CAM_MON_KHAC_VAO_HANG_PIZZA" as EventName,
-          label: "1. Khách cầm món khác và đứng vào hàng đợi quầy pizza",
-        },
-        {
-          code: "NV_BAT_DAU_ORDER_PIZZA_TINH_TIEN_TOAN_BO" as EventName,
-          label: "2. Nhân viên bắt đầu nhận order pizza và tính tiền toàn bộ đơn",
-        },
-        {
-          code: "NHAN_PIZZA_MON_DA_THANH_TOAN_ROI_HANG" as EventName,
-          label: "3. Khách nhận pizza cùng các món đã thanh toán và rời hàng",
-        },
+        { code: "CAM_MON_KHAC_VAO_HANG_PIZZA" as EventName, label: "1. Khách cầm món khác và đứng vào hàng đợi quầy pizza" },
+        { code: "NV_BAT_DAU_ORDER_PIZZA_TINH_TIEN_TOAN_BO" as EventName, label: "2. Nhân viên bắt đầu nhận order pizza và tính tiền toàn bộ đơn" },
+        { code: "NHAN_PIZZA_MON_DA_THANH_TOAN_ROI_HANG" as EventName, label: "3. Khách nhận pizza cùng các món đã thanh toán và rời hàng" },
       ];
-
     default:
       return [];
   }
@@ -317,7 +285,7 @@ function mapDbRowToEventRow(row: DbRow): EventRow {
     maKH: row.ma_kh,
     loaiKH: row.loai_kh,
     suKien: row.su_kien,
-    thoiGian: formatDateTimeVN(new Date(row.thoi_gian)),
+    thoiGian: row.thoi_gian,
     nhanVien: row.nhan_vien,
     quay: row.quay,
     ghiChu: row.ghi_chu || "",
@@ -328,40 +296,15 @@ function mapDbRowToEventRow(row: DbRow): EventRow {
 function getCustomerTypeTheme(loaiLabel: string) {
   switch (loaiLabel) {
     case "ĐỒ ĂN LÀM SẴN":
-      return {
-        badgeBg: "#dbeafe",
-        badgeText: "#1d4ed8",
-        cardBorder: "#93c5fd",
-        cardBg: "#eff6ff",
-      };
+      return { badgeBg: "#dbeafe", badgeText: "#1d4ed8", cardBorder: "#93c5fd", cardBg: "#eff6ff" };
     case "MÓN CẦN ĐẦU BẾP LÀM":
-      return {
-        badgeBg: "#fef3c7",
-        badgeText: "#b45309",
-        cardBorder: "#fcd34d",
-        cardBg: "#fffbeb",
-      };
+      return { badgeBg: "#fef3c7", badgeText: "#b45309", cardBorder: "#fcd34d", cardBg: "#fffbeb" };
     case "PIZZA":
-      return {
-        badgeBg: "#fee2e2",
-        badgeText: "#b91c1c",
-        cardBorder: "#fca5a5",
-        cardBg: "#fef2f2",
-      };
+      return { badgeBg: "#fee2e2", badgeText: "#b91c1c", cardBorder: "#fca5a5", cardBg: "#fef2f2" };
     case "PIZZA KẾT HỢP MÓN KHÁC":
-      return {
-        badgeBg: "#ede9fe",
-        badgeText: "#6d28d9",
-        cardBorder: "#c4b5fd",
-        cardBg: "#f5f3ff",
-      };
+      return { badgeBg: "#ede9fe", badgeText: "#6d28d9", cardBorder: "#c4b5fd", cardBg: "#f5f3ff" };
     default:
-      return {
-        badgeBg: "#e5e7eb",
-        badgeText: "#374151",
-        cardBorder: "#d1d5db",
-        cardBg: "#f9fafb",
-      };
+      return { badgeBg: "#e5e7eb", badgeText: "#374151", cardBorder: "#d1d5db", cardBg: "#f9fafb" };
   }
 }
 
@@ -391,6 +334,19 @@ export default function Page() {
   const [tenNguoiBam, setTenNguoiBam] = useState<string>("");
   const [eventLog, setEventLog] = useState<EventRow[]>([]);
   const [loading, setLoading] = useState(false);
+  const loadedRef = useRef(false);
+
+  function upsertEventRow(newRow: EventRow) {
+    setEventLog((prev) => {
+      const exists = prev.some((x) => x.id === newRow.id);
+      if (exists) return prev;
+      return [newRow, ...prev].sort((a, b) => {
+        const t = new Date(b.thoiGian).getTime() - new Date(a.thoiGian).getTime();
+        if (t !== 0) return t;
+        return b.id - a.id;
+      });
+    });
+  }
 
   async function loadEventLog() {
     setLoading(true);
@@ -398,7 +354,8 @@ export default function Page() {
     const { data, error } = await supabase
       .from("event_log")
       .select("*")
-      .order("thoi_gian", { ascending: false });
+      .order("thoi_gian", { ascending: false })
+      .order("id", { ascending: false });
 
     if (error) {
       console.error("Supabase load error:", error);
@@ -422,20 +379,49 @@ export default function Page() {
 
   useEffect(() => {
     const savedName = localStorage.getItem("emart_ten_nguoi_bam");
-
     if (savedName) {
       setTenNguoiBam(savedName);
     } else {
       const inputName = window.prompt("Nhập tên người đang bấm:", "") || "";
       const finalName = inputName.trim();
-
       if (finalName) {
         localStorage.setItem("emart_ten_nguoi_bam", finalName);
         setTenNguoiBam(finalName);
       }
     }
 
-    loadEventLog();
+    if (!loadedRef.current) {
+      loadedRef.current = true;
+      loadEventLog();
+    }
+
+    const channel = supabase
+      .channel("event-log-live")
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "event_log" },
+        (payload) => {
+          const row = mapDbRowToEventRow(payload.new as DbRow);
+          upsertEventRow(row);
+        }
+      )
+      .on(
+        "postgres_changes",
+        { event: "DELETE", schema: "public", table: "event_log" },
+        (payload) => {
+          const oldRow = payload.old as { id?: number };
+          if (oldRow?.id) {
+            setEventLog((prev) => prev.filter((x) => x.id !== oldRow.id));
+          } else {
+            loadEventLog();
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   function startNewCustomer(selectedType: CustomerType) {
@@ -457,7 +443,11 @@ export default function Page() {
 
   const currentCustomerEvents = eventLog
     .filter((row) => row.maKH === currentMaKH)
-    .sort((a, b) => a.thoiGian.localeCompare(b.thoiGian));
+    .sort((a, b) => {
+      const t = new Date(a.thoiGian).getTime() - new Date(b.thoiGian).getTime();
+      if (t !== 0) return t;
+      return a.id - b.id;
+    });
 
   const nextStepIndex = currentCustomerEvents.length;
   const nextExpectedEvent = currentFlow[nextStepIndex]?.code;
@@ -480,16 +470,19 @@ export default function Page() {
 
     const now = new Date();
 
-    const { error } = await supabase.from("event_log").insert({
-      ma_kh: currentMaKH,
-      loai_kh: loaiKH,
-      su_kien: suKien,
-      thoi_gian: now.toISOString(),
-      nhan_vien: nhanVien,
-      quay: quay,
-      ghi_chu: ghiChu,
-      nguoi_bam: tenNguoiBam,
-    });
+    const { data, error } = await supabase
+      .from("event_log")
+      .insert({
+        ma_kh: currentMaKH,
+        loai_kh: loaiKH,
+        su_kien: suKien,
+        thoi_gian: now.toISOString(),
+        nhan_vien: nhanVien,
+        quay: quay,
+        ghi_chu: ghiChu,
+        nguoi_bam: tenNguoiBam,
+      })
+      .select("*");
 
     if (error) {
       console.error("Supabase insert error:", error);
@@ -497,7 +490,10 @@ export default function Page() {
       return;
     }
 
-    await loadEventLog();
+    const inserted = (data?.[0] as DbRow | undefined);
+    if (inserted) {
+      upsertEventRow(mapDbRowToEventRow(inserted));
+    }
   }
 
   async function resetCurrentCustomer() {
@@ -509,10 +505,9 @@ export default function Page() {
     const ok = window.confirm(`Xóa toàn bộ log của khách ${currentMaKH}?`);
     if (!ok) return;
 
-    const { error } = await supabase
-      .from("event_log")
-      .delete()
-      .eq("ma_kh", currentMaKH);
+    const idsToDelete = eventLog.filter((x) => x.maKH === currentMaKH).map((x) => x.id);
+
+    const { error } = await supabase.from("event_log").delete().eq("ma_kh", currentMaKH);
 
     if (error) {
       console.error("Supabase delete error:", error);
@@ -520,10 +515,10 @@ export default function Page() {
       return;
     }
 
+    setEventLog((prev) => prev.filter((x) => !idsToDelete.includes(x.id)));
     setCurrentMaKH("");
     setLoaiKH("");
     setGhiChu("");
-    await loadEventLog();
   }
 
   async function clearAllData() {
@@ -549,7 +544,13 @@ export default function Page() {
 
   const summaryRows = useMemo<SummaryRow[]>(() => {
     const grouped = new Map<string, EventRow[]>();
-    const sortedOldToNew = [...eventLog].reverse();
+    const sortedOldToNew = [...eventLog]
+      .slice()
+      .sort((a, b) => {
+        const t = new Date(a.thoiGian).getTime() - new Date(b.thoiGian).getTime();
+        if (t !== 0) return t;
+        return a.id - b.id;
+      });
 
     for (const row of sortedOldToNew) {
       if (!grouped.has(row.maKH)) grouped.set(row.maKH, []);
@@ -580,7 +581,6 @@ export default function Page() {
         quay: firstRow?.quay || "",
         ghiChu: firstRow?.ghiChu || "",
         nguoiBam: firstRow?.nguoiBam || "",
-
         soBuoc: flow.length,
 
         buoc1Label: flow[0]?.label || "",
@@ -599,14 +599,14 @@ export default function Page() {
         ketThucPhucVuRoiHeThong: systemEnd,
 
         interarrivalTimeGiay: "",
-        waitingTimeGiay: diffSeconds(arrivalQueue, serviceStart),
-        serviceTimeGiay: diffSeconds(serviceStart, systemEnd),
-        systemTimeGiay: diffSeconds(heThongStart, systemEnd),
+        waitingTimeGiay: diffSecondsPrecise(arrivalQueue, serviceStart),
+        serviceTimeGiay: diffSecondsPrecise(serviceStart, systemEnd),
+        systemTimeGiay: diffSecondsPrecise(heThongStart, systemEnd),
 
         arenaEntityType: loai,
         arenaArrivalTime: arrivalQueue,
         arenaInterarrivalS: "",
-        arenaServiceS: diffSeconds(serviceStart, systemEnd),
+        arenaServiceS: diffSecondsPrecise(serviceStart, systemEnd),
         arenaQueue: getArenaQueue(loai),
         arenaResource: getArenaResource(loai),
         arenaProcessType: getArenaProcessType(loai),
@@ -617,14 +617,18 @@ export default function Page() {
 
     const arrivalSorted = [...sorted]
       .filter((r) => r.batDauXepHang)
-      .sort((a, b) => a.batDauXepHang.localeCompare(b.batDauXepHang));
+      .sort((a, b) => {
+        const t = new Date(a.batDauXepHang).getTime() - new Date(b.batDauXepHang).getTime();
+        if (t !== 0) return t;
+        return a.maKH.localeCompare(b.maKH);
+      });
 
     for (let i = 0; i < arrivalSorted.length; i++) {
       if (i === 0) {
         arrivalSorted[i].interarrivalTimeGiay = "";
         arrivalSorted[i].arenaInterarrivalS = "";
       } else {
-        const ia = diffSeconds(
+        const ia = diffSecondsPrecise(
           arrivalSorted[i - 1].batDauXepHang,
           arrivalSorted[i].batDauXepHang
         );
@@ -666,21 +670,15 @@ export default function Page() {
       BatDauPhucVu: parseDateTime(row.batDauPhucVu),
       KetThucPhucVu_RoiHeThong: parseDateTime(row.ketThucPhucVuRoiHeThong),
 
-      InterarrivalTime_Giay:
-        row.interarrivalTimeGiay === "" ? "" : row.interarrivalTimeGiay,
-      WaitingTime_Giay:
-        row.waitingTimeGiay === "" ? "" : row.waitingTimeGiay,
-      ServiceTime_Giay:
-        row.serviceTimeGiay === "" ? "" : row.serviceTimeGiay,
-      SystemTime_Giay:
-        row.systemTimeGiay === "" ? "" : row.systemTimeGiay,
+      InterarrivalTime_Giay: row.interarrivalTimeGiay === "" ? "" : row.interarrivalTimeGiay,
+      WaitingTime_Giay: row.waitingTimeGiay === "" ? "" : row.waitingTimeGiay,
+      ServiceTime_Giay: row.serviceTimeGiay === "" ? "" : row.serviceTimeGiay,
+      SystemTime_Giay: row.systemTimeGiay === "" ? "" : row.systemTimeGiay,
 
       Arena_EntityType: row.arenaEntityType,
       Arena_ArrivalTime: parseDateTime(row.arenaArrivalTime),
-      Arena_Interarrival_s:
-        row.arenaInterarrivalS === "" ? "" : row.arenaInterarrivalS,
-      Arena_Service_s:
-        row.arenaServiceS === "" ? "" : row.arenaServiceS,
+      Arena_Interarrival_s: row.arenaInterarrivalS === "" ? "" : row.arenaInterarrivalS,
+      Arena_Service_s: row.arenaServiceS === "" ? "" : row.arenaServiceS,
       Arena_Queue: row.arenaQueue,
       Arena_Resource: row.arenaResource,
       Arena_ProcessType: row.arenaProcessType,
@@ -697,41 +695,15 @@ export default function Page() {
 
     const ws = XLSX.utils.json_to_sheet(rows, {
       cellDates: true,
-      dateNF: "yyyy-mm-dd hh:mm:ss",
+      dateNF: "yyyy-mm-dd hh:mm:ss.000",
     });
 
     ws["!cols"] = [
-      { wch: 8 },
-      { wch: 10 },
-      { wch: 24 },
-      { wch: 12 },
-      { wch: 10 },
-      { wch: 18 },
-      { wch: 14 },
-      { wch: 8 },
-      { wch: 22 },
-      { wch: 22 },
-      { wch: 22 },
-      { wch: 22 },
-      { wch: 16 },
-      { wch: 16 },
-      { wch: 16 },
-      { wch: 16 },
-      { wch: 18 },
-      { wch: 22 },
-      { wch: 18 },
-      { wch: 16 },
-      { wch: 22 },
-      { wch: 22 },
-      { wch: 22 },
-      { wch: 36 },
-      { wch: 22 },
-      { wch: 36 },
-      { wch: 22 },
-      { wch: 36 },
-      { wch: 22 },
-      { wch: 36 },
-      { wch: 22 },
+      { wch: 8 }, { wch: 10 }, { wch: 24 }, { wch: 12 }, { wch: 10 }, { wch: 18 }, { wch: 14 },
+      { wch: 8 }, { wch: 24 }, { wch: 24 }, { wch: 24 }, { wch: 24 }, { wch: 16 }, { wch: 16 },
+      { wch: 16 }, { wch: 16 }, { wch: 18 }, { wch: 24 }, { wch: 18 }, { wch: 16 }, { wch: 22 },
+      { wch: 22 }, { wch: 22 }, { wch: 36 }, { wch: 24 }, { wch: 36 }, { wch: 24 }, { wch: 36 },
+      { wch: 24 }, { wch: 36 }, { wch: 24 },
     ];
 
     const wb = XLSX.utils.book_new();
@@ -758,21 +730,9 @@ export default function Page() {
     tone: "normal" | "danger" | "primary" = "normal"
   ): React.CSSProperties => {
     const styles = {
-      normal: {
-        background: "#fff",
-        border: `1px solid ${palette.line}`,
-        color: palette.text,
-      },
-      danger: {
-        background: palette.redSoft,
-        border: `1px solid #fecaca`,
-        color: palette.red,
-      },
-      primary: {
-        background: palette.blue,
-        border: `1px solid ${palette.blue}`,
-        color: "#fff",
-      },
+      normal: { background: "#fff", border: `1px solid ${palette.line}`, color: palette.text },
+      danger: { background: palette.redSoft, border: `1px solid #fecaca`, color: palette.red },
+      primary: { background: palette.blue, border: `1px solid ${palette.blue}`, color: "#fff" },
     };
 
     return {
@@ -827,10 +787,10 @@ export default function Page() {
         >
           <div style={{ marginBottom: 12 }}>
             <h1 style={{ margin: 0, fontSize: 28, fontWeight: 800 }}>
-              Web bấm giờ mô phỏng ở quầy bán đồ ăn EMART 
+              Web bấm giờ mô phỏng eMart
             </h1>
             <p style={{ margin: "8px 0 0", color: palette.sub }}>
-              Tác giả: Bùi Văn Cường
+              Dữ liệu dùng chung qua Supabase. Thời gian hiển thị tới mili giây.
             </p>
           </div>
 
@@ -843,23 +803,17 @@ export default function Page() {
           >
             <div style={infoItemStyle}>
               <div style={{ color: palette.sub, fontSize: 13 }}>Khách hiện tại</div>
-              <div style={{ fontWeight: 800, fontSize: 18 }}>
-                {currentMaKH || "Chưa chọn"}
-              </div>
+              <div style={{ fontWeight: 800, fontSize: 18 }}>{currentMaKH || "Chưa chọn"}</div>
             </div>
 
             <div style={infoItemStyle}>
               <div style={{ color: palette.sub, fontSize: 13 }}>Loại khách</div>
-              <div style={{ fontWeight: 700 }}>
-                {loaiKH ? getLoaiKhachLabel(loaiKH) : "Chưa chọn"}
-              </div>
+              <div style={{ fontWeight: 700 }}>{loaiKH ? getLoaiKhachLabel(loaiKH) : "Chưa chọn"}</div>
             </div>
 
             <div style={infoItemStyle}>
               <div style={{ color: palette.sub, fontSize: 13 }}>Người đang bấm</div>
-              <div style={{ fontWeight: 700 }}>
-                {tenNguoiBam || "Chưa nhập tên"}
-              </div>
+              <div style={{ fontWeight: 700 }}>{tenNguoiBam || "Chưa nhập tên"}</div>
             </div>
 
             <div style={infoItemStyle}>
@@ -873,8 +827,7 @@ export default function Page() {
           <div style={{ marginTop: 12 }}>
             <button
               onClick={() => {
-                const newName =
-                  window.prompt("Nhập lại tên người đang bấm:", tenNguoiBam) || "";
+                const newName = window.prompt("Nhập lại tên người đang bấm:", tenNguoiBam) || "";
                 const finalName = newName.trim();
                 if (finalName) {
                   localStorage.setItem("emart_ten_nguoi_bam", finalName);
@@ -903,9 +856,7 @@ export default function Page() {
 
           <div style={{ display: "grid", gap: 12 }}>
             <div>
-              <label style={{ display: "block", marginBottom: 6, fontWeight: 600 }}>
-                Nhân viên
-              </label>
+              <label style={{ display: "block", marginBottom: 6, fontWeight: 600 }}>Nhân viên</label>
               <select
                 value={nhanVien}
                 onChange={(e) => setNhanVien(e.target.value)}
@@ -925,9 +876,7 @@ export default function Page() {
             </div>
 
             <div>
-              <label style={{ display: "block", marginBottom: 6, fontWeight: 600 }}>
-                Quầy
-              </label>
+              <label style={{ display: "block", marginBottom: 6, fontWeight: 600 }}>Quầy</label>
               <select
                 value={quay}
                 onChange={(e) => setQuay(e.target.value)}
@@ -947,9 +896,7 @@ export default function Page() {
             </div>
 
             <div>
-              <label style={{ display: "block", marginBottom: 6, fontWeight: 600 }}>
-                Ghi chú
-              </label>
+              <label style={{ display: "block", marginBottom: 6, fontWeight: 600 }}>Ghi chú</label>
               <input
                 value={ghiChu}
                 onChange={(e) => setGhiChu(e.target.value)}
@@ -1085,7 +1032,7 @@ export default function Page() {
             Summary {loading ? "(đang tải...)" : ""}
           </h2>
           <p style={{ margin: "6px 0 14px", color: palette.sub }}>
-            Hiển thị theo dạng card để dễ xem trên điện thoại.
+            Web ẩn Arena Input, nhưng file Excel vẫn có đầy đủ.
           </p>
 
           <div style={{ display: "grid", gap: 14 }}>
@@ -1125,9 +1072,7 @@ export default function Page() {
                         alignItems: "center",
                       }}
                     >
-                      <div style={{ fontSize: 20, fontWeight: 800 }}>
-                        {row.maKH}
-                      </div>
+                      <div style={{ fontSize: 20, fontWeight: 800 }}>{row.maKH}</div>
 
                       <div
                         style={{
@@ -1151,21 +1096,11 @@ export default function Page() {
                         marginBottom: 12,
                       }}
                     >
-                      <div style={infoItemStyle}>
-                        Nhân viên: <strong>{row.nhanVien || "Chưa có"}</strong>
-                      </div>
-                      <div style={infoItemStyle}>
-                        Quầy: <strong>{row.quay || "Chưa có"}</strong>
-                      </div>
-                      <div style={infoItemStyle}>
-                        Ghi chú: <strong>{row.ghiChu || "Chưa có"}</strong>
-                      </div>
-                      <div style={infoItemStyle}>
-                        Người bấm: <strong>{row.nguoiBam || "Chưa có"}</strong>
-                      </div>
-                      <div style={infoItemStyle}>
-                        Số bước: <strong>{row.soBuoc || "Chưa có"}</strong>
-                      </div>
+                      <div style={infoItemStyle}>Nhân viên: <strong>{row.nhanVien || "Chưa có"}</strong></div>
+                      <div style={infoItemStyle}>Quầy: <strong>{row.quay || "Chưa có"}</strong></div>
+                      <div style={infoItemStyle}>Ghi chú: <strong>{row.ghiChu || "Chưa có"}</strong></div>
+                      <div style={infoItemStyle}>Người bấm: <strong>{row.nguoiBam || "Chưa có"}</strong></div>
+                      <div style={infoItemStyle}>Số bước: <strong>{row.soBuoc || "Chưa có"}</strong></div>
                     </div>
 
                     <div style={{ display: "grid", gap: 12 }}>
@@ -1177,13 +1112,11 @@ export default function Page() {
                           background: "#ffffffcc",
                         }}
                       >
-                        <div style={{ fontWeight: 800, marginBottom: 8 }}>
-                          Thời gian từng bước
-                        </div>
-                        <div>{row.buoc1Label || "Bước 1"}: {row.T_B1 || "Chưa có"}</div>
-                        <div>{row.buoc2Label || "Bước 2"}: {row.T_B2 || "Chưa có"}</div>
-                        <div>{row.buoc3Label || "Bước 3"}: {row.T_B3 || "Chưa có"}</div>
-                        <div>{row.buoc4Label || "Bước 4"}: {row.T_B4 || "Chưa có"}</div>
+                        <div style={{ fontWeight: 800, marginBottom: 8 }}>Thời gian từng bước</div>
+                        <div>{row.buoc1Label || "Bước 1"}: {row.T_B1 ? formatEventTime(row.T_B1) : "Chưa có"}</div>
+                        <div>{row.buoc2Label || "Bước 2"}: {row.T_B2 ? formatEventTime(row.T_B2) : "Chưa có"}</div>
+                        <div>{row.buoc3Label || "Bước 3"}: {row.T_B3 ? formatEventTime(row.T_B3) : "Chưa có"}</div>
+                        <div>{row.buoc4Label || "Bước 4"}: {row.T_B4 ? formatEventTime(row.T_B4) : "Chưa có"}</div>
                       </div>
 
                       <div
@@ -1194,13 +1127,11 @@ export default function Page() {
                           background: "#ffffffcc",
                         }}
                       >
-                        <div style={{ fontWeight: 800, marginBottom: 8 }}>
-                          Mốc mô phỏng
-                        </div>
-                        <div>Đến hệ thống: {row.thoiGianDenHeThong || "Chưa có"}</div>
-                        <div>Bắt đầu xếp hàng: {row.batDauXepHang || "Chưa có"}</div>
-                        <div>Bắt đầu phục vụ: {row.batDauPhucVu || "Chưa có"}</div>
-                        <div>Rời hệ thống: {row.ketThucPhucVuRoiHeThong || "Chưa có"}</div>
+                        <div style={{ fontWeight: 800, marginBottom: 8 }}>Mốc mô phỏng</div>
+                        <div>Đến hệ thống: {row.thoiGianDenHeThong ? formatEventTime(row.thoiGianDenHeThong) : "Chưa có"}</div>
+                        <div>Bắt đầu xếp hàng: {row.batDauXepHang ? formatEventTime(row.batDauXepHang) : "Chưa có"}</div>
+                        <div>Bắt đầu phục vụ: {row.batDauPhucVu ? formatEventTime(row.batDauPhucVu) : "Chưa có"}</div>
+                        <div>Rời hệ thống: {row.ketThucPhucVuRoiHeThong ? formatEventTime(row.ketThucPhucVuRoiHeThong) : "Chưa có"}</div>
                       </div>
 
                       <div
@@ -1220,74 +1151,10 @@ export default function Page() {
                         >
                           Chỉ tiêu thời gian
                         </div>
-                        <div>
-                          Interarrival(s):{" "}
-                          <strong>
-                            {row.interarrivalTimeGiay === ""
-                              ? "Chưa đủ dữ liệu"
-                              : row.interarrivalTimeGiay}
-                          </strong>
-                        </div>
-                        <div>
-                          Waiting(s):{" "}
-                          <strong>
-                            {row.waitingTimeGiay === ""
-                              ? "Chưa đủ dữ liệu"
-                              : row.waitingTimeGiay}
-                          </strong>
-                        </div>
-                        <div>
-                          Service(s):{" "}
-                          <strong>
-                            {row.serviceTimeGiay === ""
-                              ? "Chưa đủ dữ liệu"
-                              : row.serviceTimeGiay}
-                          </strong>
-                        </div>
-                        <div>
-                          System(s):{" "}
-                          <strong>
-                            {row.systemTimeGiay === ""
-                              ? "Chưa đủ dữ liệu"
-                              : row.systemTimeGiay}
-                          </strong>
-                        </div>
-                      </div>
-
-                      <div
-                        style={{
-                          border: `1px solid ${palette.line}`,
-                          borderRadius: 12,
-                          padding: 12,
-                          background: palette.blueSoft,
-                        }}
-                      >
-                        <div
-                          style={{
-                            fontWeight: 800,
-                            marginBottom: 8,
-                            color: palette.blue,
-                          }}
-                        >
-                          Arena Input
-                        </div>
-                        <div>Entity Type: {row.arenaEntityType || "Chưa có"}</div>
-                        <div>Arrival Time: {row.arenaArrivalTime || "Chưa có"}</div>
-                        <div>
-                          Interarrival_s:{" "}
-                          {row.arenaInterarrivalS === ""
-                            ? "Chưa đủ dữ liệu"
-                            : row.arenaInterarrivalS}
-                        </div>
-                        <div>
-                          Service_s:{" "}
-                          {row.arenaServiceS === ""
-                            ? "Chưa đủ dữ liệu"
-                            : row.arenaServiceS}
-                        </div>
-                        <div>Queue: {row.arenaQueue || "Chưa có"}</div>
-                        <div>Resource: {row.arenaResource || "Chưa có"}</div>
-                        <div>Process Type: {row.arenaProcessType || "Chưa có"}</div>
+                        <div>Interarrival(s): <strong>{row.interarrivalTimeGiay === "" ? "Chưa đủ dữ liệu" : row.interarrivalTimeGiay}</strong></div>
+                        <div>Waiting(s): <strong>{row.waitingTimeGiay === "" ? "Chưa đủ dữ liệu" : row.waitingTimeGiay}</strong></div>
+                        <div>Service(s): <strong>{row.serviceTimeGiay === "" ? "Chưa đủ dữ liệu" : row.serviceTimeGiay}</strong></div>
+                        <div>System(s): <strong>{row.systemTimeGiay === "" ? "Chưa đủ dữ liệu" : row.systemTimeGiay}</strong></div>
                       </div>
                     </div>
                   </div>
