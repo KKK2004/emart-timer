@@ -917,7 +917,7 @@ export default function Page() {
               <input
                 value={ghiChu}
                 onChange={(e) => setGhiChu(e.target.value)}
-                placeholder="Ví dụ: Áo đen"
+                placeholder="Ví dụ: Áo đen (Ấn chọn loại khách hàng trước mới điền được ở đây)"
                 style={{
                   width: "100%",
                   padding: 12,
@@ -978,7 +978,7 @@ export default function Page() {
         >
           <h2 style={sectionTitleStyle}>Bấm theo đúng thứ tự thực tế</h2>
           <p style={{ margin: "6px 0 12px", color: palette.sub }}>
-            Web giới hạn quầy hợp lệ theo loại khách để dữ liệu sát hệ thống 3 quầy thực tế hơn.
+            Lưu Ý: Bấm ở trên trước nhe mới hiện các bước ở đây ^^
           </p>
 
           {loaiKH ? (
