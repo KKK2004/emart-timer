@@ -962,24 +962,21 @@ export default function Page() {
             </div>
           )}
 
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
-              gap: 10,
-              marginTop: 14,
-            }}
-          >
-            <button onClick={nextCustomer} style={buttonStyle(false)}>
-              KHÁCH TIẾP THEO
-            </button>
-            <button onClick={resetCurrentCustomer} style={buttonStyle(false, "danger")}>
-              RESET KHÁCH NÀY
-            </button>
-            <button onClick={clearAllData} style={buttonStyle(false, "danger")}>
-              XÓA TẤT CẢ
-            </button>
-          </div>
+         <div
+  style={{
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+    gap: 10,
+    marginTop: 14,
+  }}
+>
+  <button onClick={resetCurrentCustomer} style={buttonStyle(false, "danger")}>
+    RESET KHÁCH NÀY
+  </button>
+  <button onClick={clearAllData} style={buttonStyle(false, "danger")}>
+    XÓA TẤT CẢ
+  </button>
+</div>
 
           <div style={{ marginTop: 12 }}>
             <button onClick={exportSummaryExcel} style={buttonStyle(false)}>
