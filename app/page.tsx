@@ -4,32 +4,27 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import * as XLSX from "xlsx";
 import { supabase } from "../lib/supabase";
 
-type CustomerType = "SAN" | "CHUAN" | "PIZZA" | "PIZZA_COMBO";
+type CustomerType = "SAN" | "CHUAN" | "PIZZA" | "PIZZA_COMBO" | "NUOC";
+type CounterType = "Q1" | "Q2" | "Q3";
 
 type EventName =
   | "CAM_DO_AN"
-  | "VAO_HANG_THANH_TOAN"
-  | "NV_BAT_DAU_CAM_MON_TINH_TIEN"
-  | "NHAN_MON_ROI_QUAY"
   | "NV_DUA_THE_ORDER"
-  | "VAO_HANG_THANH_TOAN_CHUAN"
-  | "NV_BAT_DAU_CAM_PHIEU_TINH_TIEN"
-  | "NHAN_MON_ROI_HANG"
+  | "LAY_NUOC"
+  | "VAO_HANG_THANH_TOAN"
   | "VAO_HANG_ORDER_PIZZA"
-  | "NV_BAT_DAU_NHAN_ORDER_PIZZA_TINH_TIEN"
-  | "NHAN_PIZZA_ROI_HANG"
-  | "CAM_MON_KHAC_VAO_HANG_PIZZA"
-  | "NV_BAT_DAU_ORDER_PIZZA_TINH_TIEN_TOAN_BO"
-  | "NHAN_PIZZA_MON_DA_THANH_TOAN_ROI_HANG";
+  | "NV_BAT_DAU_PHUC_VU"
+  | "NHAN_HANG_ROI_QUAY";
 
 type EventRow = {
   id: number;
   maKH: string;
   loaiKH: CustomerType;
+  quyTrinh: string;
   suKien: EventName;
-  thoiGian: string; // ISO từ DB
+  thoiGian: string;
   nhanVien: string;
-  quay: string;
+  quay: CounterType;
   ghiChu: string;
   nguoiBam: string;
 };
@@ -38,12 +33,11 @@ type SummaryRow = {
   stt: number;
   maKH: string;
   loaiKH: string;
+  quyTrinh: string;
   nhanVien: string;
   quay: string;
   ghiChu: string;
   nguoiBam: string;
-
-  soBuoc: number;
 
   buoc1Label: string;
   buoc2Label: string;
@@ -78,10 +72,11 @@ type DbRow = {
   id: number;
   ma_kh: string;
   loai_kh: CustomerType;
+  quy_trinh: string | null;
   su_kien: EventName;
   thoi_gian: string;
   nhan_vien: string;
-  quay: string;
+  quay: CounterType;
   ghi_chu: string | null;
   nguoi_bam: string | null;
 };
@@ -96,7 +91,6 @@ function pad3(n: number) {
 
 function parseDateTime(value: string): Date | null {
   if (!value) return null;
-
   const iso = new Date(value);
   if (!Number.isNaN(iso.getTime())) return iso;
 
@@ -163,8 +157,40 @@ function getLoaiKhachLabel(loai: CustomerType) {
       return "PIZZA";
     case "PIZZA_COMBO":
       return "PIZZA KẾT HỢP MÓN KHÁC";
+    case "NUOC":
+      return "NƯỚC";
     default:
       return "";
+  }
+}
+
+function getValidCounters(loai: CustomerType): CounterType[] {
+  switch (loai) {
+    case "PIZZA":
+    case "PIZZA_COMBO":
+      return ["Q1"];
+    case "SAN":
+    case "CHUAN":
+      return ["Q3", "Q2"];
+    case "NUOC":
+      return ["Q2", "Q1", "Q3"];
+    default:
+      return ["Q1", "Q2", "Q3"];
+  }
+}
+
+function getRecommendedCounter(loai: CustomerType): CounterType {
+  switch (loai) {
+    case "PIZZA":
+    case "PIZZA_COMBO":
+      return "Q1";
+    case "SAN":
+    case "CHUAN":
+      return "Q3";
+    case "NUOC":
+      return "Q2";
+    default:
+      return "Q2";
   }
 }
 
@@ -173,137 +199,98 @@ function getFlow(loai: CustomerType) {
     case "SAN":
       return [
         { code: "CAM_DO_AN" as EventName, label: "1. Khách cầm đồ ăn" },
-        { code: "VAO_HANG_THANH_TOAN" as EventName, label: "2. Khách đứng vào hàng đợi thanh toán" },
-        { code: "NV_BAT_DAU_CAM_MON_TINH_TIEN" as EventName, label: "3. Nhân viên bắt đầu cầm món / tính tiền" },
-        { code: "NHAN_MON_ROI_QUAY" as EventName, label: "4. Khách nhận món và rời quầy" },
+        { code: "VAO_HANG_THANH_TOAN" as EventName, label: "2. Khách vào hàng đợi thanh toán" },
+        { code: "NV_BAT_DAU_PHUC_VU" as EventName, label: "3. Nhân viên bắt đầu tính tiền" },
+        { code: "NHAN_HANG_ROI_QUAY" as EventName, label: "4. Khách nhận hàng và rời quầy" },
       ];
     case "CHUAN":
       return [
-        { code: "NV_DUA_THE_ORDER" as EventName, label: "1. Nhân viên đưa thẻ / phiếu order" },
-        { code: "VAO_HANG_THANH_TOAN_CHUAN" as EventName, label: "2. Khách đứng vào hàng đợi thanh toán" },
-        { code: "NV_BAT_DAU_CAM_PHIEU_TINH_TIEN" as EventName, label: "3. Nhân viên bắt đầu cầm phiếu / tính tiền" },
-        { code: "NHAN_MON_ROI_HANG" as EventName, label: "4. Khách nhận món và rời hàng" },
+        { code: "NV_DUA_THE_ORDER" as EventName, label: "1. Nhân viên đưa phiếu / thẻ order" },
+        { code: "VAO_HANG_THANH_TOAN" as EventName, label: "2. Khách vào hàng đợi thanh toán" },
+        { code: "NV_BAT_DAU_PHUC_VU" as EventName, label: "3. Nhân viên bắt đầu tính tiền" },
+        { code: "NHAN_HANG_ROI_QUAY" as EventName, label: "4. Khách nhận món và rời quầy" },
       ];
     case "PIZZA":
       return [
-        { code: "VAO_HANG_ORDER_PIZZA" as EventName, label: "1. Khách đứng vào hàng đợi order" },
-        { code: "NV_BAT_DAU_NHAN_ORDER_PIZZA_TINH_TIEN" as EventName, label: "2. Nhân viên bắt đầu nhận order / tính tiền" },
-        { code: "NHAN_PIZZA_ROI_HANG" as EventName, label: "3. Khách nhận pizza và rời hàng" },
+        { code: "VAO_HANG_ORDER_PIZZA" as EventName, label: "1. Khách vào hàng đợi order pizza" },
+        { code: "NV_BAT_DAU_PHUC_VU" as EventName, label: "2. Nhân viên bắt đầu nhận order / tính tiền" },
+        { code: "NHAN_HANG_ROI_QUAY" as EventName, label: "3. Khách nhận pizza và rời quầy" },
       ];
     case "PIZZA_COMBO":
       return [
-        { code: "CAM_MON_KHAC_VAO_HANG_PIZZA" as EventName, label: "1. Khách cầm món khác và đứng vào hàng đợi Quầy Thanh Toán 1" },
-        { code: "NV_BAT_DAU_ORDER_PIZZA_TINH_TIEN_TOAN_BO" as EventName, label: "2. Nhân viên bắt đầu nhận order pizza và tính tiền toàn bộ đơn" },
-        { code: "NHAN_PIZZA_MON_DA_THANH_TOAN_ROI_HANG" as EventName, label: "3. Khách nhận pizza cùng các món đã thanh toán và rời hàng" },
+        { code: "CAM_DO_AN" as EventName, label: "1. Khách cầm món khác và qua quầy pizza" },
+        { code: "VAO_HANG_ORDER_PIZZA" as EventName, label: "2. Khách vào hàng order pizza / thanh toán" },
+        { code: "NV_BAT_DAU_PHUC_VU" as EventName, label: "3. Nhân viên bắt đầu xử lý toàn bộ đơn" },
+        { code: "NHAN_HANG_ROI_QUAY" as EventName, label: "4. Khách nhận đủ món và rời quầy" },
+      ];
+    case "NUOC":
+      return [
+        { code: "LAY_NUOC" as EventName, label: "1. Khách lấy nước" },
+        { code: "VAO_HANG_THANH_TOAN" as EventName, label: "2. Khách vào hàng đợi thanh toán" },
+        { code: "NV_BAT_DAU_PHUC_VU" as EventName, label: "3. Nhân viên bắt đầu tính tiền" },
+        { code: "NHAN_HANG_ROI_QUAY" as EventName, label: "4. Khách thanh toán xong và rời quầy" },
       ];
     default:
       return [];
   }
 }
 
-function getArrivalEvent(loai: CustomerType): EventName {
-  switch (loai) {
-    case "SAN":
-      return "VAO_HANG_THANH_TOAN";
-    case "CHUAN":
-      return "VAO_HANG_THANH_TOAN_CHUAN";
-    case "PIZZA":
-      return "VAO_HANG_ORDER_PIZZA";
-    case "PIZZA_COMBO":
-      return "CAM_MON_KHAC_VAO_HANG_PIZZA";
-  }
-}
-
-function getServiceStartEvent(loai: CustomerType): EventName {
-  switch (loai) {
-    case "SAN":
-      return "NV_BAT_DAU_CAM_MON_TINH_TIEN";
-    case "CHUAN":
-      return "NV_BAT_DAU_CAM_PHIEU_TINH_TIEN";
-    case "PIZZA":
-      return "NV_BAT_DAU_NHAN_ORDER_PIZZA_TINH_TIEN";
-    case "PIZZA_COMBO":
-      return "NV_BAT_DAU_ORDER_PIZZA_TINH_TIEN_TOAN_BO";
-  }
-}
-
 function getSystemStartEvent(loai: CustomerType): EventName {
   switch (loai) {
     case "SAN":
+    case "PIZZA_COMBO":
       return "CAM_DO_AN";
     case "CHUAN":
       return "NV_DUA_THE_ORDER";
     case "PIZZA":
       return "VAO_HANG_ORDER_PIZZA";
-    case "PIZZA_COMBO":
-      return "CAM_MON_KHAC_VAO_HANG_PIZZA";
+    case "NUOC":
+      return "LAY_NUOC";
   }
 }
 
-function getSystemEndEvent(loai: CustomerType): EventName {
+function getArrivalEvent(loai: CustomerType): EventName {
   switch (loai) {
-    case "SAN":
-      return "NHAN_MON_ROI_QUAY";
-    case "CHUAN":
-      return "NHAN_MON_ROI_HANG";
     case "PIZZA":
-      return "NHAN_PIZZA_ROI_HANG";
     case "PIZZA_COMBO":
-      return "NHAN_PIZZA_MON_DA_THANH_TOAN_ROI_HANG";
+      return "VAO_HANG_ORDER_PIZZA";
+    default:
+      return "VAO_HANG_THANH_TOAN";
   }
 }
 
-function getArenaQueue(loai: CustomerType): string {
-  switch (loai) {
-    case "SAN":
-      return "Q_ThanhToan_DoAnSan";
-    case "CHUAN":
-      return "Q_ThanhToan_MonBep";
-    case "PIZZA":
-      return "Q_Order_Pizza";
-    case "PIZZA_COMBO":
-      return "Q_Pizza_Combo";
+function getServiceStartEvent(): EventName {
+  return "NV_BAT_DAU_PHUC_VU";
+}
+
+function getSystemEndEvent(): EventName {
+  return "NHAN_HANG_ROI_QUAY";
+}
+
+function getArenaQueue(quay: CounterType) {
+  switch (quay) {
+    case "Q1":
+      return "Q_ThanhToan_Q1";
+    case "Q2":
+      return "Q_ThanhToan_Q2";
+    case "Q3":
+      return "Q_ThanhToan_Q3";
   }
 }
 
-function getArenaResource(loai: CustomerType): string {
-  switch (loai) {
-    case "SAN":
-      return "Cashier_DoAnSan";
-    case "CHUAN":
-      return "Cashier_MonBep";
-    case "PIZZA":
-      return "Cashier_Pizza";
-    case "PIZZA_COMBO":
-      return "Cashier_PizzaCombo";
+function getArenaResource(quay: CounterType) {
+  switch (quay) {
+    case "Q1":
+      return "Cashier_Q1";
+    case "Q2":
+      return "Cashier_Q2";
+    case "Q3":
+      return "Cashier_Q3";
   }
 }
 
-function getArenaProcessType(loai: CustomerType): string {
-  switch (loai) {
-    case "SAN":
-      return "ThanhToan";
-    case "CHUAN":
-      return "ThanhToan_MonBep";
-    case "PIZZA":
-      return "Order_TinhTien_Pizza";
-    case "PIZZA_COMBO":
-      return "Order_TinhTien_PizzaCombo";
-  }
-}
-
-function mapDbRowToEventRow(row: DbRow): EventRow {
-  return {
-    id: row.id,
-    maKH: row.ma_kh,
-    loaiKH: row.loai_kh,
-    suKien: row.su_kien,
-    thoiGian: row.thoi_gian,
-    nhanVien: row.nhan_vien,
-    quay: row.quay,
-    ghiChu: row.ghi_chu || "",
-    nguoiBam: row.nguoi_bam || "",
-  };
+function getArenaProcessType(loai: CustomerType, quay: CounterType) {
+  return `${loai}_${quay}`;
 }
 
 function getCustomerTypeTheme(loaiLabel: string) {
@@ -316,9 +303,26 @@ function getCustomerTypeTheme(loaiLabel: string) {
       return { badgeBg: "#fee2e2", badgeText: "#b91c1c", cardBorder: "#fca5a5", cardBg: "#fef2f2" };
     case "PIZZA KẾT HỢP MÓN KHÁC":
       return { badgeBg: "#ede9fe", badgeText: "#6d28d9", cardBorder: "#c4b5fd", cardBg: "#f5f3ff" };
+    case "NƯỚC":
+      return { badgeBg: "#dcfce7", badgeText: "#15803d", cardBorder: "#86efac", cardBg: "#f0fdf4" };
     default:
       return { badgeBg: "#e5e7eb", badgeText: "#374151", cardBorder: "#d1d5db", cardBg: "#f9fafb" };
   }
+}
+
+function mapDbRowToEventRow(row: DbRow): EventRow {
+  return {
+    id: row.id,
+    maKH: row.ma_kh,
+    loaiKH: row.loai_kh,
+    quyTrinh: row.quy_trinh || "",
+    suKien: row.su_kien,
+    thoiGian: row.thoi_gian,
+    nhanVien: row.nhan_vien,
+    quay: row.quay,
+    ghiChu: row.ghi_chu || "",
+    nguoiBam: row.nguoi_bam || "",
+  };
 }
 
 const palette = {
@@ -340,8 +344,8 @@ const palette = {
 export default function Page() {
   const [currentMaKH, setCurrentMaKH] = useState<string>("");
   const [loaiKH, setLoaiKH] = useState<CustomerType | "">("");
+  const [quay, setQuay] = useState<CounterType>("Q2");
   const [nhanVien, setNhanVien] = useState<string>("NV1");
-  const [quay, setQuay] = useState<string>("Quầy Thanh Toán 3");
   const [ghiChu, setGhiChu] = useState<string>("");
   const [tenNguoiBam, setTenNguoiBam] = useState<string>("");
   const [deviceId, setDeviceId] = useState<string>("");
@@ -371,7 +375,6 @@ export default function Page() {
 
   async function loadEventLog() {
     setLoading(true);
-
     const { data, error } = await supabase
       .from("event_log")
       .select("*")
@@ -379,14 +382,12 @@ export default function Page() {
       .order("id", { ascending: false });
 
     if (error) {
-      console.error("Supabase load error:", error);
       alert(`Không tải được dữ liệu: ${error.message}`);
       setLoading(false);
       return;
     }
 
-    const mapped = ((data || []) as DbRow[]).map(mapDbRowToEventRow);
-    setEventLog(mapped);
+    setEventLog(((data || []) as DbRow[]).map(mapDbRowToEventRow));
     setLoading(false);
   }
 
@@ -418,7 +419,7 @@ export default function Page() {
     }
 
     const channel = supabase
-      .channel("event-log-live")
+      .channel("event-log-live-3counter")
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "event_log" },
@@ -427,24 +428,18 @@ export default function Page() {
           upsertEventRow(row);
         }
       )
-      .on(
-        "postgres_changes",
-        { event: "DELETE", schema: "public", table: "event_log" },
-        (payload) => {
-          const oldRow = payload.old as { id?: number };
-          if (oldRow?.id) {
-            setEventLog((prev) => prev.filter((x) => x.id !== oldRow.id));
-          } else {
-            loadEventLog();
-          }
-        }
-      )
       .subscribe();
 
     return () => {
       supabase.removeChannel(channel);
     };
   }, []);
+
+  useEffect(() => {
+    if (loaiKH) {
+      setQuay(getRecommendedCounter(loaiKH));
+    }
+  }, [loaiKH]);
 
   function startNewCustomer(selectedType: CustomerType) {
     if (!deviceId) {
@@ -461,12 +456,12 @@ export default function Page() {
 
     const newCode = generateUniqueCustomerCode(deviceId);
     setLoaiKH(selectedType);
+    setQuay(getRecommendedCounter(selectedType));
     setCurrentMaKH(newCode);
     setGhiChu("");
   }
 
   const currentFlow = loaiKH ? getFlow(loaiKH) : [];
-
   const currentCustomerEvents = eventLog
     .filter((row) => row.maKH === currentMaKH)
     .sort((a, b) => {
@@ -477,18 +472,21 @@ export default function Page() {
 
   const nextStepIndex = currentCustomerEvents.length;
   const nextExpectedEvent = currentFlow[nextStepIndex]?.code;
+  const validCounters = loaiKH ? getValidCounters(loaiKH) : ["Q1", "Q2", "Q3"];
 
   async function addEvent(suKien: EventName) {
     if (!currentMaKH || !loaiKH) {
       alert("Bạn phải chọn loại khách trước.");
       return;
     }
-
     if (!tenNguoiBam.trim()) {
       alert("Bạn chưa nhập tên người bấm.");
       return;
     }
-
+    if (!validCounters.includes(quay)) {
+      alert("Quầy đang chọn không phù hợp với loại khách này.");
+      return;
+    }
     if (suKien !== nextExpectedEvent) {
       alert("Bạn đang bấm sai thứ tự quy trình.");
       return;
@@ -501,6 +499,7 @@ export default function Page() {
       .insert({
         ma_kh: currentMaKH,
         loai_kh: loaiKH,
+        quy_trinh: `${getLoaiKhachLabel(loaiKH)} - ${quay}`,
         su_kien: suKien,
         thoi_gian: now.toISOString(),
         nhan_vien: nhanVien,
@@ -511,15 +510,12 @@ export default function Page() {
       .select("*");
 
     if (error) {
-      console.error("Supabase insert error:", error);
       alert(`Lưu dữ liệu thất bại: ${error.message}`);
       return;
     }
 
     const inserted = data?.[0] as DbRow | undefined;
-    if (inserted) {
-      upsertEventRow(mapDbRowToEventRow(inserted));
-    }
+    if (inserted) upsertEventRow(mapDbRowToEventRow(inserted));
   }
 
   async function resetCurrentCustomer() {
@@ -531,20 +527,13 @@ export default function Page() {
     const ok = window.confirm(`Xóa toàn bộ log của khách ${currentMaKH}?`);
     if (!ok) return;
 
-    const idsToDelete = eventLog.filter((x) => x.maKH === currentMaKH).map((x) => x.id);
-
-    const { error } = await supabase
-      .from("event_log")
-      .delete()
-      .eq("ma_kh", currentMaKH);
-
+    const { error } = await supabase.from("event_log").delete().eq("ma_kh", currentMaKH);
     if (error) {
-      console.error("Supabase delete error:", error);
       alert(`Xóa dữ liệu thất bại: ${error.message}`);
       return;
     }
 
-    setEventLog((prev) => prev.filter((x) => !idsToDelete.includes(x.id)));
+    setEventLog((prev) => prev.filter((x) => x.maKH !== currentMaKH));
     setCurrentMaKH("");
     setLoaiKH("");
     setGhiChu("");
@@ -555,9 +544,7 @@ export default function Page() {
     if (!ok) return;
 
     const { error } = await supabase.from("event_log").delete().neq("id", 0);
-
     if (error) {
-      console.error("Supabase clear all error:", error);
       alert(`Xóa toàn bộ dữ liệu thất bại: ${error.message}`);
       return;
     }
@@ -566,13 +553,12 @@ export default function Page() {
     setCurrentMaKH("");
     setLoaiKH("");
     setNhanVien("NV1");
-    setQuay("Quầy Thanh Toán 3");
+    setQuay("Q2");
     setGhiChu("");
   }
 
   const summaryRows = useMemo<SummaryRow[]>(() => {
     const grouped = new Map<string, EventRow[]>();
-
     const sortedEvents = [...eventLog].sort((a, b) => {
       const t = new Date(a.thoiGian).getTime() - new Date(b.thoiGian).getTime();
       if (t !== 0) return t;
@@ -597,17 +583,18 @@ export default function Page() {
 
       const heThongStart = findTime(getSystemStartEvent(loai));
       const arrivalQueue = findTime(getArrivalEvent(loai));
-      const serviceStart = findTime(getServiceStartEvent(loai));
-      const systemEnd = findTime(getSystemEndEvent(loai));
+      const serviceStart = findTime(getServiceStartEvent());
+      const systemEnd = findTime(getSystemEndEvent());
 
       result.push({
         stt: stt++,
         maKH,
         loaiKH: getLoaiKhachLabel(loai),
-        nhanVien: firstRow?.nhanVien || "",
-        quay: firstRow?.quay || "",
-        ghiChu: firstRow?.ghiChu || "",
-        nguoiBam: firstRow?.nguoiBam || "",
+        quyTrinh: firstRow.quyTrinh,
+        nhanVien: firstRow.nhanVien || "",
+        quay: firstRow.quay || "",
+        ghiChu: firstRow.ghiChu || "",
+        nguoiBam: firstRow.nguoiBam || "",
 
         soBuoc: flow.length,
 
@@ -635,9 +622,9 @@ export default function Page() {
         arenaArrivalTime: arrivalQueue,
         arenaInterarrivalS: "",
         arenaServiceS: diffSecondsPrecise(serviceStart, systemEnd),
-        arenaQueue: getArenaQueue(loai),
-        arenaResource: getArenaResource(loai),
-        arenaProcessType: getArenaProcessType(loai),
+        arenaQueue: getArenaQueue(firstRow.quay),
+        arenaResource: getArenaResource(firstRow.quay),
+        arenaProcessType: getArenaProcessType(loai, firstRow.quay),
       });
     });
 
@@ -693,6 +680,7 @@ export default function Page() {
       STT: row.stt,
       MaKH: row.maKH,
       LoaiKH: row.loaiKH,
+      QuyTrinh: row.quyTrinh,
       NhanVien: row.nhanVien,
       Quay: row.quay,
       GhiChu: row.ghiChu,
@@ -731,14 +719,6 @@ export default function Page() {
       cellDates: true,
       dateNF: "yyyy-mm-dd hh:mm:ss.000",
     });
-
-    ws["!cols"] = [
-      { wch: 8 }, { wch: 30 }, { wch: 24 }, { wch: 12 }, { wch: 10 }, { wch: 18 }, { wch: 14 },
-      { wch: 8 }, { wch: 24 }, { wch: 24 }, { wch: 24 }, { wch: 24 }, { wch: 16 }, { wch: 16 },
-      { wch: 16 }, { wch: 16 }, { wch: 18 }, { wch: 24 }, { wch: 18 }, { wch: 16 }, { wch: 22 },
-      { wch: 22 }, { wch: 22 }, { wch: 36 }, { wch: 24 }, { wch: 36 }, { wch: 24 }, { wch: 36 },
-      { wch: 24 }, { wch: 36 }, { wch: 24 },
-    ];
 
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Summary");
@@ -821,10 +801,10 @@ export default function Page() {
         >
           <div style={{ marginBottom: 12 }}>
             <h1 style={{ margin: 0, fontSize: 28, fontWeight: 800 }}>
-              Web bấm giờ dùng mô phỏng ở Quầy Đồ Ăn Emart
+              Web bấm giờ mô phỏng eMart - 3 quầy thanh toán
             </h1>
             <p style={{ margin: "8px 0 0", color: palette.sub }}>
-              Tác giả: Bùi Văn Cường
+              Code này giúp bạn thu dữ liệu sát 3 quầy thực tế, nhưng để đạt mức cao theo rubric vẫn cần báo cáo đầy đủ Chương I-V, mô hình Arena, kiểm chứng và so sánh phương án.  [oai_citation:1‡71SCMN40363_KY THUAT MO HINH HOA VA MO PHONG_K27_TIEUL_De 1.pdf](sediment://file_00000000fea4720890e93820c49c0915)
             </p>
           </div>
 
@@ -839,22 +819,18 @@ export default function Page() {
               <div style={{ color: palette.sub, fontSize: 13 }}>Khách hiện tại</div>
               <div style={{ fontWeight: 800, fontSize: 18 }}>{currentMaKH || "Chưa chọn"}</div>
             </div>
-
             <div style={infoItemStyle}>
               <div style={{ color: palette.sub, fontSize: 13 }}>Loại khách</div>
               <div style={{ fontWeight: 700 }}>{loaiKH ? getLoaiKhachLabel(loaiKH) : "Chưa chọn"}</div>
             </div>
-
             <div style={infoItemStyle}>
               <div style={{ color: palette.sub, fontSize: 13 }}>Người đang bấm</div>
               <div style={{ fontWeight: 700 }}>{tenNguoiBam || "Chưa nhập tên"}</div>
             </div>
-
             <div style={infoItemStyle}>
               <div style={{ color: palette.sub, fontSize: 13 }}>Mã thiết bị</div>
               <div style={{ fontWeight: 700 }}>{deviceId || "Đang tạo..."}</div>
             </div>
-
             <div style={infoItemStyle}>
               <div style={{ color: palette.sub, fontSize: 13 }}>Trạng thái tải</div>
               <div style={{ fontWeight: 700, color: loading ? palette.amber : palette.green }}>
@@ -889,11 +865,8 @@ export default function Page() {
             boxShadow: "0 4px 20px rgba(0,0,0,0.04)",
           }}
         >
-          <div style={{ marginBottom: 12 }}>
-            <h2 style={sectionTitleStyle}>Thông tin thao tác</h2>
-          </div>
-
-          <div style={{ display: "grid", gap: 12 }}>
+          <h2 style={sectionTitleStyle}>Thông tin thao tác</h2>
+          <div style={{ display: "grid", gap: 12, marginTop: 12 }}>
             <div>
               <label style={{ display: "block", marginBottom: 6, fontWeight: 600 }}>Nhân viên</label>
               <select
@@ -911,14 +884,17 @@ export default function Page() {
                 <option value="NV1">NV1</option>
                 <option value="NV2">NV2</option>
                 <option value="NV3">NV3</option>
+                <option value="NV4">NV4</option>
               </select>
             </div>
 
             <div>
-              <label style={{ display: "block", marginBottom: 6, fontWeight: 600 }}>Quầy</label>
+              <label style={{ display: "block", marginBottom: 6, fontWeight: 600 }}>
+                Quầy thanh toán
+              </label>
               <select
                 value={quay}
-                onChange={(e) => setQuay(e.target.value)}
+                onChange={(e) => setQuay(e.target.value as CounterType)}
                 style={{
                   width: "100%",
                   padding: 12,
@@ -928,9 +904,11 @@ export default function Page() {
                   background: "#fff",
                 }}
               >
-                <option value="Quầy Thanh Toán 3">Quầy Thanh Toán 3</option>
-                <option value="Quầy Thanh Toán 2">Quầy Thanh Toán 2</option>
-                <option value="Pizza">Quầy Thanh Toán 1</option>
+                {validCounters.map((q) => (
+                  <option key={q} value={q}>
+                    {q} {q === "Q1" ? "- Khu bánh/pizza" : q === "Q2" ? "- Khu nước" : "- Khu đồ ăn sẵn/chế biến"}
+                  </option>
+                ))}
               </select>
             </div>
 
@@ -939,7 +917,7 @@ export default function Page() {
               <input
                 value={ghiChu}
                 onChange={(e) => setGhiChu(e.target.value)}
-                placeholder="Ví dụ: áo xanh"
+                placeholder="Ví dụ: khách cầm nhiều món"
                 style={{
                   width: "100%",
                   padding: 12,
@@ -962,15 +940,13 @@ export default function Page() {
             boxShadow: "0 4px 20px rgba(0,0,0,0.04)",
           }}
         >
-          <div style={{ marginBottom: 12 }}>
-            <h2 style={sectionTitleStyle}>Chọn loại khách để tạo mã mới</h2>
-          </div>
-
+          <h2 style={sectionTitleStyle}>Chọn loại khách</h2>
           <div
             style={{
               display: "grid",
               gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
               gap: 10,
+              marginTop: 12,
             }}
           >
             <button onClick={() => startNewCustomer("SAN")} style={typeButtonStyle(loaiKH === "SAN")}>
@@ -985,6 +961,9 @@ export default function Page() {
             <button onClick={() => startNewCustomer("PIZZA_COMBO")} style={typeButtonStyle(loaiKH === "PIZZA_COMBO")}>
               PIZZA KẾT HỢP MÓN KHÁC
             </button>
+            <button onClick={() => startNewCustomer("NUOC")} style={typeButtonStyle(loaiKH === "NUOC")}>
+              NƯỚC
+            </button>
           </div>
         </section>
 
@@ -997,12 +976,10 @@ export default function Page() {
             boxShadow: "0 4px 20px rgba(0,0,0,0.04)",
           }}
         >
-          <div style={{ marginBottom: 12 }}>
-            <h2 style={sectionTitleStyle}>Bấm theo đúng thứ tự thực tế</h2>
-            <p style={{ margin: "6px 0 0", color: palette.sub }}>
-              Chỉ nút hợp lệ tiếp theo mới bấm được.
-            </p>
-          </div>
+          <h2 style={sectionTitleStyle}>Bấm theo đúng thứ tự thực tế</h2>
+          <p style={{ margin: "6px 0 12px", color: palette.sub }}>
+            Web giới hạn quầy hợp lệ theo loại khách để dữ liệu sát hệ thống 3 quầy thực tế hơn.
+          </p>
 
           {loaiKH ? (
             <div style={{ display: "grid", gap: 10 }}>
@@ -1071,7 +1048,7 @@ export default function Page() {
             Summary {loading ? "(đang tải...)" : ""}
           </h2>
           <p style={{ margin: "6px 0 14px", color: palette.sub }}>
-            Dữ liệu đã bấm
+            Web ẩn Arena Input để gọn, nhưng file Excel vẫn xuất đầy đủ cho Arena.
           </p>
 
           <div style={{ display: "grid", gap: 14 }}>
@@ -1101,25 +1078,19 @@ export default function Page() {
                       background: theme.cardBg,
                     }}
                   >
-<div
-  style={{
-    display: "flex",
-    justifyContent: "space-between",
-    gap: 10,
-    flexWrap: "wrap",
-    marginBottom: 12,
-    alignItems: "center",
-  }}
->
-  <div>
-    <div style={{ fontSize: 13, color: palette.sub, marginBottom: 4 }}>
-      STT khách: {row.stt}
-    </div>
-    <div style={{ fontSize: 20, fontWeight: 800, wordBreak: "break-word" }}>
-      {row.maKH}
-    </div>
-  </div>
-
+                    <div
+                      style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        gap: 10,
+                        flexWrap: "wrap",
+                        marginBottom: 12,
+                        alignItems: "center",
+                      }}
+                    >
+                      <div style={{ fontSize: 20, fontWeight: 800, wordBreak: "break-word" }}>
+                        {row.maKH}
+                      </div>
                       <div
                         style={{
                           padding: "6px 10px",
@@ -1142,11 +1113,12 @@ export default function Page() {
                         marginBottom: 12,
                       }}
                     >
+                      <div style={infoItemStyle}>STT khách: <strong>{row.stt}</strong></div>
+                      <div style={infoItemStyle}>Quy trình: <strong>{row.quyTrinh || "Chưa có"}</strong></div>
                       <div style={infoItemStyle}>Nhân viên: <strong>{row.nhanVien || "Chưa có"}</strong></div>
                       <div style={infoItemStyle}>Quầy: <strong>{row.quay || "Chưa có"}</strong></div>
-                      <div style={infoItemStyle}>Ghi chú: <strong>{row.ghiChu || "Chưa có"}</strong></div>
                       <div style={infoItemStyle}>Người bấm: <strong>{row.nguoiBam || "Chưa có"}</strong></div>
-                      <div style={infoItemStyle}>Số bước: <strong>{row.soBuoc || "Chưa có"}</strong></div>
+                      <div style={infoItemStyle}>Ghi chú: <strong>{row.ghiChu || "Chưa có"}</strong></div>
                     </div>
 
                     <div style={{ display: "grid", gap: 12 }}>
@@ -1188,13 +1160,7 @@ export default function Page() {
                           background: palette.greenSoft,
                         }}
                       >
-                        <div
-                          style={{
-                            fontWeight: 800,
-                            marginBottom: 8,
-                            color: palette.green,
-                          }}
-                        >
+                        <div style={{ fontWeight: 800, marginBottom: 8, color: palette.green }}>
                           Chỉ tiêu thời gian
                         </div>
                         <div>Interarrival(s): <strong>{row.interarrivalTimeGiay === "" ? "Chưa đủ dữ liệu" : row.interarrivalTimeGiay}</strong></div>
