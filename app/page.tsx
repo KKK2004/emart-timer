@@ -31,6 +31,7 @@ type EventRow = {
   nhanVien: string;
   quay: string;
   ghiChu: string;
+  nguoiBam: string;
 };
 
 type SummaryRow = {
