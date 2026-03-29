@@ -172,9 +172,9 @@ function getValidCounters(loai: CustomerType): CounterType[] {
       return ["Quầy thanh toán 1"];
     case "SAN":
     case "CHUAN":
-      return ["Quầy thanh toán 3", "Quầy thanh toán 2"];
+      return ["Quầy thanh toán 1", "Quầy thanh toán 2", "Quầy thanh toán 3"];
     case "NUOC":
-      return ["Quầy thanh toán 2", "Quầy thanh toán 1", "Quầy thanh toán 3"];
+      return ["Quầy thanh toán 1", "Quầy thanh toán 2", "Quầy thanh toán 3"];
     default:
       return ["Quầy thanh toán 1", "Quầy thanh toán 2", "Quầy thanh toán 3"];
   }
