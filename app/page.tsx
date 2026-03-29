@@ -1132,10 +1132,30 @@ export default function Page() {
                         }}
                       >
                         <div style={{ fontWeight: 800, marginBottom: 8 }}>Thời gian từng bước</div>
-                        <div>{row.buoc1Label || "Bước 1"}: {row.T_B1 ? formatEventTime(row.T_B1) : "Chưa có"}</div>
-                        <div>{row.buoc2Label || "Bước 2"}: {row.T_B2 ? formatEventTime(row.T_B2) : "Chưa có"}</div>
-                        <div>{row.buoc3Label || "Bước 3"}: {row.T_B3 ? formatEventTime(row.T_B3) : "Chưa có"}</div>
-                        <div>{row.buoc4Label || "Bước 4"}: {row.T_B4 ? formatEventTime(row.T_B4) : "Chưa có"}</div>
+                       <div>
+  {row.buoc1Label || "Bước 1"}:{" "}
+  <strong>
+    {row.T_B1 ? formatEventTime(row.T_B1) : "Chưa có"}
+  </strong>
+</div>
+<div>
+  {row.buoc2Label || "Bước 2"}:{" "}
+  <strong>
+    {row.T_B2 ? formatEventTime(row.T_B2) : "Chưa có"}
+  </strong>
+</div>
+<div>
+  {row.buoc3Label || "Bước 3"}:{" "}
+  <strong>
+    {row.T_B3 ? formatEventTime(row.T_B3) : "Chưa có"}
+  </strong>
+</div>
+<div>
+  {row.buoc4Label || "Bước 4"}:{" "}
+  <strong>
+    {row.T_B4 ? formatEventTime(row.T_B4) : "Chưa có"}
+  </strong>
+</div>
                       </div>
 
                       <div
