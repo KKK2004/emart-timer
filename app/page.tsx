@@ -435,16 +435,6 @@ export default function Page() {
     await loadEventLog();
   }
 
-  function nextCustomer() {
-    if (!currentMaKH) {
-      alert("Chưa có khách hiện tại.");
-      return;
-    }
-
-    setCurrentMaKH("");
-    setLoaiKH("");
-    setGhiChu("");
-  }
 
   async function resetCurrentCustomer() {
     if (!currentMaKH) {
