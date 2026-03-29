@@ -827,7 +827,7 @@ export default function Page() {
         >
           <div style={{ marginBottom: 12 }}>
             <h1 style={{ margin: 0, fontSize: 28, fontWeight: 800 }}>
-              Web bấm giờ mô phỏng eMart 
+              Web bấm giờ mô phỏng ở quầy bán đồ ăn EMART 
             </h1>
             <p style={{ margin: "8px 0 0", color: palette.sub }}>
               Tác giả: Bùi Văn Cường
