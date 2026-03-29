@@ -38,6 +38,7 @@ type SummaryRow = {
   quay: string;
   ghiChu: string;
   nguoiBam: string;
+  soBuoc: number;
 
   buoc1Label: string;
   buoc2Label: string;
