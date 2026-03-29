@@ -918,7 +918,7 @@ export default function Page() {
               <input
                 value={ghiChu}
                 onChange={(e) => setGhiChu(e.target.value)}
-                placeholder="Ví dụ: khách cầm nhiều món"
+                placeholder="Ví dụ: Áo đen"
                 style={{
                   width: "100%",
                   padding: 12,
