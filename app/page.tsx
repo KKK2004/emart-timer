@@ -1158,10 +1158,10 @@ export default function Page() {
                           border: `1px solid ${palette.line}`,
                           borderRadius: 12,
                           padding: 12,
-                          background: palette.greenSoft,
+                          background: "#ffffffcc",
                         }}
                       >
-                        <div style={{ fontWeight: 800, marginBottom: 8, color: palette.white }}>
+                        <div style={{ fontWeight: 800, marginBottom: 8, color: palette.text }}>
                           Chỉ tiêu thời gian
                         </div>
                         <div>Interarrival(s): <strong>{row.interarrivalTimeGiay === "" ? "Chưa đủ dữ liệu" : row.interarrivalTimeGiay}</strong></div>
