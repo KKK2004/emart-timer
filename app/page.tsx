@@ -192,7 +192,7 @@ function getFlow(loai: CustomerType) {
       ];
     case "PIZZA_COMBO":
       return [
-        { code: "CAM_MON_KHAC_VAO_HANG_PIZZA" as EventName, label: "1. Khách cầm món khác và đứng vào hàng đợi quầy pizza" },
+        { code: "CAM_MON_KHAC_VAO_HANG_PIZZA" as EventName, label: "1. Khách cầm món khác và đứng vào hàng đợi Quầy Thanh Toán 1" },
         { code: "NV_BAT_DAU_ORDER_PIZZA_TINH_TIEN_TOAN_BO" as EventName, label: "2. Nhân viên bắt đầu nhận order pizza và tính tiền toàn bộ đơn" },
         { code: "NHAN_PIZZA_MON_DA_THANH_TOAN_ROI_HANG" as EventName, label: "3. Khách nhận pizza cùng các món đã thanh toán và rời hàng" },
       ];
@@ -341,7 +341,7 @@ export default function Page() {
   const [currentMaKH, setCurrentMaKH] = useState<string>("");
   const [loaiKH, setLoaiKH] = useState<CustomerType | "">("");
   const [nhanVien, setNhanVien] = useState<string>("NV1");
-  const [quay, setQuay] = useState<string>("Quầy Thực Phẩm Chế Biến");
+  const [quay, setQuay] = useState<string>("Quầy Thanh Toán 3");
   const [ghiChu, setGhiChu] = useState<string>("");
   const [tenNguoiBam, setTenNguoiBam] = useState<string>("");
   const [deviceId, setDeviceId] = useState<string>("");
@@ -566,7 +566,7 @@ export default function Page() {
     setCurrentMaKH("");
     setLoaiKH("");
     setNhanVien("NV1");
-    setQuay("Quầy Thực Phẩm Chế Biến");
+    setQuay("Quầy Thanh Toán 3");
     setGhiChu("");
   }
 
@@ -928,9 +928,9 @@ export default function Page() {
                   background: "#fff",
                 }}
               >
-                <option value="Quầy Thực Phẩm Chế Biến">Quầy Thực Phẩm Chế Biến</option>
-                <option value="Q2">Q2</option>
-                <option value="Pizza">Quầy Pizza</option>
+                <option value="Quầy Thanh Toán 3">Quầy Thanh Toán 3</option>
+                <option value="Quầy Thanh Toán 2">Quầy Thanh Toán 2</option>
+                <option value="Pizza">Quầy Thanh Toán 1</option>
               </select>
             </div>
 
