@@ -5,7 +5,7 @@ import * as XLSX from "xlsx";
 import { supabase } from "../lib/supabase";
 
 type CustomerType = "SAN" | "CHUAN" | "PIZZA" | "PIZZA_COMBO" | "NUOC";
-type CounterType = "Q1" | "Q2" | "Q3";
+type CounterType = "Quầy thanh toán 1" | "Quầy thanh toán 2" | "Quầy thanh toán 3";
 
 type EventName =
   | "CAM_DO_AN"
@@ -169,14 +169,14 @@ function getValidCounters(loai: CustomerType): CounterType[] {
   switch (loai) {
     case "PIZZA":
     case "PIZZA_COMBO":
-      return ["Q1"];
+      return ["Quầy thanh toán 1"];
     case "SAN":
     case "CHUAN":
-      return ["Q3", "Q2"];
+      return ["Quầy thanh toán 3", "Quầy thanh toán 2"];
     case "NUOC":
-      return ["Q2", "Q1", "Q3"];
+      return ["Quầy thanh toán 2", "Quầy thanh toán 1", "Quầy thanh toán 3"];
     default:
-      return ["Q1", "Q2", "Q3"];
+      return ["Quầy thanh toán 1", "Quầy thanh toán 2", "Quầy thanh toán 3"];
   }
 }
 
@@ -184,14 +184,14 @@ function getRecommendedCounter(loai: CustomerType): CounterType {
   switch (loai) {
     case "PIZZA":
     case "PIZZA_COMBO":
-      return "Q1";
+      return "Quầy thanh toán 1";
     case "SAN":
     case "CHUAN":
-      return "Q3";
+      return "Quầy thanh toán 3";
     case "NUOC":
-      return "Q2";
+      return "Quầy thanh toán 2";
     default:
-      return "Q2";
+      return "Quầy thanh toán 2";
   }
 }
 
@@ -221,7 +221,7 @@ function getFlow(loai: CustomerType) {
       return [
         { code: "CAM_DO_AN" as EventName, label: "1. Khách cầm món khác và qua quầy pizza" },
         { code: "VAO_HANG_ORDER_PIZZA" as EventName, label: "2. Khách vào hàng order pizza / thanh toán" },
-        { code: "NV_BAT_DAU_PHUC_VU" as EventName, label: "3. Nhân viên bắt đầu xử lý toàn bộ đơn" },
+        { code: "NV_BAT_DAU_PHUC_VU" as EventName, label: "3. Nhân viên bắt đầu tính tiền" },
         { code: "NHAN_HANG_ROI_QUAY" as EventName, label: "4. Khách nhận đủ món và rời quầy" },
       ];
     case "NUOC":
@@ -229,7 +229,7 @@ function getFlow(loai: CustomerType) {
         { code: "LAY_NUOC" as EventName, label: "1. Khách lấy nước" },
         { code: "VAO_HANG_THANH_TOAN" as EventName, label: "2. Khách vào hàng đợi thanh toán" },
         { code: "NV_BAT_DAU_PHUC_VU" as EventName, label: "3. Nhân viên bắt đầu tính tiền" },
-        { code: "NHAN_HANG_ROI_QUAY" as EventName, label: "4. Khách thanh toán xong và rời quầy" },
+        { code: "NHAN_HANG_ROI_QUAY" as EventName, label: "4. Khách nhận món và rời quầy" },
       ];
     default:
       return [];
@@ -270,23 +270,23 @@ function getSystemEndEvent(): EventName {
 
 function getArenaQueue(quay: CounterType) {
   switch (quay) {
-    case "Q1":
-      return "Q_ThanhToan_Q1";
-    case "Q2":
-      return "Q_ThanhToan_Q2";
-    case "Q3":
-      return "Q_ThanhToan_Q3";
+    case "Quầy thanh toán 1":
+      return "Q_ThanhToan_Quầy thanh toán 1";
+    case "Quầy thanh toán 2":
+      return "Q_ThanhToan_Quầy thanh toán 2";
+    case "Quầy thanh toán 3":
+      return "Q_ThanhToan_Quầy thanh toán 3";
   }
 }
 
 function getArenaResource(quay: CounterType) {
   switch (quay) {
-    case "Q1":
-      return "Cashier_Q1";
-    case "Q2":
-      return "Cashier_Q2";
-    case "Q3":
-      return "Cashier_Q3";
+    case "Quầy thanh toán 1":
+      return "Cashier_Quầy thanh toán 1";
+    case "Quầy thanh toán 2":
+      return "Cashier_Quầy thanh toán 2";
+    case "Quầy thanh toán 3":
+      return "Cashier_Quầy thanh toán 3";
   }
 }
 
@@ -345,7 +345,7 @@ const palette = {
 export default function Page() {
   const [currentMaKH, setCurrentMaKH] = useState<string>("");
   const [loaiKH, setLoaiKH] = useState<CustomerType | "">("");
-  const [quay, setQuay] = useState<CounterType>("Q2");
+  const [quay, setQuay] = useState<CounterType>("Quầy thanh toán 2");
   const [nhanVien, setNhanVien] = useState<string>("NV1");
   const [ghiChu, setGhiChu] = useState<string>("");
   const [tenNguoiBam, setTenNguoiBam] = useState<string>("");
@@ -473,7 +473,7 @@ export default function Page() {
 
   const nextStepIndex = currentCustomerEvents.length;
   const nextExpectedEvent = currentFlow[nextStepIndex]?.code;
-  const validCounters = loaiKH ? getValidCounters(loaiKH) : ["Q1", "Q2", "Q3"];
+  const validCounters = loaiKH ? getValidCounters(loaiKH) : ["Quầy thanh toán 1", "Quầy thanh toán 2", "Quầy thanh toán 3"];
 
   async function addEvent(suKien: EventName) {
     if (!currentMaKH || !loaiKH) {
@@ -554,7 +554,7 @@ export default function Page() {
     setCurrentMaKH("");
     setLoaiKH("");
     setNhanVien("NV1");
-    setQuay("Q2");
+    setQuay("Quầy thanh toán 2");
     setGhiChu("");
   }
 
@@ -802,12 +802,10 @@ export default function Page() {
         >
           <div style={{ marginBottom: 12 }}>
             <h1 style={{ margin: 0, fontSize: 28, fontWeight: 800 }}>
-              Web bấm giờ mô phỏng eMart - 3 quầy thanh toán
+              Web bấm giờ để mô phỏng ở eMart - 3 quầy thanh toán
             </h1>
             <p style={{ margin: "8px 0 0", color: palette.sub }}>
-              Code này giúp bạn thu dữ liệu sát 3 quầy thực tế, nhưng để đạt mức cao theo rubric vẫn cần báo cáo đầy đủ Chương I-V, mô hình Arena, kiểm chứng và so sánh phương án.  [oai_citation:1‡71SCMN40363_KY THUAT MO HINH HOA VA MO PHONG_K27_TIEUL_De 1.pdf](sediment://file_00000000fea4720890e93820c49c0915)
-            </p>
-          </div>
+              Tác giả: Bùi Văn Cường
 
           <div
             style={{
@@ -907,7 +905,7 @@ export default function Page() {
               >
                 {validCounters.map((q) => (
                   <option key={q} value={q}>
-                    {q} {q === "Q1" ? "- Khu bánh/pizza" : q === "Q2" ? "- Khu nước" : "- Khu đồ ăn sẵn/chế biến"}
+                    {q} {q === "Quầy thanh toán 1" ? "- Khu bánh/pizza" : q === "Quầy thanh toán 2" ? "- Khu nước" : "- Khu đồ ăn sẵn/chế biến"}
                   </option>
                 ))}
               </select>
