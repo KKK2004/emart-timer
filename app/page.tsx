@@ -341,7 +341,7 @@ export default function Page() {
   const [currentMaKH, setCurrentMaKH] = useState<string>("");
   const [loaiKH, setLoaiKH] = useState<CustomerType | "">("");
   const [nhanVien, setNhanVien] = useState<string>("NV1");
-  const [quay, setQuay] = useState<string>("Q1");
+  const [quay, setQuay] = useState<string>("Quầy Thực Phẩm Chế Biến");
   const [ghiChu, setGhiChu] = useState<string>("");
   const [tenNguoiBam, setTenNguoiBam] = useState<string>("");
   const [deviceId, setDeviceId] = useState<string>("");
@@ -566,7 +566,7 @@ export default function Page() {
     setCurrentMaKH("");
     setLoaiKH("");
     setNhanVien("NV1");
-    setQuay("Q1");
+    setQuay("Quầy Thực Phẩm Chế Biến");
     setGhiChu("");
   }
 
@@ -928,7 +928,7 @@ export default function Page() {
                   background: "#fff",
                 }}
               >
-                <option value="Q1">Q1</option>
+                <option value="Quầy Thực Phẩm Chế Biến">Quầy Thực Phẩm Chế Biến</option>
                 <option value="Q2">Q2</option>
                 <option value="Pizza">Quầy Pizza</option>
               </select>
