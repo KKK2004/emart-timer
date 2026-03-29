@@ -1101,19 +1101,24 @@ export default function Page() {
                       background: theme.cardBg,
                     }}
                   >
-                    <div
-                      style={{
-                        display: "flex",
-                        justifyContent: "space-between",
-                        gap: 10,
-                        flexWrap: "wrap",
-                        marginBottom: 12,
-                        alignItems: "center",
-                      }}
-                    >
-                      <div style={{ fontSize: 20, fontWeight: 800, wordBreak: "break-word" }}>
-                        {row.maKH}
-                      </div>
+<div
+  style={{
+    display: "flex",
+    justifyContent: "space-between",
+    gap: 10,
+    flexWrap: "wrap",
+    marginBottom: 12,
+    alignItems: "center",
+  }}
+>
+  <div>
+    <div style={{ fontSize: 13, color: palette.sub, marginBottom: 4 }}>
+      STT khách: {row.stt}
+    </div>
+    <div style={{ fontSize: 20, fontWeight: 800, wordBreak: "break-word" }}>
+      {row.maKH}
+    </div>
+  </div>
 
                       <div
                         style={{
