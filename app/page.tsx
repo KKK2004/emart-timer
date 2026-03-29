@@ -41,6 +41,7 @@ type SummaryRow = {
   nhanVien: string;
   quay: string;
   ghiChu: string;
+  nguoiBam: string;
 
   soBuoc: number;
 
@@ -82,6 +83,7 @@ type DbRow = {
   nhan_vien: string;
   quay: string;
   ghi_chu: string | null;
+  nguoi_bam: string | null;
 };
 
 function pad2(n: number) {
@@ -319,6 +321,7 @@ function mapDbRowToEventRow(row: DbRow): EventRow {
     nhanVien: row.nhan_vien,
     quay: row.quay,
     ghiChu: row.ghi_chu || "",
+    nguoiBam: row.nguoi_bam || "",
   };
 }
 
@@ -385,6 +388,7 @@ export default function Page() {
   const [nhanVien, setNhanVien] = useState<string>("NV1");
   const [quay, setQuay] = useState<string>("Q1");
   const [ghiChu, setGhiChu] = useState<string>("");
+  const [tenNguoiBam, setTenNguoiBam] = useState<string>("");
   const [eventLog, setEventLog] = useState<EventRow[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -417,6 +421,20 @@ export default function Page() {
   }
 
   useEffect(() => {
+    const savedName = localStorage.getItem("emart_ten_nguoi_bam");
+
+    if (savedName) {
+      setTenNguoiBam(savedName);
+    } else {
+      const inputName = window.prompt("Nhập tên người đang bấm:", "") || "";
+      const finalName = inputName.trim();
+
+      if (finalName) {
+        localStorage.setItem("emart_ten_nguoi_bam", finalName);
+        setTenNguoiBam(finalName);
+      }
+    }
+
     loadEventLog();
   }, []);
 
@@ -450,6 +468,11 @@ export default function Page() {
       return;
     }
 
+    if (!tenNguoiBam.trim()) {
+      alert("Bạn chưa nhập tên người bấm.");
+      return;
+    }
+
     if (suKien !== nextExpectedEvent) {
       alert("Bạn đang bấm sai thứ tự quy trình.");
       return;
@@ -465,6 +488,7 @@ export default function Page() {
       nhan_vien: nhanVien,
       quay: quay,
       ghi_chu: ghiChu,
+      nguoi_bam: tenNguoiBam,
     });
 
     if (error) {
@@ -555,6 +579,7 @@ export default function Page() {
         nhanVien: firstRow?.nhanVien || "",
         quay: firstRow?.quay || "",
         ghiChu: firstRow?.ghiChu || "",
+        nguoiBam: firstRow?.nguoiBam || "",
 
         soBuoc: flow.length,
 
@@ -633,6 +658,7 @@ export default function Page() {
       NhanVien: row.nhanVien,
       Quay: row.quay,
       GhiChu: row.ghiChu,
+      NguoiBam: row.nguoiBam,
       SoBuoc: row.soBuoc,
 
       ThoiGianDenHeThong: parseDateTime(row.thoiGianDenHeThong),
@@ -681,6 +707,7 @@ export default function Page() {
       { wch: 12 },
       { wch: 10 },
       { wch: 18 },
+      { wch: 14 },
       { wch: 8 },
       { wch: 22 },
       { wch: 22 },
@@ -820,18 +847,44 @@ export default function Page() {
                 {currentMaKH || "Chưa chọn"}
               </div>
             </div>
+
             <div style={infoItemStyle}>
               <div style={{ color: palette.sub, fontSize: 13 }}>Loại khách</div>
               <div style={{ fontWeight: 700 }}>
                 {loaiKH ? getLoaiKhachLabel(loaiKH) : "Chưa chọn"}
               </div>
             </div>
+
+            <div style={infoItemStyle}>
+              <div style={{ color: palette.sub, fontSize: 13 }}>Người đang bấm</div>
+              <div style={{ fontWeight: 700 }}>
+                {tenNguoiBam || "Chưa nhập tên"}
+              </div>
+            </div>
+
             <div style={infoItemStyle}>
               <div style={{ color: palette.sub, fontSize: 13 }}>Trạng thái tải</div>
               <div style={{ fontWeight: 700, color: loading ? palette.amber : palette.green }}>
                 {loading ? "Đang tải..." : "Sẵn sàng"}
               </div>
             </div>
+          </div>
+
+          <div style={{ marginTop: 12 }}>
+            <button
+              onClick={() => {
+                const newName =
+                  window.prompt("Nhập lại tên người đang bấm:", tenNguoiBam) || "";
+                const finalName = newName.trim();
+                if (finalName) {
+                  localStorage.setItem("emart_ten_nguoi_bam", finalName);
+                  setTenNguoiBam(finalName);
+                }
+              }}
+              style={buttonStyle(false)}
+            >
+              ĐỔI TÊN NGƯỜI BẤM
+            </button>
           </div>
         </section>
 
@@ -1106,6 +1159,9 @@ export default function Page() {
                       </div>
                       <div style={infoItemStyle}>
                         Ghi chú: <strong>{row.ghiChu || "Chưa có"}</strong>
+                      </div>
+                      <div style={infoItemStyle}>
+                        Người bấm: <strong>{row.nguoiBam || "Chưa có"}</strong>
                       </div>
                       <div style={infoItemStyle}>
                         Số bước: <strong>{row.soBuoc || "Chưa có"}</strong>
