@@ -1161,7 +1161,7 @@ export default function Page() {
                           background: palette.greenSoft,
                         }}
                       >
-                        <div style={{ fontWeight: 800, marginBottom: 8, color: palette.green }}>
+                        <div style={{ fontWeight: 800, marginBottom: 8, color: palette.white }}>
                           Chỉ tiêu thời gian
                         </div>
                         <div>Interarrival(s): <strong>{row.interarrivalTimeGiay === "" ? "Chưa đủ dữ liệu" : row.interarrivalTimeGiay}</strong></div>
