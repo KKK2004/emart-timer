@@ -824,7 +824,7 @@ export default function Page() {
               Web bấm giờ dùng mô phỏng ở Quầy Đồ Ăn Emart
             </h1>
             <p style={{ margin: "8px 0 0", color: palette.sub }}>
-              Tác giả: Bùi Văn Cường đẹp trai.
+              Tác giả: Bùi Văn Cường
             </p>
           </div>
 
