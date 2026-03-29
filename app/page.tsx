@@ -1048,7 +1048,7 @@ export default function Page() {
             Summary {loading ? "(đang tải...)" : ""}
           </h2>
           <p style={{ margin: "6px 0 14px", color: palette.sub }}>
-            Web ẩn Arena Input để gọn, nhưng file Excel vẫn xuất đầy đủ cho Arena.
+            Mới bấm sẽ hiện trên đầu nhe
           </p>
 
           <div style={{ display: "grid", gap: 14 }}>
