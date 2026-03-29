@@ -827,10 +827,10 @@ export default function Page() {
         >
           <div style={{ marginBottom: 12 }}>
             <h1 style={{ margin: 0, fontSize: 28, fontWeight: 800 }}>
-              Web bấm giờ mô phỏng eMart
+              Web bấm giờ mô phỏng eMart 
             </h1>
             <p style={{ margin: "8px 0 0", color: palette.sub }}>
-              Dữ liệu đang dùng chung qua Supabase. Giao diện tối ưu để thao tác trên điện thoại.
+              Tác giả: Bùi Văn Cường
             </p>
           </div>
 
