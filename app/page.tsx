@@ -1304,7 +1304,7 @@ export default function Page() {
               <input
                 value={ghiChu}
                 onChange={(e) => setGhiChu(e.target.value)}
-                placeholder="Ví dụ: Áo đen (gõ là Summary cập nhật ngay)"
+                placeholder="Ví dụ: Áo đen (Được thì điền để biết đang bấm ng nào)"
                 style={{
                   width: "100%",
                   padding: 12,
@@ -1385,7 +1385,7 @@ export default function Page() {
         >
           <h2 style={sectionTitleStyle}>Bấm theo đúng thứ tự thực tế</h2>
           <p style={{ margin: "6px 0 12px", color: palette.sub }}>
-            Lưu ý: Chọn đúng khách rồi mới bấm bước tiếp theo. Ghi chú gõ tới đâu Summary hiện tới đó.
+            Lưu ý: Chọn loại khách hàng trước nhe rồi mới bấm các bước ở đây
           </p>
 
           {loaiKH ? (
