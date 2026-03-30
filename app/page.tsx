@@ -1353,9 +1353,9 @@ const validCounters: CounterType[] = loaiKH
             boxShadow: "0 4px 20px rgba(0,0,0,0.04)",
           }}
         >
-          <h2 style={sectionTitleStyle}>Khách đang xử lý</h2>
+          <h2 style={sectionTitleStyle}>Danh sách khách đang xử lý</h2>
           <p style={{ margin: "6px 0 14px", color: palette.sub }}>
-            Có thể chọn lại bất kỳ khách nào để bấm tiếp bước tiếp theo.
+            Muốn bấm lại giờ cho khách nào thì ấn chọn khách đó
           </p>
 
           <div style={{ display: "grid", gap: 10 }}>
