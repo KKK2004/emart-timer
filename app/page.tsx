@@ -1284,9 +1284,9 @@ export default function Page() {
                 const disabled = !currentMaKH || nextStepIndex !== index;
 
                 const isSpecialComboChoice =
-                  isSanAtQuầy thanh toán 1 (Khu bánh/pizza)(loaiKH, quay) &&
-                  step.code === "NV_BAT_DAU_PHUC_VU";
-
+                  isSanAtQ1(loaiKH, quay) &&
+                  step.code === "NV_BAT_DAU_PHUC_VU";
+              
                 if (isSpecialComboChoice) {
                   return (
                     <div key={step.code} style={{ display: "grid", gap: 10 }}>
