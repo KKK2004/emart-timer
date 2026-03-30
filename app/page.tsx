@@ -661,8 +661,15 @@ export default function Page() {
 
   const nextStepIndex = currentCustomerEvents.length;
   const nextExpectedEvent = currentFlow[nextStepIndex]?.code;
-  const validCounters = loaiKH ? getValidCounters(loaiKH) : ["Quầy thanh toán 1 - Khu bánh/pizza", "Quầy thanh toán 2 - Khu nước", "Quầy thanh toán 3 - Khu đồ ăn sẵn/chế biến"];
+const ALL_COUNTERS: CounterType[] = [
+  "Quầy thanh toán 1 - Khu bánh/pizza",
+  "Quầy thanh toán 2 - Khu nước",
+  "Quầy thanh toán 3 - Khu đồ ăn sẵn/chế biến",
+];
 
+const validCounters: CounterType[] = loaiKH
+  ? getValidCounters(loaiKH)
+  : ALL_COUNTERS;
   async function addEvent(suKien: EventName, forcedLoaiKH?: CustomerType) {
     if (!currentMaKH || !loaiKH) {
       alert("Bạn phải chọn loại khách trước.");
