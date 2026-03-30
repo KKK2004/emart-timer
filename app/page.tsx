@@ -101,6 +101,28 @@ type DbRow = {
   nguoi_bam: string | null;
 };
 
+const ALL_COUNTERS: CounterType[] = [
+  "Quầy thanh toán 1 - Khu bánh/pizza",
+  "Quầy thanh toán 2 - Khu nước",
+  "Quầy thanh toán 3 - Khu đồ ăn sẵn/chế biến",
+];
+
+const palette = {
+  bg: "#f6f8fb",
+  card: "#ffffff",
+  line: "#e5e7eb",
+  text: "#111827",
+  sub: "#6b7280",
+  blue: "#2563eb",
+  blueSoft: "#dbeafe",
+  greenSoft: "#ecfdf5",
+  green: "#059669",
+  amberSoft: "#fffbeb",
+  amber: "#d97706",
+  redSoft: "#fef2f2",
+  red: "#dc2626",
+};
+
 function pad2(n: number) {
   return String(n).padStart(2, "0");
 }
@@ -210,26 +232,7 @@ function getValidCounters(loai: CustomerType): CounterType[] {
         "Quầy thanh toán 3 - Khu đồ ăn sẵn/chế biến",
       ];
     default:
-      return [
-        "Quầy thanh toán 1 - Khu bánh/pizza",
-        "Quầy thanh toán 2 - Khu nước",
-        "Quầy thanh toán 3 - Khu đồ ăn sẵn/chế biến",
-      ];
-  }
-}
-
-function getRecommendedCounter(loai: CustomerType): CounterType {
-  switch (loai) {
-    case "PIZZA":
-    case "PIZZA_COMBO":
-      return "Quầy thanh toán 1 - Khu bánh/pizza";
-    case "SAN":
-    case "CHUAN":
-      return "Quầy thanh toán 3 - Khu đồ ăn sẵn/chế biến";
-    case "NUOC":
-      return "Quầy thanh toán 2 - Khu nước";
-    default:
-      return "Quầy thanh toán 2 - Khu nước";
+      return ALL_COUNTERS;
   }
 }
 
@@ -489,28 +492,6 @@ function mapDbRowToEventRow(row: DbRow): EventRow {
   };
 }
 
-const palette = {
-  bg: "#f6f8fb",
-  card: "#ffffff",
-  line: "#e5e7eb",
-  text: "#111827",
-  sub: "#6b7280",
-  blue: "#2563eb",
-  blueSoft: "#dbeafe",
-  greenSoft: "#ecfdf5",
-  green: "#059669",
-  amberSoft: "#fffbeb",
-  amber: "#d97706",
-  redSoft: "#fef2f2",
-  red: "#dc2626",
-};
-
-const ALL_COUNTERS: CounterType[] = [
-  "Quầy thanh toán 1 - Khu bánh/pizza",
-  "Quầy thanh toán 2 - Khu nước",
-  "Quầy thanh toán 3 - Khu đồ ăn sẵn/chế biến",
-];
-
 export default function Page() {
   const [currentMaKH, setCurrentMaKH] = useState<string>("");
   const [loaiKH, setLoaiKH] = useState<CustomerType | "">("");
@@ -522,13 +503,6 @@ export default function Page() {
   const [eventLog, setEventLog] = useState<EventRow[]>([]);
   const [loading, setLoading] = useState(false);
   const loadedRef = useRef(false);
-
-  function getLiveGhiChu(lastSaved: string) {
-    if (currentMaKH && lastSaved !== ghiChu && currentMaKH) {
-      return lastSaved;
-    }
-    return lastSaved;
-  }
 
   function getDisplayGhiChu(maKH: string, savedGhiChu: string) {
     if (maKH === currentMaKH) {
@@ -635,15 +609,6 @@ export default function Page() {
     };
   }, []);
 
-  useEffect(() => {
-    if (loaiKH) {
-      const allowed = getValidCounters(loaiKH);
-      if (!allowed.includes(quay)) {
-        setQuay(getRecommendedCounter(loaiKH));
-      }
-    }
-  }, [loaiKH, quay]);
-
   function startNewCustomer(selectedType: CustomerType) {
     if (!deviceId) {
       alert("Thiết bị chưa sẵn sàng, vui lòng thử lại.");
@@ -652,7 +617,6 @@ export default function Page() {
 
     const newCode = generateUniqueCustomerCode(deviceId);
     setLoaiKH(selectedType);
-    setQuay(getRecommendedCounter(selectedType));
     setCurrentMaKH(newCode);
     setGhiChu("");
   }
@@ -1283,7 +1247,7 @@ export default function Page() {
                   background: "#fff",
                 }}
               >
-                {validCounters.map((q) => (
+                {ALL_COUNTERS.map((q) => (
                   <option key={q} value={q}>
                     {getCounterLabel(q)}
                   </option>
@@ -1304,7 +1268,7 @@ export default function Page() {
               <input
                 value={ghiChu}
                 onChange={(e) => setGhiChu(e.target.value)}
-                placeholder="Ví dụ: Áo đen (Được thì điền để biết đang bấm ng nào)"
+                placeholder="Ví dụ: Áo đen (gõ là Summary cập nhật ngay)"
                 style={{
                   width: "100%",
                   padding: 12,
@@ -1385,7 +1349,7 @@ export default function Page() {
         >
           <h2 style={sectionTitleStyle}>Bấm theo đúng thứ tự thực tế</h2>
           <p style={{ margin: "6px 0 12px", color: palette.sub }}>
-            Lưu ý: Chọn loại khách hàng trước nhe rồi mới bấm các bước ở đây
+            Lưu ý: Quầy bạn đã chọn sẽ được giữ nguyên làm mặc định. Ghi chú gõ tới đâu Summary hiện tới đó.
           </p>
 
           {loaiKH ? (
@@ -1503,38 +1467,75 @@ export default function Page() {
                 Chưa có khách nào đang chờ xử lý tiếp.
               </div>
             ) : (
-              activeCustomers.map((customer) => (
-                <button
-                  key={customer.maKH}
-                  onClick={() => selectCustomerToContinue(customer.maKH)}
-                  style={{
-                    width: "100%",
-                    textAlign: "left",
-                    padding: 14,
-                    borderRadius: 12,
-                    border:
-                      currentMaKH === customer.maKH
-                        ? `2px solid ${palette.blue}`
-                        : `1px solid ${palette.line}`,
-                    background:
-                      currentMaKH === customer.maKH ? palette.blueSoft : "#fff",
-                    cursor: "pointer",
-                  }}
-                >
-                  <div style={{ fontWeight: 800, marginBottom: 4 }}>
-                    {customer.maKH}
-                  </div>
-                  <div style={{ color: palette.text }}>
-                    {customer.loaiLabel} - {customer.quay}
-                  </div>
-                  <div style={{ color: palette.sub, marginTop: 4 }}>
-                    Bước tiếp theo: {customer.nextLabel}
-                  </div>
-                  <div style={{ color: palette.sub, marginTop: 4 }}>
-                    Ghi chú: {customer.ghiChu || "Chưa có"}
-                  </div>
-                </button>
-              ))
+              activeCustomers.map((customer) => {
+                const theme = getCustomerTypeTheme(customer.loaiLabel);
+
+                return (
+                  <button
+                    key={customer.maKH}
+                    onClick={() => selectCustomerToContinue(customer.maKH)}
+                    style={{
+                      width: "100%",
+                      textAlign: "left",
+                      padding: 14,
+                      borderRadius: 14,
+                      border:
+                        currentMaKH === customer.maKH
+                          ? `2px solid ${theme.cardBorder}`
+                          : `1px solid ${theme.cardBorder}`,
+                      background:
+                        currentMaKH === customer.maKH
+                          ? theme.cardBg
+                          : "#fff",
+                      cursor: "pointer",
+                    }}
+                  >
+                    <div
+                      style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        gap: 10,
+                        flexWrap: "wrap",
+                        alignItems: "center",
+                        marginBottom: 6,
+                      }}
+                    >
+                      <div style={{ fontWeight: 800, fontSize: 18 }}>
+                        {customer.maKH}
+                      </div>
+
+                      <div
+                        style={{
+                          padding: "6px 10px",
+                          borderRadius: 999,
+                          background: theme.badgeBg,
+                          color: theme.badgeText,
+                          fontWeight: 700,
+                          fontSize: 13,
+                        }}
+                      >
+                        {customer.loaiLabel}
+                      </div>
+                    </div>
+
+                    <div style={{ color: palette.sub, marginBottom: 6 }}>
+                      Người bấm: <strong style={{ color: palette.text }}>{customer.nguoiBam || "Chưa có"}</strong>
+                    </div>
+
+                    <div style={{ color: palette.text }}>
+                      {customer.loaiLabel} - {customer.quay}
+                    </div>
+
+                    <div style={{ color: palette.sub, marginTop: 4 }}>
+                      Bước tiếp theo: {customer.nextLabel}
+                    </div>
+
+                    <div style={{ color: palette.sub, marginTop: 4 }}>
+                      Ghi chú: {customer.ghiChu || "Chưa có"}
+                    </div>
+                  </button>
+                );
+              })
             )}
           </div>
         </section>
