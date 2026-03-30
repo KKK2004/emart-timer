@@ -305,8 +305,8 @@ function getFlow(loai: CustomerType) {
   }
 }
 
-function isSanAtQuầy thanh toán 1 (Khu bánh/pizza)(loai: CustomerType | "", quay: CounterType) {
-  return loai === "SAN" && quay === "Quầy thanh toán 1 (Khu bánh/pizza)";
+function isSanAtQ1(loai: CustomerType | "", quay: CounterType) {
+  return loai === "SAN" && quay === "Quầy thanh toán 1 (Khu bánh/pizza)";
 }
 
 function getEffectiveLoaiForSummary(rows: EventRow[]): CustomerType {
