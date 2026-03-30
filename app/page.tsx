@@ -5,7 +5,10 @@ import * as XLSX from "xlsx";
 import { supabase } from "../lib/supabase";
 
 type CustomerType = "SAN" | "CHUAN" | "PIZZA" | "PIZZA_COMBO" | "NUOC";
-type CounterType = "Quầy thanh toán 1 - Khu bánh/pizza" | "Quầy thanh toán 2 - Khu nước" | "Quầy thanh toán 3 - Khu đồ ăn sẵn/chế biến";
+type CounterType =
+  | "Quầy thanh toán 1 - Khu bánh/pizza"
+  | "Quầy thanh toán 2 - Khu nước"
+  | "Quầy thanh toán 3 - Khu đồ ăn sẵn/chế biến";
 
 type EventName =
   | "CAM_DO_AN"
@@ -190,13 +193,28 @@ function getValidCounters(loai: CustomerType): CounterType[] {
     case "PIZZA_COMBO":
       return ["Quầy thanh toán 1 - Khu bánh/pizza"];
     case "SAN":
-      return ["Quầy thanh toán 3 - Khu đồ ăn sẵn/chế biến", "Quầy thanh toán 2 - Khu nước", "Quầy thanh toán 1 - Khu bánh/pizza"];
+      return [
+        "Quầy thanh toán 3 - Khu đồ ăn sẵn/chế biến",
+        "Quầy thanh toán 2 - Khu nước",
+        "Quầy thanh toán 1 - Khu bánh/pizza",
+      ];
     case "CHUAN":
-      return ["Quầy thanh toán 3 - Khu đồ ăn sẵn/chế biến", "Quầy thanh toán 2 - Khu nước"];
+      return [
+        "Quầy thanh toán 3 - Khu đồ ăn sẵn/chế biến",
+        "Quầy thanh toán 2 - Khu nước",
+      ];
     case "NUOC":
-      return ["Quầy thanh toán 2 - Khu nước", "Quầy thanh toán 1 - Khu bánh/pizza", "Quầy thanh toán 3 - Khu đồ ăn sẵn/chế biến"];
+      return [
+        "Quầy thanh toán 2 - Khu nước",
+        "Quầy thanh toán 1 - Khu bánh/pizza",
+        "Quầy thanh toán 3 - Khu đồ ăn sẵn/chế biến",
+      ];
     default:
-      return ["Quầy thanh toán 1 - Khu bánh/pizza", "Quầy thanh toán 2 - Khu nước", "Quầy thanh toán 3 - Khu đồ ăn sẵn/chế biến"];
+      return [
+        "Quầy thanh toán 1 - Khu bánh/pizza",
+        "Quầy thanh toán 2 - Khu nước",
+        "Quầy thanh toán 3 - Khu đồ ăn sẵn/chế biến",
+      ];
   }
 }
 
@@ -216,16 +234,7 @@ function getRecommendedCounter(loai: CustomerType): CounterType {
 }
 
 function getCounterLabel(quay: CounterType) {
-  switch (quay) {
-    case "Quầy thanh toán 1 - Khu bánh/pizza":
-      return "Quầy thanh toán 1 - Khu bánh/pizza";
-    case "Quầy thanh toán 2 - Khu nước":
-      return "Quầy thanh toán 2 - Khu nước";
-    case "Quầy thanh toán 3 - Khu đồ ăn sẵn/chế biến":
-      return "Quầy thanh toán 3 - Khu đồ ăn sẵn/chế biến";
-    default:
-      return quay;
-  }
+  return quay;
 }
 
 function getFlow(loai: CustomerType) {
@@ -375,7 +384,6 @@ function getSystemStartEvent(loai: CustomerType): EventName {
 function getArrivalEvent(loai: CustomerType): EventName {
   switch (loai) {
     case "PIZZA":
-      return "VAO_HANG_ORDER_PIZZA";
     case "PIZZA_COMBO":
       return "VAO_HANG_ORDER_PIZZA";
     default:
@@ -394,27 +402,29 @@ function getSystemEndEvent(): EventName {
 function getArenaQueue(quay: CounterType) {
   switch (quay) {
     case "Quầy thanh toán 1 - Khu bánh/pizza":
-      return "Q_ThanhToan_Quầy thanh toán 1 - Khu bánh/pizza";
+      return "Q_ThanhToan_Q1";
     case "Quầy thanh toán 2 - Khu nước":
-      return "Q_ThanhToan_Quầy thanh toán 2 - Khu nước";
+      return "Q_ThanhToan_Q2";
     case "Quầy thanh toán 3 - Khu đồ ăn sẵn/chế biến":
-      return "Q_ThanhToan_Quầy thanh toán 3 - Khu đồ ăn sẵn/chế biến";
+      return "Q_ThanhToan_Q3";
   }
 }
 
 function getArenaResource(quay: CounterType) {
   switch (quay) {
     case "Quầy thanh toán 1 - Khu bánh/pizza":
-      return "Cashier_Quầy thanh toán 1 - Khu bánh/pizza";
+      return "Cashier_Q1";
     case "Quầy thanh toán 2 - Khu nước":
-      return "Cashier_Quầy thanh toán 2 - Khu nước";
+      return "Cashier_Q2";
     case "Quầy thanh toán 3 - Khu đồ ăn sẵn/chế biến":
-      return "Cashier_Quầy thanh toán 3 - Khu đồ ăn sẵn/chế biến";
+      return "Cashier_Q3";
   }
 }
 
 function getArenaProcessType(loai: CustomerType, quay: CounterType) {
-  return `${loai}_${quay}`;
+  if (quay === "Quầy thanh toán 1 - Khu bánh/pizza") return `${loai}_Q1`;
+  if (quay === "Quầy thanh toán 2 - Khu nước") return `${loai}_Q2`;
+  return `${loai}_Q3`;
 }
 
 function getCustomerTypeTheme(loaiLabel: string) {
@@ -495,6 +505,12 @@ const palette = {
   red: "#dc2626",
 };
 
+const ALL_COUNTERS: CounterType[] = [
+  "Quầy thanh toán 1 - Khu bánh/pizza",
+  "Quầy thanh toán 2 - Khu nước",
+  "Quầy thanh toán 3 - Khu đồ ăn sẵn/chế biến",
+];
+
 export default function Page() {
   const [currentMaKH, setCurrentMaKH] = useState<string>("");
   const [loaiKH, setLoaiKH] = useState<CustomerType | "">("");
@@ -506,6 +522,20 @@ export default function Page() {
   const [eventLog, setEventLog] = useState<EventRow[]>([]);
   const [loading, setLoading] = useState(false);
   const loadedRef = useRef(false);
+
+  function getLiveGhiChu(lastSaved: string) {
+    if (currentMaKH && lastSaved !== ghiChu && currentMaKH) {
+      return lastSaved;
+    }
+    return lastSaved;
+  }
+
+  function getDisplayGhiChu(maKH: string, savedGhiChu: string) {
+    if (maKH === currentMaKH) {
+      return ghiChu || savedGhiChu || "";
+    }
+    return savedGhiChu || "";
+  }
 
   function upsertEventRow(newRow: EventRow) {
     setEventLog((prev) => {
@@ -661,15 +691,8 @@ export default function Page() {
 
   const nextStepIndex = currentCustomerEvents.length;
   const nextExpectedEvent = currentFlow[nextStepIndex]?.code;
-const ALL_COUNTERS: CounterType[] = [
-  "Quầy thanh toán 1 - Khu bánh/pizza",
-  "Quầy thanh toán 2 - Khu nước",
-  "Quầy thanh toán 3 - Khu đồ ăn sẵn/chế biến",
-];
+  const validCounters: CounterType[] = loaiKH ? getValidCounters(loaiKH) : ALL_COUNTERS;
 
-const validCounters: CounterType[] = loaiKH
-  ? getValidCounters(loaiKH)
-  : ALL_COUNTERS;
   async function addEvent(suKien: EventName, forcedLoaiKH?: CustomerType) {
     if (!currentMaKH || !loaiKH) {
       alert("Bạn phải chọn loại khách trước.");
@@ -695,7 +718,9 @@ const validCounters: CounterType[] = loaiKH
     const now = new Date();
 
     const quyTrinhText =
-      finalLoaiKH === "PIZZA_COMBO" && loaiKH === "SAN" && quay === "Quầy thanh toán 1 - Khu bánh/pizza"
+      finalLoaiKH === "PIZZA_COMBO" &&
+      loaiKH === "SAN" &&
+      quay === "Quầy thanh toán 1 - Khu bánh/pizza"
         ? `ĐỒ ĂN LÀM SẴN MUA KÈM PIZZA - ${quay}`
         : `${getLoaiKhachLabel(finalLoaiKH)} - ${quay}`;
 
@@ -773,52 +798,6 @@ const validCounters: CounterType[] = loaiKH
     setGhiChu("");
   }
 
-  const activeCustomers = useMemo<ActiveCustomerRow[]>(() => {
-    const grouped = new Map<string, EventRow[]>();
-
-    const sortedEvents = [...eventLog].sort((a, b) => {
-      const t = new Date(a.thoiGian).getTime() - new Date(b.thoiGian).getTime();
-      if (t !== 0) return t;
-      return a.id - b.id;
-    });
-
-    for (const row of sortedEvents) {
-      if (!grouped.has(row.maKH)) grouped.set(row.maKH, []);
-      grouped.get(row.maKH)!.push(row);
-    }
-
-    const result = Array.from(grouped.entries()).map(([maKH, rows]) => {
-      const loai = getEffectiveLoaiForSummary(rows);
-      const flow = getSummaryFlow(loai, rows);
-      const stepIndex = rows.length;
-      const done = stepIndex >= flow.length;
-      const lastRow = rows[rows.length - 1];
-
-      return {
-        maKH,
-        loaiKH: loai,
-        loaiLabel: getLoaiKhachLabel(loai),
-        quay: lastRow.quay,
-        nhanVien: lastRow.nhanVien,
-        ghiChu: lastRow.ghiChu,
-        nguoiBam: lastRow.nguoiBam,
-        stepIndex,
-        totalSteps: flow.length,
-        nextLabel: done ? "Đã hoàn tất" : flow[stepIndex]?.label || "Đã hoàn tất",
-        done,
-        rows,
-      };
-    });
-
-    return result
-      .filter((x) => !x.done)
-      .sort((a, b) => {
-        const ta = parseDateTime(a.rows[a.rows.length - 1].thoiGian)?.getTime() || 0;
-        const tb = parseDateTime(b.rows[b.rows.length - 1].thoiGian)?.getTime() || 0;
-        return tb - ta;
-      });
-  }, [eventLog]);
-
   const summaryRows = useMemo<SummaryRow[]>(() => {
     const grouped = new Map<string, EventRow[]>();
 
@@ -862,7 +841,7 @@ const validCounters: CounterType[] = loaiKH
             : lastRow.quyTrinh || `${getLoaiKhachLabel(loai)} - ${lastRow.quay}`,
         nhanVien: lastRow.nhanVien || "",
         quay: lastRow.quay || "",
-        ghiChu: lastRow.ghiChu || "",
+        ghiChu: getDisplayGhiChu(maKH, lastRow.ghiChu || ""),
         nguoiBam: lastRow.nguoiBam || "",
 
         soBuoc: flow.length,
@@ -942,7 +921,53 @@ const validCounters: CounterType[] = loaiKH
       interarrivalTimeGiay: mapBack.get(row.maKH)?.interarrival ?? "",
       arenaInterarrivalS: mapBack.get(row.maKH)?.arenaInterarrival ?? "",
     }));
-  }, [eventLog]);
+  }, [eventLog, currentMaKH, ghiChu]);
+
+  const activeCustomers = useMemo<ActiveCustomerRow[]>(() => {
+    const grouped = new Map<string, EventRow[]>();
+
+    const sortedEvents = [...eventLog].sort((a, b) => {
+      const t = new Date(a.thoiGian).getTime() - new Date(b.thoiGian).getTime();
+      if (t !== 0) return t;
+      return a.id - b.id;
+    });
+
+    for (const row of sortedEvents) {
+      if (!grouped.has(row.maKH)) grouped.set(row.maKH, []);
+      grouped.get(row.maKH)!.push(row);
+    }
+
+    const result = Array.from(grouped.entries()).map(([maKH, rows]) => {
+      const loai = getEffectiveLoaiForSummary(rows);
+      const flow = getSummaryFlow(loai, rows);
+      const stepIndex = rows.length;
+      const done = stepIndex >= flow.length;
+      const lastRow = rows[rows.length - 1];
+
+      return {
+        maKH,
+        loaiKH: loai,
+        loaiLabel: getLoaiKhachLabel(loai),
+        quay: lastRow.quay,
+        nhanVien: lastRow.nhanVien,
+        ghiChu: getDisplayGhiChu(maKH, lastRow.ghiChu || ""),
+        nguoiBam: lastRow.nguoiBam,
+        stepIndex,
+        totalSteps: flow.length,
+        nextLabel: done ? "Đã hoàn tất" : flow[stepIndex]?.label || "Đã hoàn tất",
+        done,
+        rows,
+      };
+    });
+
+    return result
+      .filter((x) => !x.done)
+      .sort((a, b) => {
+        const ta = parseDateTime(a.rows[a.rows.length - 1].thoiGian)?.getTime() || 0;
+        const tb = parseDateTime(b.rows[b.rows.length - 1].thoiGian)?.getTime() || 0;
+        return tb - ta;
+      });
+  }, [eventLog, currentMaKH, ghiChu]);
 
   function exportSummaryExcel() {
     const rows = summaryRows.map((row) => ({
@@ -961,14 +986,19 @@ const validCounters: CounterType[] = loaiKH
       BatDauPhucVu: parseDateTime(row.batDauPhucVu),
       KetThucPhucVu_RoiHeThong: parseDateTime(row.ketThucPhucVuRoiHeThong),
 
-      InterarrivalTime_Giay: row.interarrivalTimeGiay === "" ? "" : row.interarrivalTimeGiay,
-      WaitingTime_Giay: row.waitingTimeGiay === "" ? "" : row.waitingTimeGiay,
-      ServiceTime_Giay: row.serviceTimeGiay === "" ? "" : row.serviceTimeGiay,
-      SystemTime_Giay: row.systemTimeGiay === "" ? "" : row.systemTimeGiay,
+      InterarrivalTime_Giay:
+        row.interarrivalTimeGiay === "" ? "" : row.interarrivalTimeGiay,
+      WaitingTime_Giay:
+        row.waitingTimeGiay === "" ? "" : row.waitingTimeGiay,
+      ServiceTime_Giay:
+        row.serviceTimeGiay === "" ? "" : row.serviceTimeGiay,
+      SystemTime_Giay:
+        row.systemTimeGiay === "" ? "" : row.systemTimeGiay,
 
       Arena_EntityType: row.arenaEntityType,
       Arena_ArrivalTime: parseDateTime(row.arenaArrivalTime),
-      Arena_Interarrival_s: row.arenaInterarrivalS === "" ? "" : row.arenaInterarrivalS,
+      Arena_Interarrival_s:
+        row.arenaInterarrivalS === "" ? "" : row.arenaInterarrivalS,
       Arena_Service_s: row.arenaServiceS === "" ? "" : row.arenaServiceS,
       Arena_Queue: row.arenaQueue,
       Arena_Resource: row.arenaResource,
@@ -995,7 +1025,7 @@ const validCounters: CounterType[] = loaiKH
       { wch: 24 },
       { wch: 30 },
       { wch: 12 },
-      { wch: 10 },
+      { wch: 18 },
       { wch: 18 },
       { wch: 14 },
       { wch: 8 },
@@ -1274,7 +1304,7 @@ const validCounters: CounterType[] = loaiKH
               <input
                 value={ghiChu}
                 onChange={(e) => setGhiChu(e.target.value)}
-                placeholder="Ví dụ: Áo đen (Ấn chọn loại khách hàng trước nha)"
+                placeholder="Ví dụ: Áo đen (gõ là Summary cập nhật ngay)"
                 style={{
                   width: "100%",
                   padding: 12,
@@ -1353,70 +1383,9 @@ const validCounters: CounterType[] = loaiKH
             boxShadow: "0 4px 20px rgba(0,0,0,0.04)",
           }}
         >
-          <h2 style={sectionTitleStyle}>Danh sách khách đang xử lý</h2>
-          <p style={{ margin: "6px 0 14px", color: palette.sub }}>
-            Muốn bấm lại giờ cho khách nào thì ấn chọn khách đó
-          </p>
-
-          <div style={{ display: "grid", gap: 10 }}>
-            {activeCustomers.length === 0 ? (
-              <div
-                style={{
-                  padding: 14,
-                  borderRadius: 12,
-                  border: `1px dashed ${palette.line}`,
-                  color: palette.sub,
-                  background: "#fff",
-                }}
-              >
-                Chưa có khách nào đang chờ xử lý tiếp.
-              </div>
-            ) : (
-              activeCustomers.map((customer) => (
-                <button
-                  key={customer.maKH}
-                  onClick={() => selectCustomerToContinue(customer.maKH)}
-                  style={{
-                    width: "100%",
-                    textAlign: "left",
-                    padding: 14,
-                    borderRadius: 12,
-                    border:
-                      currentMaKH === customer.maKH
-                        ? `2px solid ${palette.blue}`
-                        : `1px solid ${palette.line}`,
-                    background:
-                      currentMaKH === customer.maKH ? palette.blueSoft : "#fff",
-                    cursor: "pointer",
-                  }}
-                >
-                  <div style={{ fontWeight: 800, marginBottom: 4 }}>
-                    {customer.maKH}
-                  </div>
-                  <div style={{ color: palette.text }}>
-                    {customer.loaiLabel} - {customer.quay}
-                  </div>
-                  <div style={{ color: palette.sub, marginTop: 4 }}>
-                    Bước tiếp theo: {customer.nextLabel}
-                  </div>
-                </button>
-              ))
-            )}
-          </div>
-        </section>
-
-        <section
-          style={{
-            background: palette.card,
-            border: `1px solid ${palette.line}`,
-            borderRadius: 18,
-            padding: 18,
-            boxShadow: "0 4px 20px rgba(0,0,0,0.04)",
-          }}
-        >
           <h2 style={sectionTitleStyle}>Bấm theo đúng thứ tự thực tế</h2>
           <p style={{ margin: "6px 0 12px", color: palette.sub }}>
-            Lưu ý: Chọn đúng khách ở phần trên rồi mới bấm bước tiếp theo.
+            Lưu ý: Chọn đúng khách rồi mới bấm bước tiếp theo. Ghi chú gõ tới đâu Summary hiện tới đó.
           </p>
 
           {loaiKH ? (
@@ -1424,9 +1393,9 @@ const validCounters: CounterType[] = loaiKH
               {currentFlow.map((step, index) => {
                 const disabled = !currentMaKH || nextStepIndex !== index;
                 const isSpecialComboChoice =
-                  isSanAtQ1(loaiKH, quay) &&
-                  step.code === "NV_BAT_DAU_PHUC_VU";
-              
+                  isSanAtQ1(loaiKH, quay) &&
+                  step.code === "NV_BAT_DAU_PHUC_VU";
+
                 if (isSpecialComboChoice) {
                   return (
                     <div key={step.code} style={{ display: "grid", gap: 10 }}>
@@ -1503,6 +1472,70 @@ const validCounters: CounterType[] = loaiKH
             <button onClick={exportSummaryExcel} style={buttonStyle(false)}>
               XUẤT SUMMARY XLSX
             </button>
+          </div>
+        </section>
+
+        <section
+          style={{
+            background: palette.card,
+            border: `1px solid ${palette.line}`,
+            borderRadius: 18,
+            padding: 18,
+            boxShadow: "0 4px 20px rgba(0,0,0,0.04)",
+          }}
+        >
+          <h2 style={sectionTitleStyle}>Danh sách khách đang xử lý</h2>
+          <p style={{ margin: "6px 0 14px", color: palette.sub }}>
+            Muốn bấm lại giờ cho khách nào thì chọn khách đó ở đây.
+          </p>
+
+          <div style={{ display: "grid", gap: 10 }}>
+            {activeCustomers.length === 0 ? (
+              <div
+                style={{
+                  padding: 14,
+                  borderRadius: 12,
+                  border: `1px dashed ${palette.line}`,
+                  color: palette.sub,
+                  background: "#fff",
+                }}
+              >
+                Chưa có khách nào đang chờ xử lý tiếp.
+              </div>
+            ) : (
+              activeCustomers.map((customer) => (
+                <button
+                  key={customer.maKH}
+                  onClick={() => selectCustomerToContinue(customer.maKH)}
+                  style={{
+                    width: "100%",
+                    textAlign: "left",
+                    padding: 14,
+                    borderRadius: 12,
+                    border:
+                      currentMaKH === customer.maKH
+                        ? `2px solid ${palette.blue}`
+                        : `1px solid ${palette.line}`,
+                    background:
+                      currentMaKH === customer.maKH ? palette.blueSoft : "#fff",
+                    cursor: "pointer",
+                  }}
+                >
+                  <div style={{ fontWeight: 800, marginBottom: 4 }}>
+                    {customer.maKH}
+                  </div>
+                  <div style={{ color: palette.text }}>
+                    {customer.loaiLabel} - {customer.quay}
+                  </div>
+                  <div style={{ color: palette.sub, marginTop: 4 }}>
+                    Bước tiếp theo: {customer.nextLabel}
+                  </div>
+                  <div style={{ color: palette.sub, marginTop: 4 }}>
+                    Ghi chú: {customer.ghiChu || "Chưa có"}
+                  </div>
+                </button>
+              ))
+            )}
           </div>
         </section>
 
