@@ -5,7 +5,7 @@ import * as XLSX from "xlsx";
 import { supabase } from "../lib/supabase";
 
 type CustomerType = "SAN" | "CHUAN" | "PIZZA" | "PIZZA_COMBO" | "NUOC";
-type CounterType = "Quầy thanh toán 1" | "Quầy thanh toán 2" | "Quầy thanh toán 3";
+type CounterType = "Quầy thanh toán 1 (Khu bánh/pizza)" | "Quầy thanh toán 2 (Khu nước)" | "Quầy thanh toán 3 (Khu đồ ăn sẵn/chế biến)";
 
 type EventName =
   | "CAM_DO_AN"
@@ -22,7 +22,7 @@ type EventRow = {
   loaiKH: CustomerType;
   quyTrinh: string;
   suKien: EventName;
-  thoiGian: string;
+  thoiGian: string; // ISO từ DB
   nhanVien: string;
   quay: CounterType;
   ghiChu: string;
@@ -38,6 +38,7 @@ type SummaryRow = {
   quay: string;
   ghiChu: string;
   nguoiBam: string;
+
   soBuoc: number;
 
   buoc1Label: string;
@@ -92,6 +93,7 @@ function pad3(n: number) {
 
 function parseDateTime(value: string): Date | null {
   if (!value) return null;
+
   const iso = new Date(value);
   if (!Number.isNaN(iso.getTime())) return iso;
 
@@ -113,9 +115,11 @@ function parseDateTime(value: string): Date | null {
 }
 
 function formatDateTimeVNms(date: Date) {
-  return `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())} ${pad2(
-    date.getHours()
-  )}:${pad2(date.getMinutes())}:${pad2(date.getSeconds())}.${pad3(date.getMilliseconds())}`;
+  return `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(
+    date.getDate()
+  )} ${pad2(date.getHours())}:${pad2(date.getMinutes())}:${pad2(
+    date.getSeconds()
+  )}.${pad3(date.getMilliseconds())}`;
 }
 
 function formatEventTime(value: string) {
@@ -169,14 +173,15 @@ function getValidCounters(loai: CustomerType): CounterType[] {
   switch (loai) {
     case "PIZZA":
     case "PIZZA_COMBO":
-      return ["Quầy thanh toán 1"];
+      return ["Quầy thanh toán 1 (Khu bánh/pizza)"];
     case "SAN":
+      return ["Quầy thanh toán 3 (Khu đồ ăn sẵn/chế biến)", "Quầy thanh toán 2 (Khu nước)", "Quầy thanh toán 1 (Khu bánh/pizza)"];
     case "CHUAN":
-      return ["Quầy thanh toán 1", "Quầy thanh toán 2", "Quầy thanh toán 3"];
+      return ["Quầy thanh toán 3 (Khu đồ ăn sẵn/chế biến)", "Quầy thanh toán 2 (Khu nước)"];
     case "NUOC":
-      return ["Quầy thanh toán 1", "Quầy thanh toán 2", "Quầy thanh toán 3"];
+      return ["Quầy thanh toán 2 (Khu nước)", "Quầy thanh toán 1 (Khu bánh/pizza)", "Quầy thanh toán 3 (Khu đồ ăn sẵn/chế biến)"];
     default:
-      return ["Quầy thanh toán 1", "Quầy thanh toán 2", "Quầy thanh toán 3"];
+      return ["Quầy thanh toán 1 (Khu bánh/pizza)", "Quầy thanh toán 2 (Khu nước)", "Quầy thanh toán 3 (Khu đồ ăn sẵn/chế biến)"];
   }
 }
 
@@ -184,14 +189,27 @@ function getRecommendedCounter(loai: CustomerType): CounterType {
   switch (loai) {
     case "PIZZA":
     case "PIZZA_COMBO":
-      return "Quầy thanh toán 1";
+      return "Quầy thanh toán 1 (Khu bánh/pizza)";
     case "SAN":
     case "CHUAN":
-      return "Quầy thanh toán 3";
+      return "Quầy thanh toán 3 (Khu đồ ăn sẵn/chế biến)";
     case "NUOC":
-      return "Quầy thanh toán 2";
+      return "Quầy thanh toán 2 (Khu nước)";
     default:
-      return "Quầy thanh toán 2";
+      return "Quầy thanh toán 2 (Khu nước)";
+  }
+}
+
+function getCounterLabel(quay: CounterType) {
+  switch (quay) {
+    case "Quầy thanh toán 1 (Khu bánh/pizza)":
+      return "Quầy thanh toán 1 - Khu bánh/pizza";
+    case "Quầy thanh toán 2 (Khu nước)":
+      return "Quầy thanh toán 2 - Khu nước";
+    case "Quầy thanh toán 3 (Khu đồ ăn sẵn/chế biến)":
+      return "Quầy thanh toán 3 - Khu đồ ăn sẵn/chế biến";
+    default:
+      return quay;
   }
 }
 
@@ -200,40 +218,129 @@ function getFlow(loai: CustomerType) {
     case "SAN":
       return [
         { code: "CAM_DO_AN" as EventName, label: "1. Khách cầm đồ ăn" },
-        { code: "VAO_HANG_THANH_TOAN" as EventName, label: "2. Khách vào hàng đợi thanh toán" },
-        { code: "NV_BAT_DAU_PHUC_VU" as EventName, label: "3. Nhân viên bắt đầu tính tiền" },
-        { code: "NHAN_HANG_ROI_QUAY" as EventName, label: "4. Khách nhận hàng và rời quầy" },
+        {
+          code: "VAO_HANG_THANH_TOAN" as EventName,
+          label: "2. Khách vào hàng đợi thanh toán",
+        },
+        {
+          code: "NV_BAT_DAU_PHUC_VU" as EventName,
+          label: "3. Nhân viên bắt đầu tính tiền",
+        },
+        {
+          code: "NHAN_HANG_ROI_QUAY" as EventName,
+          label: "4. Khách nhận hàng và rời quầy",
+        },
       ];
     case "CHUAN":
       return [
-        { code: "NV_DUA_THE_ORDER" as EventName, label: "1. Nhân viên đưa phiếu / thẻ order" },
-        { code: "VAO_HANG_THANH_TOAN" as EventName, label: "2. Khách vào hàng đợi thanh toán" },
-        { code: "NV_BAT_DAU_PHUC_VU" as EventName, label: "3. Nhân viên bắt đầu tính tiền" },
-        { code: "NHAN_HANG_ROI_QUAY" as EventName, label: "4. Khách nhận món và rời quầy" },
+        {
+          code: "NV_DUA_THE_ORDER" as EventName,
+          label: "1. Nhân viên đưa phiếu / thẻ order",
+        },
+        {
+          code: "VAO_HANG_THANH_TOAN" as EventName,
+          label: "2. Khách vào hàng đợi thanh toán",
+        },
+        {
+          code: "NV_BAT_DAU_PHUC_VU" as EventName,
+          label: "3. Nhân viên bắt đầu tính tiền",
+        },
+        {
+          code: "NHAN_HANG_ROI_QUAY" as EventName,
+          label: "4. Khách nhận món và rời quầy",
+        },
       ];
     case "PIZZA":
       return [
-        { code: "VAO_HANG_ORDER_PIZZA" as EventName, label: "1. Khách vào hàng đợi order pizza" },
-        { code: "NV_BAT_DAU_PHUC_VU" as EventName, label: "2. Nhân viên bắt đầu nhận order / tính tiền" },
-        { code: "NHAN_HANG_ROI_QUAY" as EventName, label: "3. Khách nhận pizza và rời quầy" },
+        {
+          code: "VAO_HANG_ORDER_PIZZA" as EventName,
+          label: "1. Khách vào hàng đợi order pizza",
+        },
+        {
+          code: "NV_BAT_DAU_PHUC_VU" as EventName,
+          label: "2. Nhân viên bắt đầu nhận order / tính tiền",
+        },
+        {
+          code: "NHAN_HANG_ROI_QUAY" as EventName,
+          label: "3. Khách nhận pizza và rời quầy",
+        },
       ];
     case "PIZZA_COMBO":
       return [
-        { code: "CAM_DO_AN" as EventName, label: "1. Khách cầm món khác và qua quầy pizza" },
-        { code: "VAO_HANG_ORDER_PIZZA" as EventName, label: "2. Khách vào hàng order pizza / thanh toán" },
-        { code: "NV_BAT_DAU_PHUC_VU" as EventName, label: "3. Nhân viên bắt đầu tính tiền" },
-        { code: "NHAN_HANG_ROI_QUAY" as EventName, label: "4. Khách nhận đủ món và rời quầy" },
+        {
+          code: "CAM_DO_AN" as EventName,
+          label: "1. Khách cầm món khác và qua quầy pizza",
+        },
+        {
+          code: "VAO_HANG_ORDER_PIZZA" as EventName,
+          label: "2. Khách vào hàng order pizza / thanh toán",
+        },
+        {
+          code: "NV_BAT_DAU_PHUC_VU" as EventName,
+          label: "3. Nhân viên bắt đầu xử lý toàn bộ đơn",
+        },
+        {
+          code: "NHAN_HANG_ROI_QUAY" as EventName,
+          label: "4. Khách nhận đủ món và rời quầy",
+        },
       ];
     case "NUOC":
       return [
         { code: "LAY_NUOC" as EventName, label: "1. Khách lấy nước" },
-        { code: "VAO_HANG_THANH_TOAN" as EventName, label: "2. Khách vào hàng đợi thanh toán" },
-        { code: "NV_BAT_DAU_PHUC_VU" as EventName, label: "3. Nhân viên bắt đầu tính tiền" },
-        { code: "NHAN_HANG_ROI_QUAY" as EventName, label: "4. Khách nhận món và rời quầy" },
+        {
+          code: "VAO_HANG_THANH_TOAN" as EventName,
+          label: "2. Khách vào hàng đợi thanh toán",
+        },
+        {
+          code: "NV_BAT_DAU_PHUC_VU" as EventName,
+          label: "3. Nhân viên bắt đầu tính tiền",
+        },
+        {
+          code: "NHAN_HANG_ROI_QUAY" as EventName,
+          label: "4. Khách thanh toán xong và rời quầy",
+        },
       ];
     default:
       return [];
   }
+}
+
+function isSanAtQuầy thanh toán 1 (Khu bánh/pizza)(loai: CustomerType | "", quay: CounterType) {
+  return loai === "SAN" && quay === "Quầy thanh toán 1 (Khu bánh/pizza)";
+}
+
+function getEffectiveLoaiForSummary(rows: EventRow[]): CustomerType {
+  if (rows.some((r) => r.loaiKH === "PIZZA_COMBO")) {
+    return "PIZZA_COMBO";
+  }
+  return rows[rows.length - 1]?.loaiKH || "SAN";
+}
+
+function getSummaryFlow(loai: CustomerType, rows: EventRow[]) {
+  const hasThanhToanStep = rows.some((r) => r.suKien === "VAO_HANG_THANH_TOAN");
+  const hasOrderPizzaStep = rows.some(
+    (r) => r.suKien === "VAO_HANG_ORDER_PIZZA"
+  );
+
+  if (loai === "PIZZA_COMBO" && hasThanhToanStep && !hasOrderPizzaStep) {
+    return [
+      { code: "CAM_DO_AN" as EventName, label: "1. Khách cầm đồ ăn" },
+      {
+        code: "VAO_HANG_THANH_TOAN" as EventName,
+        label: "2. Khách vào hàng đợi thanh toán tại quầy 1",
+      },
+      {
+        code: "NV_BAT_DAU_PHUC_VU" as EventName,
+        label: "3. Nhân viên bắt đầu tính tiền và xử lý mua kèm pizza",
+      },
+      {
+        code: "NHAN_HANG_ROI_QUAY" as EventName,
+        label: "4. Khách nhận đủ món và rời quầy",
+      },
+    ];
+  }
+
+  return getFlow(loai);
 }
 
 function getSystemStartEvent(loai: CustomerType): EventName {
@@ -253,8 +360,10 @@ function getSystemStartEvent(loai: CustomerType): EventName {
 function getArrivalEvent(loai: CustomerType): EventName {
   switch (loai) {
     case "PIZZA":
-    case "PIZZA_COMBO":
       return "VAO_HANG_ORDER_PIZZA";
+    case "PIZZA_COMBO": {
+      return "VAO_HANG_ORDER_PIZZA";
+    }
     default:
       return "VAO_HANG_THANH_TOAN";
   }
@@ -270,23 +379,23 @@ function getSystemEndEvent(): EventName {
 
 function getArenaQueue(quay: CounterType) {
   switch (quay) {
-    case "Quầy thanh toán 1":
-      return "Q_ThanhToan_Quầy thanh toán 1";
-    case "Quầy thanh toán 2":
-      return "Q_ThanhToan_Quầy thanh toán 2";
-    case "Quầy thanh toán 3":
-      return "Q_ThanhToan_Quầy thanh toán 3";
+    case "Quầy thanh toán 1 (Khu bánh/pizza)":
+      return "Q_ThanhToan_Quầy thanh toán 1 (Khu bánh/pizza)";
+    case "Quầy thanh toán 2 (Khu nước)":
+      return "Q_ThanhToan_Quầy thanh toán 2 (Khu nước)";
+    case "Quầy thanh toán 3 (Khu đồ ăn sẵn/chế biến)":
+      return "Q_ThanhToan_Quầy thanh toán 3 (Khu đồ ăn sẵn/chế biến)";
   }
 }
 
 function getArenaResource(quay: CounterType) {
   switch (quay) {
-    case "Quầy thanh toán 1":
-      return "Cashier_Quầy thanh toán 1";
-    case "Quầy thanh toán 2":
-      return "Cashier_Quầy thanh toán 2";
-    case "Quầy thanh toán 3":
-      return "Cashier_Quầy thanh toán 3";
+    case "Quầy thanh toán 1 (Khu bánh/pizza)":
+      return "Cashier_Quầy thanh toán 1 (Khu bánh/pizza)";
+    case "Quầy thanh toán 2 (Khu nước)":
+      return "Cashier_Quầy thanh toán 2 (Khu nước)";
+    case "Quầy thanh toán 3 (Khu đồ ăn sẵn/chế biến)":
+      return "Cashier_Quầy thanh toán 3 (Khu đồ ăn sẵn/chế biến)";
   }
 }
 
@@ -297,17 +406,47 @@ function getArenaProcessType(loai: CustomerType, quay: CounterType) {
 function getCustomerTypeTheme(loaiLabel: string) {
   switch (loaiLabel) {
     case "ĐỒ ĂN LÀM SẴN":
-      return { badgeBg: "#dbeafe", badgeText: "#1d4ed8", cardBorder: "#93c5fd", cardBg: "#eff6ff" };
+      return {
+        badgeBg: "#dbeafe",
+        badgeText: "#1d4ed8",
+        cardBorder: "#93c5fd",
+        cardBg: "#eff6ff",
+      };
     case "MÓN CẦN ĐẦU BẾP LÀM":
-      return { badgeBg: "#fef3c7", badgeText: "#b45309", cardBorder: "#fcd34d", cardBg: "#fffbeb" };
+      return {
+        badgeBg: "#fef3c7",
+        badgeText: "#b45309",
+        cardBorder: "#fcd34d",
+        cardBg: "#fffbeb",
+      };
     case "PIZZA":
-      return { badgeBg: "#fee2e2", badgeText: "#b91c1c", cardBorder: "#fca5a5", cardBg: "#fef2f2" };
+      return {
+        badgeBg: "#fee2e2",
+        badgeText: "#b91c1c",
+        cardBorder: "#fca5a5",
+        cardBg: "#fef2f2",
+      };
     case "PIZZA KẾT HỢP MÓN KHÁC":
-      return { badgeBg: "#ede9fe", badgeText: "#6d28d9", cardBorder: "#c4b5fd", cardBg: "#f5f3ff" };
+      return {
+        badgeBg: "#ede9fe",
+        badgeText: "#6d28d9",
+        cardBorder: "#c4b5fd",
+        cardBg: "#f5f3ff",
+      };
     case "NƯỚC":
-      return { badgeBg: "#dcfce7", badgeText: "#15803d", cardBorder: "#86efac", cardBg: "#f0fdf4" };
+      return {
+        badgeBg: "#dcfce7",
+        badgeText: "#15803d",
+        cardBorder: "#86efac",
+        cardBg: "#f0fdf4",
+      };
     default:
-      return { badgeBg: "#e5e7eb", badgeText: "#374151", cardBorder: "#d1d5db", cardBg: "#f9fafb" };
+      return {
+        badgeBg: "#e5e7eb",
+        badgeText: "#374151",
+        cardBorder: "#d1d5db",
+        cardBg: "#f9fafb",
+      };
   }
 }
 
@@ -345,7 +484,7 @@ const palette = {
 export default function Page() {
   const [currentMaKH, setCurrentMaKH] = useState<string>("");
   const [loaiKH, setLoaiKH] = useState<CustomerType | "">("");
-  const [quay, setQuay] = useState<CounterType>("Quầy thanh toán 2");
+  const [quay, setQuay] = useState<CounterType>("Quầy thanh toán 2 (Khu nước)");
   const [nhanVien, setNhanVien] = useState<string>("NV1");
   const [ghiChu, setGhiChu] = useState<string>("");
   const [tenNguoiBam, setTenNguoiBam] = useState<string>("");
@@ -361,13 +500,16 @@ export default function Page() {
         const copy = [...prev];
         copy[idx] = newRow;
         return copy.sort((a, b) => {
-          const t = new Date(b.thoiGian).getTime() - new Date(a.thoiGian).getTime();
+          const t =
+            new Date(b.thoiGian).getTime() - new Date(a.thoiGian).getTime();
           if (t !== 0) return t;
           return b.id - a.id;
         });
       }
+
       return [newRow, ...prev].sort((a, b) => {
-        const t = new Date(b.thoiGian).getTime() - new Date(a.thoiGian).getTime();
+        const t =
+          new Date(b.thoiGian).getTime() - new Date(a.thoiGian).getTime();
         if (t !== 0) return t;
         return b.id - a.id;
       });
@@ -376,6 +518,7 @@ export default function Page() {
 
   async function loadEventLog() {
     setLoading(true);
+
     const { data, error } = await supabase
       .from("event_log")
       .select("*")
@@ -463,44 +606,55 @@ export default function Page() {
   }
 
   const currentFlow = loaiKH ? getFlow(loaiKH) : [];
+
   const currentCustomerEvents = eventLog
     .filter((row) => row.maKH === currentMaKH)
     .sort((a, b) => {
-      const t = new Date(a.thoiGian).getTime() - new Date(b.thoiGian).getTime();
+      const t =
+        new Date(a.thoiGian).getTime() - new Date(b.thoiGian).getTime();
       if (t !== 0) return t;
       return a.id - b.id;
     });
 
   const nextStepIndex = currentCustomerEvents.length;
   const nextExpectedEvent = currentFlow[nextStepIndex]?.code;
-  const validCounters = loaiKH ? getValidCounters(loaiKH) : ["Quầy thanh toán 1", "Quầy thanh toán 2", "Quầy thanh toán 3"];
+  const validCounters = loaiKH ? getValidCounters(loaiKH) : ["Quầy thanh toán 1 (Khu bánh/pizza)", "Quầy thanh toán 2 (Khu nước)", "Quầy thanh toán 3 (Khu đồ ăn sẵn/chế biến)"];
 
-  async function addEvent(suKien: EventName) {
+  async function addEvent(suKien: EventName, forcedLoaiKH?: CustomerType) {
     if (!currentMaKH || !loaiKH) {
       alert("Bạn phải chọn loại khách trước.");
       return;
     }
+
     if (!tenNguoiBam.trim()) {
       alert("Bạn chưa nhập tên người bấm.");
       return;
     }
+
     if (!validCounters.includes(quay)) {
       alert("Quầy đang chọn không phù hợp với loại khách này.");
       return;
     }
+
     if (suKien !== nextExpectedEvent) {
       alert("Bạn đang bấm sai thứ tự quy trình.");
       return;
     }
 
+    const finalLoaiKH = forcedLoaiKH || loaiKH;
     const now = new Date();
+
+    const quyTrinhText =
+      finalLoaiKH === "PIZZA_COMBO" && loaiKH === "SAN" && quay === "Quầy thanh toán 1 (Khu bánh/pizza)"
+        ? `ĐỒ ĂN LÀM SẴN MUA KÈM PIZZA - ${quay}`
+        : `${getLoaiKhachLabel(finalLoaiKH)} - ${quay}`;
 
     const { data, error } = await supabase
       .from("event_log")
       .insert({
         ma_kh: currentMaKH,
-        loai_kh: loaiKH,
-        quy_trinh: `${getLoaiKhachLabel(loaiKH)} - ${quay}`,
+        loai_kh: finalLoaiKH,
+        quy_trinh: quyTrinhText,
         su_kien: suKien,
         thoi_gian: now.toISOString(),
         nhan_vien: nhanVien,
@@ -515,8 +669,14 @@ export default function Page() {
       return;
     }
 
+    if (forcedLoaiKH) {
+      setLoaiKH(forcedLoaiKH);
+    }
+
     const inserted = data?.[0] as DbRow | undefined;
-    if (inserted) upsertEventRow(mapDbRowToEventRow(inserted));
+    if (inserted) {
+      upsertEventRow(mapDbRowToEventRow(inserted));
+    }
   }
 
   async function resetCurrentCustomer() {
@@ -528,7 +688,11 @@ export default function Page() {
     const ok = window.confirm(`Xóa toàn bộ log của khách ${currentMaKH}?`);
     if (!ok) return;
 
-    const { error } = await supabase.from("event_log").delete().eq("ma_kh", currentMaKH);
+    const { error } = await supabase
+      .from("event_log")
+      .delete()
+      .eq("ma_kh", currentMaKH);
+
     if (error) {
       alert(`Xóa dữ liệu thất bại: ${error.message}`);
       return;
@@ -545,6 +709,7 @@ export default function Page() {
     if (!ok) return;
 
     const { error } = await supabase.from("event_log").delete().neq("id", 0);
+
     if (error) {
       alert(`Xóa toàn bộ dữ liệu thất bại: ${error.message}`);
       return;
@@ -554,14 +719,16 @@ export default function Page() {
     setCurrentMaKH("");
     setLoaiKH("");
     setNhanVien("NV1");
-    setQuay("Quầy thanh toán 2");
+    setQuay("Quầy thanh toán 2 (Khu nước)");
     setGhiChu("");
   }
 
   const summaryRows = useMemo<SummaryRow[]>(() => {
     const grouped = new Map<string, EventRow[]>();
+
     const sortedEvents = [...eventLog].sort((a, b) => {
-      const t = new Date(a.thoiGian).getTime() - new Date(b.thoiGian).getTime();
+      const t =
+        new Date(a.thoiGian).getTime() - new Date(b.thoiGian).getTime();
       if (t !== 0) return t;
       return a.id - b.id;
     });
@@ -576,8 +743,9 @@ export default function Page() {
 
     grouped.forEach((rows, maKH) => {
       const firstRow = rows[0];
-      const loai = firstRow.loaiKH;
-      const flow = getFlow(loai);
+      const lastRow = rows[rows.length - 1];
+      const loai = getEffectiveLoaiForSummary(rows);
+      const flow = getSummaryFlow(loai, rows);
 
       const findTime = (eventName: EventName) =>
         rows.find((r) => r.suKien === eventName)?.thoiGian || "";
@@ -591,11 +759,16 @@ export default function Page() {
         stt: stt++,
         maKH,
         loaiKH: getLoaiKhachLabel(loai),
-        quyTrinh: firstRow.quyTrinh,
-        nhanVien: firstRow.nhanVien || "",
-        quay: firstRow.quay || "",
-        ghiChu: firstRow.ghiChu || "",
-        nguoiBam: firstRow.nguoiBam || "",
+        quyTrinh:
+          loai === "PIZZA_COMBO" &&
+          firstRow.loaiKH === "SAN" &&
+          firstRow.quay === "Quầy thanh toán 1 (Khu bánh/pizza)"
+            ? `ĐỒ ĂN LÀM SẴN MUA KÈM PIZZA - ${lastRow.quay}`
+            : lastRow.quyTrinh || `${getLoaiKhachLabel(loai)} - ${lastRow.quay}`,
+        nhanVien: lastRow.nhanVien || "",
+        quay: lastRow.quay || "",
+        ghiChu: lastRow.ghiChu || "",
+        nguoiBam: lastRow.nguoiBam || "",
 
         soBuoc: flow.length,
 
@@ -623,9 +796,9 @@ export default function Page() {
         arenaArrivalTime: arrivalQueue,
         arenaInterarrivalS: "",
         arenaServiceS: diffSecondsPrecise(serviceStart, systemEnd),
-        arenaQueue: getArenaQueue(firstRow.quay),
-        arenaResource: getArenaResource(firstRow.quay),
-        arenaProcessType: getArenaProcessType(loai, firstRow.quay),
+        arenaQueue: getArenaQueue(lastRow.quay),
+        arenaResource: getArenaResource(lastRow.quay),
+        arenaProcessType: getArenaProcessType(loai, lastRow.quay),
       });
     });
 
@@ -693,15 +866,21 @@ export default function Page() {
       BatDauPhucVu: parseDateTime(row.batDauPhucVu),
       KetThucPhucVu_RoiHeThong: parseDateTime(row.ketThucPhucVuRoiHeThong),
 
-      InterarrivalTime_Giay: row.interarrivalTimeGiay === "" ? "" : row.interarrivalTimeGiay,
-      WaitingTime_Giay: row.waitingTimeGiay === "" ? "" : row.waitingTimeGiay,
-      ServiceTime_Giay: row.serviceTimeGiay === "" ? "" : row.serviceTimeGiay,
-      SystemTime_Giay: row.systemTimeGiay === "" ? "" : row.systemTimeGiay,
+      InterarrivalTime_Giay:
+        row.interarrivalTimeGiay === "" ? "" : row.interarrivalTimeGiay,
+      WaitingTime_Giay:
+        row.waitingTimeGiay === "" ? "" : row.waitingTimeGiay,
+      ServiceTime_Giay:
+        row.serviceTimeGiay === "" ? "" : row.serviceTimeGiay,
+      SystemTime_Giay:
+        row.systemTimeGiay === "" ? "" : row.systemTimeGiay,
 
       Arena_EntityType: row.arenaEntityType,
       Arena_ArrivalTime: parseDateTime(row.arenaArrivalTime),
-      Arena_Interarrival_s: row.arenaInterarrivalS === "" ? "" : row.arenaInterarrivalS,
-      Arena_Service_s: row.arenaServiceS === "" ? "" : row.arenaServiceS,
+      Arena_Interarrival_s:
+        row.arenaInterarrivalS === "" ? "" : row.arenaInterarrivalS,
+      Arena_Service_s:
+        row.arenaServiceS === "" ? "" : row.arenaServiceS,
       Arena_Queue: row.arenaQueue,
       Arena_Resource: row.arenaResource,
       Arena_ProcessType: row.arenaProcessType,
@@ -720,6 +899,41 @@ export default function Page() {
       cellDates: true,
       dateNF: "yyyy-mm-dd hh:mm:ss.000",
     });
+
+    ws["!cols"] = [
+      { wch: 8 },
+      { wch: 32 },
+      { wch: 24 },
+      { wch: 30 },
+      { wch: 12 },
+      { wch: 10 },
+      { wch: 18 },
+      { wch: 14 },
+      { wch: 8 },
+      { wch: 24 },
+      { wch: 24 },
+      { wch: 24 },
+      { wch: 24 },
+      { wch: 16 },
+      { wch: 16 },
+      { wch: 16 },
+      { wch: 16 },
+      { wch: 18 },
+      { wch: 24 },
+      { wch: 18 },
+      { wch: 16 },
+      { wch: 22 },
+      { wch: 22 },
+      { wch: 22 },
+      { wch: 36 },
+      { wch: 24 },
+      { wch: 36 },
+      { wch: 24 },
+      { wch: 36 },
+      { wch: 24 },
+      { wch: 36 },
+      { wch: 24 },
+    ];
 
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Summary");
@@ -745,9 +959,21 @@ export default function Page() {
     tone: "normal" | "danger" | "primary" = "normal"
   ): React.CSSProperties => {
     const styles = {
-      normal: { background: "#fff", border: `1px solid ${palette.line}`, color: palette.text },
-      danger: { background: palette.redSoft, border: `1px solid #fecaca`, color: palette.red },
-      primary: { background: palette.blue, border: `1px solid ${palette.blue}`, color: "#fff" },
+      normal: {
+        background: "#fff",
+        border: `1px solid ${palette.line}`,
+        color: palette.text,
+      },
+      danger: {
+        background: palette.redSoft,
+        border: `1px solid #fecaca`,
+        color: palette.red,
+      },
+      primary: {
+        background: palette.blue,
+        border: `1px solid ${palette.blue}`,
+        color: "#fff",
+      },
     };
 
     return {
@@ -802,12 +1028,13 @@ export default function Page() {
         >
           <div style={{ marginBottom: 12 }}>
             <h1 style={{ margin: 0, fontSize: 28, fontWeight: 800 }}>
-              Web bấm giờ để mô phỏng ở eMart - 3 quầy thanh toán
+              Web bấm giờ mô phỏng ở emart - 3 quầy thanh toán
             </h1>
             <p style={{ margin: "8px 0 0", color: palette.sub }}>
               Tác giả: Bùi Văn Cường
-</p> {/* <--- THÊM THẺ NÀY */}
-          </div> {/* <--- THÊM THẺ NÀY */}
+            </p>
+          </div>
+
           <div
             style={{
               display: "grid",
@@ -816,24 +1043,47 @@ export default function Page() {
             }}
           >
             <div style={infoItemStyle}>
-              <div style={{ color: palette.sub, fontSize: 13 }}>Khách hiện tại</div>
-              <div style={{ fontWeight: 800, fontSize: 18 }}>{currentMaKH || "Chưa chọn"}</div>
+              <div style={{ color: palette.sub, fontSize: 13 }}>
+                Khách hiện tại
+              </div>
+              <div style={{ fontWeight: 800, fontSize: 18 }}>
+                {currentMaKH || "Chưa chọn"}
+              </div>
             </div>
+
             <div style={infoItemStyle}>
               <div style={{ color: palette.sub, fontSize: 13 }}>Loại khách</div>
-              <div style={{ fontWeight: 700 }}>{loaiKH ? getLoaiKhachLabel(loaiKH) : "Chưa chọn"}</div>
+              <div style={{ fontWeight: 700 }}>
+                {loaiKH ? getLoaiKhachLabel(loaiKH) : "Chưa chọn"}
+              </div>
             </div>
+
             <div style={infoItemStyle}>
-              <div style={{ color: palette.sub, fontSize: 13 }}>Người đang bấm</div>
-              <div style={{ fontWeight: 700 }}>{tenNguoiBam || "Chưa nhập tên"}</div>
+              <div style={{ color: palette.sub, fontSize: 13 }}>
+                Người đang bấm
+              </div>
+              <div style={{ fontWeight: 700 }}>
+                {tenNguoiBam || "Chưa nhập tên"}
+              </div>
             </div>
+
             <div style={infoItemStyle}>
               <div style={{ color: palette.sub, fontSize: 13 }}>Mã thiết bị</div>
-              <div style={{ fontWeight: 700 }}>{deviceId || "Đang tạo..."}</div>
+              <div style={{ fontWeight: 700 }}>
+                {deviceId || "Đang tạo..."}
+              </div>
             </div>
+
             <div style={infoItemStyle}>
-              <div style={{ color: palette.sub, fontSize: 13 }}>Trạng thái tải</div>
-              <div style={{ fontWeight: 700, color: loading ? palette.amber : palette.green }}>
+              <div style={{ color: palette.sub, fontSize: 13 }}>
+                Trạng thái tải
+              </div>
+              <div
+                style={{
+                  fontWeight: 700,
+                  color: loading ? palette.amber : palette.green,
+                }}
+              >
                 {loading ? "Đang tải..." : "Sẵn sàng"}
               </div>
             </div>
@@ -842,7 +1092,11 @@ export default function Page() {
           <div style={{ marginTop: 12 }}>
             <button
               onClick={() => {
-                const newName = window.prompt("Nhập lại tên người đang bấm:", tenNguoiBam) || "";
+                const newName =
+                  window.prompt(
+                    "Nhập lại tên người đang bấm:",
+                    tenNguoiBam
+                  ) || "";
                 const finalName = newName.trim();
                 if (finalName) {
                   localStorage.setItem("emart_ten_nguoi_bam", finalName);
@@ -866,9 +1120,18 @@ export default function Page() {
           }}
         >
           <h2 style={sectionTitleStyle}>Thông tin thao tác</h2>
+
           <div style={{ display: "grid", gap: 12, marginTop: 12 }}>
             <div>
-              <label style={{ display: "block", marginBottom: 6, fontWeight: 600 }}>Nhân viên</label>
+              <label
+                style={{
+                  display: "block",
+                  marginBottom: 6,
+                  fontWeight: 600,
+                }}
+              >
+                Nhân viên
+              </label>
               <select
                 value={nhanVien}
                 onChange={(e) => setNhanVien(e.target.value)}
@@ -889,7 +1152,13 @@ export default function Page() {
             </div>
 
             <div>
-              <label style={{ display: "block", marginBottom: 6, fontWeight: 600 }}>
+              <label
+                style={{
+                  display: "block",
+                  marginBottom: 6,
+                  fontWeight: 600,
+                }}
+              >
                 Quầy thanh toán
               </label>
               <select
@@ -906,18 +1175,26 @@ export default function Page() {
               >
                 {validCounters.map((q) => (
                   <option key={q} value={q}>
-                    {q} {q === "Quầy thanh toán 1" ? "- Khu bánh/pizza" : q === "Quầy thanh toán 2" ? "- Khu nước" : "- Khu đồ ăn sẵn/chế biến"}
+                    {getCounterLabel(q)}
                   </option>
                 ))}
               </select>
             </div>
 
             <div>
-              <label style={{ display: "block", marginBottom: 6, fontWeight: 600 }}>Ghi chú</label>
+              <label
+                style={{
+                  display: "block",
+                  marginBottom: 6,
+                  fontWeight: 600,
+                }}
+              >
+                Ghi chú
+              </label>
               <input
                 value={ghiChu}
                 onChange={(e) => setGhiChu(e.target.value)}
-                placeholder="Ví dụ: Áo đen (Ấn chọn loại khách hàng trước mới điền được ở đây)"
+                placeholder="Ví dụ: Áo đen (Ấn chọn loại khách hàng trước nha)"
                 style={{
                   width: "100%",
                   padding: 12,
@@ -941,6 +1218,7 @@ export default function Page() {
           }}
         >
           <h2 style={sectionTitleStyle}>Chọn loại khách</h2>
+
           <div
             style={{
               display: "grid",
@@ -949,19 +1227,38 @@ export default function Page() {
               marginTop: 12,
             }}
           >
-            <button onClick={() => startNewCustomer("SAN")} style={typeButtonStyle(loaiKH === "SAN")}>
+            <button
+              onClick={() => startNewCustomer("SAN")}
+              style={typeButtonStyle(loaiKH === "SAN")}
+            >
               ĐỒ ĂN LÀM SẴN
             </button>
-            <button onClick={() => startNewCustomer("CHUAN")} style={typeButtonStyle(loaiKH === "CHUAN")}>
+
+            <button
+              onClick={() => startNewCustomer("CHUAN")}
+              style={typeButtonStyle(loaiKH === "CHUAN")}
+            >
               MÓN CẦN ĐẦU BẾP LÀM
             </button>
-            <button onClick={() => startNewCustomer("PIZZA")} style={typeButtonStyle(loaiKH === "PIZZA")}>
+
+            <button
+              onClick={() => startNewCustomer("PIZZA")}
+              style={typeButtonStyle(loaiKH === "PIZZA")}
+            >
               PIZZA
             </button>
-            <button onClick={() => startNewCustomer("PIZZA_COMBO")} style={typeButtonStyle(loaiKH === "PIZZA_COMBO")}>
+
+            <button
+              onClick={() => startNewCustomer("PIZZA_COMBO")}
+              style={typeButtonStyle(loaiKH === "PIZZA_COMBO")}
+            >
               PIZZA KẾT HỢP MÓN KHÁC
             </button>
-            <button onClick={() => startNewCustomer("NUOC")} style={typeButtonStyle(loaiKH === "NUOC")}>
+
+            <button
+              onClick={() => startNewCustomer("NUOC")}
+              style={typeButtonStyle(loaiKH === "NUOC")}
+            >
               NƯỚC
             </button>
           </div>
@@ -978,19 +1275,55 @@ export default function Page() {
         >
           <h2 style={sectionTitleStyle}>Bấm theo đúng thứ tự thực tế</h2>
           <p style={{ margin: "6px 0 12px", color: palette.sub }}>
-            Lưu Ý: Bấm ở trên trước nhe mới hiện các bước ở đây ^^
+            Lưu ý: Bấm ở trên trước nhe mới hiện các bước ở đây ^^
           </p>
 
           {loaiKH ? (
             <div style={{ display: "grid", gap: 10 }}>
               {currentFlow.map((step, index) => {
                 const disabled = !currentMaKH || nextStepIndex !== index;
+
+                const isSpecialComboChoice =
+                  isSanAtQuầy thanh toán 1 (Khu bánh/pizza)(loaiKH, quay) &&
+                  step.code === "NV_BAT_DAU_PHUC_VU";
+
+                if (isSpecialComboChoice) {
+                  return (
+                    <div key={step.code} style={{ display: "grid", gap: 10 }}>
+                      <button
+                        onClick={() => addEvent(step.code)}
+                        disabled={disabled}
+                        style={buttonStyle(
+                          disabled,
+                          disabled ? "normal" : "primary"
+                        )}
+                      >
+                        3. Nhân viên bắt đầu tính tiền - KHÔNG mua kèm pizza
+                      </button>
+
+                      <button
+                        onClick={() => addEvent(step.code, "PIZZA_COMBO")}
+                        disabled={disabled}
+                        style={buttonStyle(
+                          disabled,
+                          disabled ? "normal" : "primary"
+                        )}
+                      >
+                        3. Nhân viên bắt đầu tính tiền - CÓ mua kèm pizza
+                      </button>
+                    </div>
+                  );
+                }
+
                 return (
                   <button
                     key={step.code}
                     onClick={() => addEvent(step.code)}
                     disabled={disabled}
-                    style={buttonStyle(disabled, disabled ? "normal" : "primary")}
+                    style={buttonStyle(
+                      disabled,
+                      disabled ? "normal" : "primary"
+                    )}
                   >
                     {step.label}
                   </button>
@@ -1020,10 +1353,16 @@ export default function Page() {
               marginTop: 14,
             }}
           >
-            <button onClick={resetCurrentCustomer} style={buttonStyle(false, "danger")}>
+            <button
+              onClick={resetCurrentCustomer}
+              style={buttonStyle(false, "danger")}
+            >
               RESET KHÁCH NÀY
             </button>
-            <button onClick={clearAllData} style={buttonStyle(false, "danger")}>
+            <button
+              onClick={clearAllData}
+              style={buttonStyle(false, "danger")}
+            >
               XÓA TẤT CẢ
             </button>
           </div>
@@ -1088,9 +1427,16 @@ export default function Page() {
                         alignItems: "center",
                       }}
                     >
-                      <div style={{ fontSize: 20, fontWeight: 800, wordBreak: "break-word" }}>
+                      <div
+                        style={{
+                          fontSize: 20,
+                          fontWeight: 800,
+                          wordBreak: "break-word",
+                        }}
+                      >
                         {row.maKH}
                       </div>
+
                       <div
                         style={{
                           padding: "6px 10px",
@@ -1108,17 +1454,30 @@ export default function Page() {
                     <div
                       style={{
                         display: "grid",
-                        gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
+                        gridTemplateColumns:
+                          "repeat(auto-fit, minmax(160px, 1fr))",
                         gap: 8,
                         marginBottom: 12,
                       }}
                     >
-                      <div style={infoItemStyle}>STT khách: <strong>{row.stt}</strong></div>
-                      <div style={infoItemStyle}>Quy trình: <strong>{row.quyTrinh || "Chưa có"}</strong></div>
-                      <div style={infoItemStyle}>Nhân viên: <strong>{row.nhanVien || "Chưa có"}</strong></div>
-                      <div style={infoItemStyle}>Quầy: <strong>{row.quay || "Chưa có"}</strong></div>
-                      <div style={infoItemStyle}>Người bấm: <strong>{row.nguoiBam || "Chưa có"}</strong></div>
-                      <div style={infoItemStyle}>Ghi chú: <strong>{row.ghiChu || "Chưa có"}</strong></div>
+                      <div style={infoItemStyle}>
+                        STT khách: <strong>{row.stt}</strong>
+                      </div>
+                      <div style={infoItemStyle}>
+                        Quy trình: <strong>{row.quyTrinh || "Chưa có"}</strong>
+                      </div>
+                      <div style={infoItemStyle}>
+                        Nhân viên: <strong>{row.nhanVien || "Chưa có"}</strong>
+                      </div>
+                      <div style={infoItemStyle}>
+                        Quầy: <strong>{row.quay || "Chưa có"}</strong>
+                      </div>
+                      <div style={infoItemStyle}>
+                        Người bấm: <strong>{row.nguoiBam || "Chưa có"}</strong>
+                      </div>
+                      <div style={infoItemStyle}>
+                        Ghi chú: <strong>{row.ghiChu || "Chưa có"}</strong>
+                      </div>
                     </div>
 
                     <div style={{ display: "grid", gap: 12 }}>
@@ -1130,31 +1489,34 @@ export default function Page() {
                           background: "#ffffffcc",
                         }}
                       >
-                        <div style={{ fontWeight: 800, marginBottom: 8 }}>Thời gian từng bước</div>
-                       <div>
-  {row.buoc1Label || "Bước 1"}:{" "}
-  <strong>
-    {row.T_B1 ? formatEventTime(row.T_B1) : "Chưa có"}
-  </strong>
-</div>
-<div>
-  {row.buoc2Label || "Bước 2"}:{" "}
-  <strong>
-    {row.T_B2 ? formatEventTime(row.T_B2) : "Chưa có"}
-  </strong>
-</div>
-<div>
-  {row.buoc3Label || "Bước 3"}:{" "}
-  <strong>
-    {row.T_B3 ? formatEventTime(row.T_B3) : "Chưa có"}
-  </strong>
-</div>
-<div>
-  {row.buoc4Label || "Bước 4"}:{" "}
-  <strong>
-    {row.T_B4 ? formatEventTime(row.T_B4) : "Chưa có"}
-  </strong>
-</div>
+                        <div style={{ fontWeight: 800, marginBottom: 8 }}>
+                          Thời gian từng bước
+                        </div>
+
+                        <div>
+                          {row.buoc1Label || "Bước 1"}:{" "}
+                          <strong>
+                            {row.T_B1 ? formatEventTime(row.T_B1) : "Chưa có"}
+                          </strong>
+                        </div>
+                        <div>
+                          {row.buoc2Label || "Bước 2"}:{" "}
+                          <strong>
+                            {row.T_B2 ? formatEventTime(row.T_B2) : "Chưa có"}
+                          </strong>
+                        </div>
+                        <div>
+                          {row.buoc3Label || "Bước 3"}:{" "}
+                          <strong>
+                            {row.T_B3 ? formatEventTime(row.T_B3) : "Chưa có"}
+                          </strong>
+                        </div>
+                        <div>
+                          {row.buoc4Label || "Bước 4"}:{" "}
+                          <strong>
+                            {row.T_B4 ? formatEventTime(row.T_B4) : "Chưa có"}
+                          </strong>
+                        </div>
                       </div>
 
                       <div
@@ -1165,33 +1527,41 @@ export default function Page() {
                           background: "#ffffffcc",
                         }}
                       >
-                        <div style={{ fontWeight: 800, marginBottom: 8 }}>Mốc mô phỏng</div>
-                       <div>
-  Đến hệ thống:{" "}
-  <strong>
-    {row.thoiGianDenHeThong ? formatEventTime(row.thoiGianDenHeThong) : "Chưa có"}
-  </strong>
-</div>
-<div>
-  Bắt đầu xếp hàng:{" "}
-  <strong>
-    {row.batDauXepHang ? formatEventTime(row.batDauXepHang) : "Chưa có"}
-  </strong>
-</div>
-<div>
-  Bắt đầu phục vụ:{" "}
-  <strong>
-    {row.batDauPhucVu ? formatEventTime(row.batDauPhucVu) : "Chưa có"}
-  </strong>
-</div>
-<div>
-  Rời hệ thống:{" "}
-  <strong>
-    {row.ketThucPhucVuRoiHeThong
-      ? formatEventTime(row.ketThucPhucVuRoiHeThong)
-      : "Chưa có"}
-  </strong>
-</div>
+                        <div style={{ fontWeight: 800, marginBottom: 8 }}>
+                          Mốc mô phỏng
+                        </div>
+                        <div>
+                          Đến hệ thống:{" "}
+                          <strong>
+                            {row.thoiGianDenHeThong
+                              ? formatEventTime(row.thoiGianDenHeThong)
+                              : "Chưa có"}
+                          </strong>
+                        </div>
+                        <div>
+                          Bắt đầu xếp hàng:{" "}
+                          <strong>
+                            {row.batDauXepHang
+                              ? formatEventTime(row.batDauXepHang)
+                              : "Chưa có"}
+                          </strong>
+                        </div>
+                        <div>
+                          Bắt đầu phục vụ:{" "}
+                          <strong>
+                            {row.batDauPhucVu
+                              ? formatEventTime(row.batDauPhucVu)
+                              : "Chưa có"}
+                          </strong>
+                        </div>
+                        <div>
+                          Rời hệ thống:{" "}
+                          <strong>
+                            {row.ketThucPhucVuRoiHeThong
+                              ? formatEventTime(row.ketThucPhucVuRoiHeThong)
+                              : "Chưa có"}
+                          </strong>
+                        </div>
                       </div>
 
                       <div
@@ -1202,13 +1572,47 @@ export default function Page() {
                           background: "#ffffffcc",
                         }}
                       >
-                        <div style={{ fontWeight: 800, marginBottom: 8, color: palette.text }}>
+                        <div
+                          style={{
+                            fontWeight: 800,
+                            marginBottom: 8,
+                            color: palette.text,
+                          }}
+                        >
                           Chỉ tiêu thời gian
                         </div>
-                        <div>Interarrival(s): <strong>{row.interarrivalTimeGiay === "" ? "Chưa đủ dữ liệu" : row.interarrivalTimeGiay}</strong></div>
-                        <div>Waiting(s): <strong>{row.waitingTimeGiay === "" ? "Chưa đủ dữ liệu" : row.waitingTimeGiay}</strong></div>
-                        <div>Service(s): <strong>{row.serviceTimeGiay === "" ? "Chưa đủ dữ liệu" : row.serviceTimeGiay}</strong></div>
-                        <div>System(s): <strong>{row.systemTimeGiay === "" ? "Chưa đủ dữ liệu" : row.systemTimeGiay}</strong></div>
+                        <div>
+                          Interarrival(s):{" "}
+                          <strong>
+                            {row.interarrivalTimeGiay === ""
+                              ? "Chưa đủ dữ liệu"
+                              : row.interarrivalTimeGiay}
+                          </strong>
+                        </div>
+                        <div>
+                          Waiting(s):{" "}
+                          <strong>
+                            {row.waitingTimeGiay === ""
+                              ? "Chưa đủ dữ liệu"
+                              : row.waitingTimeGiay}
+                          </strong>
+                        </div>
+                        <div>
+                          Service(s):{" "}
+                          <strong>
+                            {row.serviceTimeGiay === ""
+                              ? "Chưa đủ dữ liệu"
+                              : row.serviceTimeGiay}
+                          </strong>
+                        </div>
+                        <div>
+                          System(s):{" "}
+                          <strong>
+                            {row.systemTimeGiay === ""
+                              ? "Chưa đủ dữ liệu"
+                              : row.systemTimeGiay}
+                          </strong>
+                        </div>
                       </div>
                     </div>
                   </div>
