@@ -5,7 +5,7 @@ import * as XLSX from "xlsx";
 import { supabase } from "../lib/supabase";
 
 type CustomerType = "SAN" | "CHUAN" | "PIZZA" | "PIZZA_COMBO" | "NUOC";
-type CounterType = "Quầy thanh toán 1 (Khu bánh/pizza)" | "Quầy thanh toán 2 (Khu nước)" | "Quầy thanh toán 3 (Khu đồ ăn sẵn/chế biến)";
+type CounterType = "Quầy thanh toán 1 - Khu bánh/pizza" | "Quầy thanh toán 2 - Khu nước" | "Quầy thanh toán 3 - Khu đồ ăn sẵn/chế biến";
 
 type EventName =
   | "CAM_DO_AN"
@@ -22,7 +22,7 @@ type EventRow = {
   loaiKH: CustomerType;
   quyTrinh: string;
   suKien: EventName;
-  thoiGian: string; // ISO từ DB
+  thoiGian: string;
   nhanVien: string;
   quay: CounterType;
   ghiChu: string;
@@ -68,6 +68,21 @@ type SummaryRow = {
   arenaQueue: string;
   arenaResource: string;
   arenaProcessType: string;
+};
+
+type ActiveCustomerRow = {
+  maKH: string;
+  loaiKH: CustomerType;
+  loaiLabel: string;
+  quay: CounterType;
+  nhanVien: string;
+  ghiChu: string;
+  nguoiBam: string;
+  stepIndex: number;
+  totalSteps: number;
+  nextLabel: string;
+  done: boolean;
+  rows: EventRow[];
 };
 
 type DbRow = {
@@ -173,15 +188,15 @@ function getValidCounters(loai: CustomerType): CounterType[] {
   switch (loai) {
     case "PIZZA":
     case "PIZZA_COMBO":
-      return ["Quầy thanh toán 1 (Khu bánh/pizza)"];
+      return ["Quầy thanh toán 1 - Khu bánh/pizza"];
     case "SAN":
-      return ["Quầy thanh toán 3 (Khu đồ ăn sẵn/chế biến)", "Quầy thanh toán 2 (Khu nước)", "Quầy thanh toán 1 (Khu bánh/pizza)"];
+      return ["Quầy thanh toán 3 - Khu đồ ăn sẵn/chế biến", "Quầy thanh toán 2 - Khu nước", "Quầy thanh toán 1 - Khu bánh/pizza"];
     case "CHUAN":
-      return ["Quầy thanh toán 3 (Khu đồ ăn sẵn/chế biến)", "Quầy thanh toán 2 (Khu nước)"];
+      return ["Quầy thanh toán 3 - Khu đồ ăn sẵn/chế biến", "Quầy thanh toán 2 - Khu nước"];
     case "NUOC":
-      return ["Quầy thanh toán 2 (Khu nước)", "Quầy thanh toán 1 (Khu bánh/pizza)", "Quầy thanh toán 3 (Khu đồ ăn sẵn/chế biến)"];
+      return ["Quầy thanh toán 2 - Khu nước", "Quầy thanh toán 1 - Khu bánh/pizza", "Quầy thanh toán 3 - Khu đồ ăn sẵn/chế biến"];
     default:
-      return ["Quầy thanh toán 1 (Khu bánh/pizza)", "Quầy thanh toán 2 (Khu nước)", "Quầy thanh toán 3 (Khu đồ ăn sẵn/chế biến)"];
+      return ["Quầy thanh toán 1 - Khu bánh/pizza", "Quầy thanh toán 2 - Khu nước", "Quầy thanh toán 3 - Khu đồ ăn sẵn/chế biến"];
   }
 }
 
@@ -189,24 +204,24 @@ function getRecommendedCounter(loai: CustomerType): CounterType {
   switch (loai) {
     case "PIZZA":
     case "PIZZA_COMBO":
-      return "Quầy thanh toán 1 (Khu bánh/pizza)";
+      return "Quầy thanh toán 1 - Khu bánh/pizza";
     case "SAN":
     case "CHUAN":
-      return "Quầy thanh toán 3 (Khu đồ ăn sẵn/chế biến)";
+      return "Quầy thanh toán 3 - Khu đồ ăn sẵn/chế biến";
     case "NUOC":
-      return "Quầy thanh toán 2 (Khu nước)";
+      return "Quầy thanh toán 2 - Khu nước";
     default:
-      return "Quầy thanh toán 2 (Khu nước)";
+      return "Quầy thanh toán 2 - Khu nước";
   }
 }
 
 function getCounterLabel(quay: CounterType) {
   switch (quay) {
-    case "Quầy thanh toán 1 (Khu bánh/pizza)":
+    case "Quầy thanh toán 1 - Khu bánh/pizza":
       return "Quầy thanh toán 1 - Khu bánh/pizza";
-    case "Quầy thanh toán 2 (Khu nước)":
+    case "Quầy thanh toán 2 - Khu nước":
       return "Quầy thanh toán 2 - Khu nước";
-    case "Quầy thanh toán 3 (Khu đồ ăn sẵn/chế biến)":
+    case "Quầy thanh toán 3 - Khu đồ ăn sẵn/chế biến":
       return "Quầy thanh toán 3 - Khu đồ ăn sẵn/chế biến";
     default:
       return quay;
@@ -305,8 +320,8 @@ function getFlow(loai: CustomerType) {
   }
 }
 
-function isSanAtQ1(loai: CustomerType | "", quay: CounterType) {
-  return loai === "SAN" && quay === "Quầy thanh toán 1 (Khu bánh/pizza)";
+function isSanAtQuầy thanh toán 1 - Khu bánh/pizza(loai: CustomerType | "", quay: CounterType) {
+  return loai === "SAN" && quay === "Quầy thanh toán 1 - Khu bánh/pizza";
 }
 
 function getEffectiveLoaiForSummary(rows: EventRow[]): CustomerType {
@@ -361,9 +376,8 @@ function getArrivalEvent(loai: CustomerType): EventName {
   switch (loai) {
     case "PIZZA":
       return "VAO_HANG_ORDER_PIZZA";
-    case "PIZZA_COMBO": {
+    case "PIZZA_COMBO":
       return "VAO_HANG_ORDER_PIZZA";
-    }
     default:
       return "VAO_HANG_THANH_TOAN";
   }
@@ -379,23 +393,23 @@ function getSystemEndEvent(): EventName {
 
 function getArenaQueue(quay: CounterType) {
   switch (quay) {
-    case "Quầy thanh toán 1 (Khu bánh/pizza)":
-      return "Q_ThanhToan_Quầy thanh toán 1 (Khu bánh/pizza)";
-    case "Quầy thanh toán 2 (Khu nước)":
-      return "Q_ThanhToan_Quầy thanh toán 2 (Khu nước)";
-    case "Quầy thanh toán 3 (Khu đồ ăn sẵn/chế biến)":
-      return "Q_ThanhToan_Quầy thanh toán 3 (Khu đồ ăn sẵn/chế biến)";
+    case "Quầy thanh toán 1 - Khu bánh/pizza":
+      return "Q_ThanhToan_Quầy thanh toán 1 - Khu bánh/pizza";
+    case "Quầy thanh toán 2 - Khu nước":
+      return "Q_ThanhToan_Quầy thanh toán 2 - Khu nước";
+    case "Quầy thanh toán 3 - Khu đồ ăn sẵn/chế biến":
+      return "Q_ThanhToan_Quầy thanh toán 3 - Khu đồ ăn sẵn/chế biến";
   }
 }
 
 function getArenaResource(quay: CounterType) {
   switch (quay) {
-    case "Quầy thanh toán 1 (Khu bánh/pizza)":
-      return "Cashier_Quầy thanh toán 1 (Khu bánh/pizza)";
-    case "Quầy thanh toán 2 (Khu nước)":
-      return "Cashier_Quầy thanh toán 2 (Khu nước)";
-    case "Quầy thanh toán 3 (Khu đồ ăn sẵn/chế biến)":
-      return "Cashier_Quầy thanh toán 3 (Khu đồ ăn sẵn/chế biến)";
+    case "Quầy thanh toán 1 - Khu bánh/pizza":
+      return "Cashier_Quầy thanh toán 1 - Khu bánh/pizza";
+    case "Quầy thanh toán 2 - Khu nước":
+      return "Cashier_Quầy thanh toán 2 - Khu nước";
+    case "Quầy thanh toán 3 - Khu đồ ăn sẵn/chế biến":
+      return "Cashier_Quầy thanh toán 3 - Khu đồ ăn sẵn/chế biến";
   }
 }
 
@@ -484,7 +498,7 @@ const palette = {
 export default function Page() {
   const [currentMaKH, setCurrentMaKH] = useState<string>("");
   const [loaiKH, setLoaiKH] = useState<CustomerType | "">("");
-  const [quay, setQuay] = useState<CounterType>("Quầy thanh toán 2 (Khu nước)");
+  const [quay, setQuay] = useState<CounterType>("Quầy thanh toán 2 - Khu nước");
   const [nhanVien, setNhanVien] = useState<string>("NV1");
   const [ghiChu, setGhiChu] = useState<string>("");
   const [tenNguoiBam, setTenNguoiBam] = useState<string>("");
@@ -572,6 +586,18 @@ export default function Page() {
           upsertEventRow(row);
         }
       )
+      .on(
+        "postgres_changes",
+        { event: "DELETE", schema: "public", table: "event_log" },
+        (payload) => {
+          const oldRow = payload.old as { id?: number };
+          if (oldRow?.id) {
+            setEventLog((prev) => prev.filter((x) => x.id !== oldRow.id));
+          } else {
+            loadEventLog();
+          }
+        }
+      )
       .subscribe();
 
     return () => {
@@ -581,21 +607,17 @@ export default function Page() {
 
   useEffect(() => {
     if (loaiKH) {
-      setQuay(getRecommendedCounter(loaiKH));
+      const allowed = getValidCounters(loaiKH);
+      if (!allowed.includes(quay)) {
+        setQuay(getRecommendedCounter(loaiKH));
+      }
     }
-  }, [loaiKH]);
+  }, [loaiKH, quay]);
 
   function startNewCustomer(selectedType: CustomerType) {
     if (!deviceId) {
       alert("Thiết bị chưa sẵn sàng, vui lòng thử lại.");
       return;
-    }
-
-    if (currentMaKH) {
-      const ok = window.confirm(
-        `Bạn đang ở khách ${currentMaKH}. Tạo khách mới sẽ chuyển sang mã khác. Tiếp tục?`
-      );
-      if (!ok) return;
     }
 
     const newCode = generateUniqueCustomerCode(deviceId);
@@ -605,24 +627,41 @@ export default function Page() {
     setGhiChu("");
   }
 
+  function selectCustomerToContinue(maKH: string) {
+    const rows = eventLog
+      .filter((x) => x.maKH === maKH)
+      .sort((a, b) => {
+        const t =
+          new Date(a.thoiGian).getTime() - new Date(b.thoiGian).getTime();
+        if (t !== 0) return t;
+        return a.id - b.id;
+      });
+
+    if (rows.length === 0) return;
+
+    const lastRow = rows[rows.length - 1];
+    const effectiveLoai = getEffectiveLoaiForSummary(rows);
+
+    setCurrentMaKH(maKH);
+    setLoaiKH(effectiveLoai);
+    setQuay(lastRow.quay);
+    setNhanVien(lastRow.nhanVien || "NV1");
+    setGhiChu(lastRow.ghiChu || "");
+  }
+
   const currentFlow = loaiKH ? getFlow(loaiKH) : [];
 
   const currentCustomerEvents = eventLog
     .filter((row) => row.maKH === currentMaKH)
     .sort((a, b) => {
-      const t =
-        new Date(a.thoiGian).getTime() - new Date(b.thoiGian).getTime();
+      const t = new Date(a.thoiGian).getTime() - new Date(b.thoiGian).getTime();
       if (t !== 0) return t;
       return a.id - b.id;
     });
 
   const nextStepIndex = currentCustomerEvents.length;
   const nextExpectedEvent = currentFlow[nextStepIndex]?.code;
-  const validCounters: CounterType[] = loaiKH ? getValidCounters(loaiKH) : [
-  "Quầy thanh toán 1 (Khu bánh/pizza)",
-  "Quầy thanh toán 2 (Khu nước)",
-  "Quầy thanh toán 3 (Khu đồ ăn sẵn/chế biến)"
-];
+  const validCounters = loaiKH ? getValidCounters(loaiKH) : ["Quầy thanh toán 1 - Khu bánh/pizza", "Quầy thanh toán 2 - Khu nước", "Quầy thanh toán 3 - Khu đồ ăn sẵn/chế biến"];
 
   async function addEvent(suKien: EventName, forcedLoaiKH?: CustomerType) {
     if (!currentMaKH || !loaiKH) {
@@ -649,7 +688,7 @@ export default function Page() {
     const now = new Date();
 
     const quyTrinhText =
-      finalLoaiKH === "PIZZA_COMBO" && loaiKH === "SAN" && quay === "Quầy thanh toán 1 (Khu bánh/pizza)"
+      finalLoaiKH === "PIZZA_COMBO" && loaiKH === "SAN" && quay === "Quầy thanh toán 1 - Khu bánh/pizza"
         ? `ĐỒ ĂN LÀM SẴN MUA KÈM PIZZA - ${quay}`
         : `${getLoaiKhachLabel(finalLoaiKH)} - ${quay}`;
 
@@ -723,16 +762,61 @@ export default function Page() {
     setCurrentMaKH("");
     setLoaiKH("");
     setNhanVien("NV1");
-    setQuay("Quầy thanh toán 2 (Khu nước)");
+    setQuay("Quầy thanh toán 2 - Khu nước");
     setGhiChu("");
   }
+
+  const activeCustomers = useMemo<ActiveCustomerRow[]>(() => {
+    const grouped = new Map<string, EventRow[]>();
+
+    const sortedEvents = [...eventLog].sort((a, b) => {
+      const t = new Date(a.thoiGian).getTime() - new Date(b.thoiGian).getTime();
+      if (t !== 0) return t;
+      return a.id - b.id;
+    });
+
+    for (const row of sortedEvents) {
+      if (!grouped.has(row.maKH)) grouped.set(row.maKH, []);
+      grouped.get(row.maKH)!.push(row);
+    }
+
+    const result = Array.from(grouped.entries()).map(([maKH, rows]) => {
+      const loai = getEffectiveLoaiForSummary(rows);
+      const flow = getSummaryFlow(loai, rows);
+      const stepIndex = rows.length;
+      const done = stepIndex >= flow.length;
+      const lastRow = rows[rows.length - 1];
+
+      return {
+        maKH,
+        loaiKH: loai,
+        loaiLabel: getLoaiKhachLabel(loai),
+        quay: lastRow.quay,
+        nhanVien: lastRow.nhanVien,
+        ghiChu: lastRow.ghiChu,
+        nguoiBam: lastRow.nguoiBam,
+        stepIndex,
+        totalSteps: flow.length,
+        nextLabel: done ? "Đã hoàn tất" : flow[stepIndex]?.label || "Đã hoàn tất",
+        done,
+        rows,
+      };
+    });
+
+    return result
+      .filter((x) => !x.done)
+      .sort((a, b) => {
+        const ta = parseDateTime(a.rows[a.rows.length - 1].thoiGian)?.getTime() || 0;
+        const tb = parseDateTime(b.rows[b.rows.length - 1].thoiGian)?.getTime() || 0;
+        return tb - ta;
+      });
+  }, [eventLog]);
 
   const summaryRows = useMemo<SummaryRow[]>(() => {
     const grouped = new Map<string, EventRow[]>();
 
     const sortedEvents = [...eventLog].sort((a, b) => {
-      const t =
-        new Date(a.thoiGian).getTime() - new Date(b.thoiGian).getTime();
+      const t = new Date(a.thoiGian).getTime() - new Date(b.thoiGian).getTime();
       if (t !== 0) return t;
       return a.id - b.id;
     });
@@ -766,7 +850,7 @@ export default function Page() {
         quyTrinh:
           loai === "PIZZA_COMBO" &&
           firstRow.loaiKH === "SAN" &&
-          firstRow.quay === "Quầy thanh toán 1 (Khu bánh/pizza)"
+          firstRow.quay === "Quầy thanh toán 1 - Khu bánh/pizza"
             ? `ĐỒ ĂN LÀM SẴN MUA KÈM PIZZA - ${lastRow.quay}`
             : lastRow.quyTrinh || `${getLoaiKhachLabel(loai)} - ${lastRow.quay}`,
         nhanVien: lastRow.nhanVien || "",
@@ -870,21 +954,15 @@ export default function Page() {
       BatDauPhucVu: parseDateTime(row.batDauPhucVu),
       KetThucPhucVu_RoiHeThong: parseDateTime(row.ketThucPhucVuRoiHeThong),
 
-      InterarrivalTime_Giay:
-        row.interarrivalTimeGiay === "" ? "" : row.interarrivalTimeGiay,
-      WaitingTime_Giay:
-        row.waitingTimeGiay === "" ? "" : row.waitingTimeGiay,
-      ServiceTime_Giay:
-        row.serviceTimeGiay === "" ? "" : row.serviceTimeGiay,
-      SystemTime_Giay:
-        row.systemTimeGiay === "" ? "" : row.systemTimeGiay,
+      InterarrivalTime_Giay: row.interarrivalTimeGiay === "" ? "" : row.interarrivalTimeGiay,
+      WaitingTime_Giay: row.waitingTimeGiay === "" ? "" : row.waitingTimeGiay,
+      ServiceTime_Giay: row.serviceTimeGiay === "" ? "" : row.serviceTimeGiay,
+      SystemTime_Giay: row.systemTimeGiay === "" ? "" : row.systemTimeGiay,
 
       Arena_EntityType: row.arenaEntityType,
       Arena_ArrivalTime: parseDateTime(row.arenaArrivalTime),
-      Arena_Interarrival_s:
-        row.arenaInterarrivalS === "" ? "" : row.arenaInterarrivalS,
-      Arena_Service_s:
-        row.arenaServiceS === "" ? "" : row.arenaServiceS,
+      Arena_Interarrival_s: row.arenaInterarrivalS === "" ? "" : row.arenaInterarrivalS,
+      Arena_Service_s: row.arenaServiceS === "" ? "" : row.arenaServiceS,
       Arena_Queue: row.arenaQueue,
       Arena_Resource: row.arenaResource,
       Arena_ProcessType: row.arenaProcessType,
@@ -1047,9 +1125,7 @@ export default function Page() {
             }}
           >
             <div style={infoItemStyle}>
-              <div style={{ color: palette.sub, fontSize: 13 }}>
-                Khách hiện tại
-              </div>
+              <div style={{ color: palette.sub, fontSize: 13 }}>Khách hiện tại</div>
               <div style={{ fontWeight: 800, fontSize: 18 }}>
                 {currentMaKH || "Chưa chọn"}
               </div>
@@ -1063,9 +1139,7 @@ export default function Page() {
             </div>
 
             <div style={infoItemStyle}>
-              <div style={{ color: palette.sub, fontSize: 13 }}>
-                Người đang bấm
-              </div>
+              <div style={{ color: palette.sub, fontSize: 13 }}>Người đang bấm</div>
               <div style={{ fontWeight: 700 }}>
                 {tenNguoiBam || "Chưa nhập tên"}
               </div>
@@ -1079,9 +1153,7 @@ export default function Page() {
             </div>
 
             <div style={infoItemStyle}>
-              <div style={{ color: palette.sub, fontSize: 13 }}>
-                Trạng thái tải
-              </div>
+              <div style={{ color: palette.sub, fontSize: 13 }}>Trạng thái tải</div>
               <div
                 style={{
                   fontWeight: 700,
@@ -1097,10 +1169,7 @@ export default function Page() {
             <button
               onClick={() => {
                 const newName =
-                  window.prompt(
-                    "Nhập lại tên người đang bấm:",
-                    tenNguoiBam
-                  ) || "";
+                  window.prompt("Nhập lại tên người đang bấm:", tenNguoiBam) || "";
                 const finalName = newName.trim();
                 if (finalName) {
                   localStorage.setItem("emart_ten_nguoi_bam", finalName);
@@ -1277,30 +1346,87 @@ export default function Page() {
             boxShadow: "0 4px 20px rgba(0,0,0,0.04)",
           }}
         >
+          <h2 style={sectionTitleStyle}>Khách đang xử lý</h2>
+          <p style={{ margin: "6px 0 14px", color: palette.sub }}>
+            Có thể chọn lại bất kỳ khách nào để bấm tiếp bước tiếp theo.
+          </p>
+
+          <div style={{ display: "grid", gap: 10 }}>
+            {activeCustomers.length === 0 ? (
+              <div
+                style={{
+                  padding: 14,
+                  borderRadius: 12,
+                  border: `1px dashed ${palette.line}`,
+                  color: palette.sub,
+                  background: "#fff",
+                }}
+              >
+                Chưa có khách nào đang chờ xử lý tiếp.
+              </div>
+            ) : (
+              activeCustomers.map((customer) => (
+                <button
+                  key={customer.maKH}
+                  onClick={() => selectCustomerToContinue(customer.maKH)}
+                  style={{
+                    width: "100%",
+                    textAlign: "left",
+                    padding: 14,
+                    borderRadius: 12,
+                    border:
+                      currentMaKH === customer.maKH
+                        ? `2px solid ${palette.blue}`
+                        : `1px solid ${palette.line}`,
+                    background:
+                      currentMaKH === customer.maKH ? palette.blueSoft : "#fff",
+                    cursor: "pointer",
+                  }}
+                >
+                  <div style={{ fontWeight: 800, marginBottom: 4 }}>
+                    {customer.maKH}
+                  </div>
+                  <div style={{ color: palette.text }}>
+                    {customer.loaiLabel} - {customer.quay}
+                  </div>
+                  <div style={{ color: palette.sub, marginTop: 4 }}>
+                    Bước tiếp theo: {customer.nextLabel}
+                  </div>
+                </button>
+              ))
+            )}
+          </div>
+        </section>
+
+        <section
+          style={{
+            background: palette.card,
+            border: `1px solid ${palette.line}`,
+            borderRadius: 18,
+            padding: 18,
+            boxShadow: "0 4px 20px rgba(0,0,0,0.04)",
+          }}
+        >
           <h2 style={sectionTitleStyle}>Bấm theo đúng thứ tự thực tế</h2>
           <p style={{ margin: "6px 0 12px", color: palette.sub }}>
-            Lưu ý: Bấm ở trên trước nhe mới hiện các bước ở đây ^^
+            Lưu ý: Chọn đúng khách ở phần trên rồi mới bấm bước tiếp theo.
           </p>
 
           {loaiKH ? (
             <div style={{ display: "grid", gap: 10 }}>
               {currentFlow.map((step, index) => {
                 const disabled = !currentMaKH || nextStepIndex !== index;
-
                 const isSpecialComboChoice =
-                  isSanAtQ1(loaiKH, quay) &&
-                  step.code === "NV_BAT_DAU_PHUC_VU";
-              
+                  isSanAtQuầy thanh toán 1 - Khu bánh/pizza(loaiKH, quay) &&
+                  step.code === "NV_BAT_DAU_PHUC_VU";
+
                 if (isSpecialComboChoice) {
                   return (
                     <div key={step.code} style={{ display: "grid", gap: 10 }}>
                       <button
                         onClick={() => addEvent(step.code)}
                         disabled={disabled}
-                        style={buttonStyle(
-                          disabled,
-                          disabled ? "normal" : "primary"
-                        )}
+                        style={buttonStyle(disabled, disabled ? "normal" : "primary")}
                       >
                         3. Nhân viên bắt đầu tính tiền - KHÔNG mua kèm pizza
                       </button>
@@ -1308,10 +1434,7 @@ export default function Page() {
                       <button
                         onClick={() => addEvent(step.code, "PIZZA_COMBO")}
                         disabled={disabled}
-                        style={buttonStyle(
-                          disabled,
-                          disabled ? "normal" : "primary"
-                        )}
+                        style={buttonStyle(disabled, disabled ? "normal" : "primary")}
                       >
                         3. Nhân viên bắt đầu tính tiền - CÓ mua kèm pizza
                       </button>
@@ -1324,10 +1447,7 @@ export default function Page() {
                     key={step.code}
                     onClick={() => addEvent(step.code)}
                     disabled={disabled}
-                    style={buttonStyle(
-                      disabled,
-                      disabled ? "normal" : "primary"
-                    )}
+                    style={buttonStyle(disabled, disabled ? "normal" : "primary")}
                   >
                     {step.label}
                   </button>
@@ -1345,7 +1465,7 @@ export default function Page() {
                 fontWeight: 600,
               }}
             >
-              Hãy chọn loại khách ở phía trên trước.
+              Hãy chọn hoặc chọn lại khách ở phía trên trước.
             </div>
           )}
 
@@ -1363,6 +1483,7 @@ export default function Page() {
             >
               RESET KHÁCH NÀY
             </button>
+
             <button
               onClick={clearAllData}
               style={buttonStyle(false, "danger")}
@@ -1458,8 +1579,7 @@ export default function Page() {
                     <div
                       style={{
                         display: "grid",
-                        gridTemplateColumns:
-                          "repeat(auto-fit, minmax(160px, 1fr))",
+                        gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
                         gap: 8,
                         marginBottom: 12,
                       }}
