@@ -1341,7 +1341,7 @@ export default function Page() {
             boxShadow: "0 4px 20px rgba(0,0,0,0.04)",
           }}
         >
-          <h2 style={sectionTitleStyle}>Bấm theo đúng thứ tự thực tế</h2>
+          <h2 style={sectionTitleStyle}>Bấm theo đúng thứ tự thực tế (Lưu Ý: Người ta cầm lên bầm liền nhe không mua thì qua khách khác ko đc xóa)</h2>
           <p style={{ margin: "6px 0 12px", color: palette.sub }}>
             Bước đầu tiên bắt buộc phải có ghi chú trước khi bấm.
           </p>
