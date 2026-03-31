@@ -115,7 +115,6 @@ const palette = {
   sub: "#6b7280",
   blue: "#2563eb",
   blueSoft: "#dbeafe",
-  greenSoft: "#ecfdf5",
   green: "#059669",
   amberSoft: "#fffbeb",
   amber: "#d97706",
@@ -178,18 +177,15 @@ function generateDeviceId() {
   return `DV-${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
 }
 
-function generateUniqueCustomerCode(deviceId: string) {
+function generateShortCustomerCode(deviceId: string) {
   const now = new Date();
-  const yyyy = now.getFullYear();
-  const mm = pad2(now.getMonth() + 1);
-  const dd = pad2(now.getDate());
   const hh = pad2(now.getHours());
   const mi = pad2(now.getMinutes());
   const ss = pad2(now.getSeconds());
   const ms = pad3(now.getMilliseconds());
-  const randomPart = Math.random().toString(36).slice(2, 6).toUpperCase();
-
-  return `KH-${yyyy}${mm}${dd}-${hh}${mi}${ss}${ms}-${deviceId}-${randomPart}`;
+  const deviceShort = deviceId.replace("DV-", "").slice(-4);
+  const randomPart = Math.random().toString(36).slice(2, 5).toUpperCase();
+  return `KH-${hh}${mi}${ss}${ms}-${deviceShort}-${randomPart}`;
 }
 
 function getLoaiKhachLabel(loai: CustomerType) {
@@ -497,17 +493,20 @@ export default function Page() {
   const [loaiKH, setLoaiKH] = useState<CustomerType | "">("");
   const [quay, setQuay] = useState<CounterType>("Quầy thanh toán 2 - Khu nước");
   const [nhanVien, setNhanVien] = useState<string>("NV1");
-  const [ghiChu, setGhiChu] = useState<string>("");
   const [tenNguoiBam, setTenNguoiBam] = useState<string>("");
   const [deviceId, setDeviceId] = useState<string>("");
+  const [draftNotes, setDraftNotes] = useState<Record<string, string>>({});
   const [eventLog, setEventLog] = useState<EventRow[]>([]);
   const [loading, setLoading] = useState(false);
   const loadedRef = useRef(false);
 
+  function getCurrentDraftNote(maKH: string) {
+    return draftNotes[maKH] ?? "";
+  }
+
   function getDisplayGhiChu(maKH: string, savedGhiChu: string) {
-    if (maKH === currentMaKH) {
-      return ghiChu || savedGhiChu || "";
-    }
+    const draft = draftNotes[maKH];
+    if (draft !== undefined) return draft;
     return savedGhiChu || "";
   }
 
@@ -615,10 +614,13 @@ export default function Page() {
       return;
     }
 
-    const newCode = generateUniqueCustomerCode(deviceId);
+    const newCode = generateShortCustomerCode(deviceId);
     setLoaiKH(selectedType);
     setCurrentMaKH(newCode);
-    setGhiChu("");
+    setDraftNotes((prev) => ({
+      ...prev,
+      [newCode]: "",
+    }));
   }
 
   function selectCustomerToContinue(maKH: string) {
@@ -640,7 +642,14 @@ export default function Page() {
     setLoaiKH(effectiveLoai);
     setQuay(lastRow.quay);
     setNhanVien(lastRow.nhanVien || "NV1");
-    setGhiChu(lastRow.ghiChu || "");
+
+    setDraftNotes((prev) => {
+      if (prev[maKH] !== undefined) return prev;
+      return {
+        ...prev,
+        [maKH]: lastRow.ghiChu || "",
+      };
+    });
   }
 
   const currentFlow = loaiKH ? getFlow(loaiKH) : [];
@@ -678,6 +687,13 @@ export default function Page() {
       return;
     }
 
+    const currentNote = getCurrentDraftNote(currentMaKH).trim();
+
+    if (nextStepIndex === 0 && !currentNote) {
+      alert("Bước đầu tiên bắt buộc phải điền ghi chú trước khi bấm.");
+      return;
+    }
+
     const finalLoaiKH = forcedLoaiKH || loaiKH;
     const now = new Date();
 
@@ -698,7 +714,7 @@ export default function Page() {
         thoi_gian: now.toISOString(),
         nhan_vien: nhanVien,
         quay: quay,
-        ghi_chu: ghiChu,
+        ghi_chu: currentNote,
         nguoi_bam: tenNguoiBam,
       })
       .select("*");
@@ -724,23 +740,28 @@ export default function Page() {
       return;
     }
 
-    const ok = window.confirm(`Xóa toàn bộ log của khách ${currentMaKH}?`);
+    const deletingMaKH = currentMaKH;
+    const ok = window.confirm(`Xóa toàn bộ log của khách ${deletingMaKH}?`);
     if (!ok) return;
 
     const { error } = await supabase
       .from("event_log")
       .delete()
-      .eq("ma_kh", currentMaKH);
+      .eq("ma_kh", deletingMaKH);
 
     if (error) {
       alert(`Xóa dữ liệu thất bại: ${error.message}`);
       return;
     }
 
-    setEventLog((prev) => prev.filter((x) => x.maKH !== currentMaKH));
+    setEventLog((prev) => prev.filter((x) => x.maKH !== deletingMaKH));
     setCurrentMaKH("");
     setLoaiKH("");
-    setGhiChu("");
+    setDraftNotes((prev) => {
+      const copy = { ...prev };
+      delete copy[deletingMaKH];
+      return copy;
+    });
   }
 
   async function clearAllData() {
@@ -759,7 +780,7 @@ export default function Page() {
     setLoaiKH("");
     setNhanVien("NV1");
     setQuay("Quầy thanh toán 2 - Khu nước");
-    setGhiChu("");
+    setDraftNotes({});
   }
 
   const summaryRows = useMemo<SummaryRow[]>(() => {
@@ -885,7 +906,7 @@ export default function Page() {
       interarrivalTimeGiay: mapBack.get(row.maKH)?.interarrival ?? "",
       arenaInterarrivalS: mapBack.get(row.maKH)?.arenaInterarrival ?? "",
     }));
-  }, [eventLog, currentMaKH, ghiChu]);
+  }, [eventLog, currentMaKH, draftNotes]);
 
   const activeCustomers = useMemo<ActiveCustomerRow[]>(() => {
     const grouped = new Map<string, EventRow[]>();
@@ -931,7 +952,7 @@ export default function Page() {
         const tb = parseDateTime(b.rows[b.rows.length - 1].thoiGian)?.getTime() || 0;
         return tb - ta;
       });
-  }, [eventLog, currentMaKH, ghiChu]);
+  }, [eventLog, currentMaKH, draftNotes]);
 
   function exportSummaryExcel() {
     const rows = summaryRows.map((row) => ({
@@ -985,7 +1006,7 @@ export default function Page() {
 
     ws["!cols"] = [
       { wch: 8 },
-      { wch: 32 },
+      { wch: 20 },
       { wch: 24 },
       { wch: 30 },
       { wch: 12 },
@@ -1008,13 +1029,13 @@ export default function Page() {
       { wch: 22 },
       { wch: 22 },
       { wch: 22 },
-      { wch: 36 },
       { wch: 24 },
-      { wch: 36 },
       { wch: 24 },
-      { wch: 36 },
       { wch: 24 },
-      { wch: 36 },
+      { wch: 24 },
+      { wch: 24 },
+      { wch: 24 },
+      { wch: 24 },
       { wch: 24 },
     ];
 
@@ -1197,13 +1218,7 @@ export default function Page() {
 
           <div style={{ display: "grid", gap: 12, marginTop: 12 }}>
             <div>
-              <label
-                style={{
-                  display: "block",
-                  marginBottom: 6,
-                  fontWeight: 600,
-                }}
-              >
+              <label style={{ display: "block", marginBottom: 6, fontWeight: 600 }}>
                 Nhân viên
               </label>
               <select
@@ -1226,13 +1241,7 @@ export default function Page() {
             </div>
 
             <div>
-              <label
-                style={{
-                  display: "block",
-                  marginBottom: 6,
-                  fontWeight: 600,
-                }}
-              >
+              <label style={{ display: "block", marginBottom: 6, fontWeight: 600 }}>
                 Quầy thanh toán
               </label>
               <select
@@ -1256,19 +1265,20 @@ export default function Page() {
             </div>
 
             <div>
-              <label
-                style={{
-                  display: "block",
-                  marginBottom: 6,
-                  fontWeight: 600,
-                }}
-              >
+              <label style={{ display: "block", marginBottom: 6, fontWeight: 600 }}>
                 Ghi chú
               </label>
               <input
-                value={ghiChu}
-                onChange={(e) => setGhiChu(e.target.value)}
-                placeholder="Ví dụ: Áo đen (Ghi để biết đang bấm khách nào)"
+                value={currentMaKH ? getCurrentDraftNote(currentMaKH) : ""}
+                onChange={(e) => {
+                  if (!currentMaKH) return;
+                  const value = e.target.value;
+                  setDraftNotes((prev) => ({
+                    ...prev,
+                    [currentMaKH]: value,
+                  }));
+                }}
+                placeholder="Ví dụ: áo caro, áo đen, mũ đỏ..."
                 style={{
                   width: "100%",
                   padding: 12,
@@ -1301,38 +1311,22 @@ export default function Page() {
               marginTop: 12,
             }}
           >
-            <button
-              onClick={() => startNewCustomer("SAN")}
-              style={typeButtonStyle(loaiKH === "SAN")}
-            >
+            <button onClick={() => startNewCustomer("SAN")} style={typeButtonStyle(loaiKH === "SAN")}>
               ĐỒ ĂN LÀM SẴN
             </button>
-
-            <button
-              onClick={() => startNewCustomer("CHUAN")}
-              style={typeButtonStyle(loaiKH === "CHUAN")}
-            >
+            <button onClick={() => startNewCustomer("CHUAN")} style={typeButtonStyle(loaiKH === "CHUAN")}>
               MÓN CẦN ĐẦU BẾP LÀM
             </button>
-
-            <button
-              onClick={() => startNewCustomer("PIZZA")}
-              style={typeButtonStyle(loaiKH === "PIZZA")}
-            >
+            <button onClick={() => startNewCustomer("PIZZA")} style={typeButtonStyle(loaiKH === "PIZZA")}>
               PIZZA
             </button>
-
             <button
               onClick={() => startNewCustomer("PIZZA_COMBO")}
               style={typeButtonStyle(loaiKH === "PIZZA_COMBO")}
             >
               PIZZA KẾT HỢP MÓN KHÁC
             </button>
-
-            <button
-              onClick={() => startNewCustomer("NUOC")}
-              style={typeButtonStyle(loaiKH === "NUOC")}
-            >
+            <button onClick={() => startNewCustomer("NUOC")} style={typeButtonStyle(loaiKH === "NUOC")}>
               NƯỚC
             </button>
           </div>
@@ -1349,7 +1343,7 @@ export default function Page() {
         >
           <h2 style={sectionTitleStyle}>Bấm theo đúng thứ tự thực tế</h2>
           <p style={{ margin: "6px 0 12px", color: palette.sub }}>
-            Lưu ý: Chọn loại khách trước mới được chọn thứ tự các bước.
+            Bước đầu tiên bắt buộc phải có ghi chú trước khi bấm.
           </p>
 
           {loaiKH ? (
@@ -1357,8 +1351,7 @@ export default function Page() {
               {currentFlow.map((step, index) => {
                 const disabled = !currentMaKH || nextStepIndex !== index;
                 const isSpecialComboChoice =
-                  isSanAtQ1(loaiKH, quay) &&
-                  step.code === "NV_BAT_DAU_PHUC_VU";
+                  isSanAtQ1(loaiKH, quay) && step.code === "NV_BAT_DAU_PHUC_VU";
 
                 if (isSpecialComboChoice) {
                   return (
@@ -1405,7 +1398,7 @@ export default function Page() {
                 fontWeight: 600,
               }}
             >
-              Hãy chọn hoặc chọn lại khách ở phía trên trước.
+              Hãy chọn khách trước.
             </div>
           )}
 
@@ -1417,24 +1410,18 @@ export default function Page() {
               marginTop: 14,
             }}
           >
-            <button
-              onClick={resetCurrentCustomer}
-              style={buttonStyle(false, "danger")}
-            >
-              XÓA KHÁCH ĐANG CHỌN
+            <button onClick={resetCurrentCustomer} style={buttonStyle(false, "danger")}>
+              RESET KHÁCH NÀY
             </button>
 
-            <button
-              onClick={clearAllData}
-              style={buttonStyle(false, "danger")}
-            >
-              XÓA TẤT CẢ DỮ LIỆU
+            <button onClick={clearAllData} style={buttonStyle(false, "danger")}>
+              XÓA TẤT CẢ
             </button>
           </div>
 
           <div style={{ marginTop: 12 }}>
             <button onClick={exportSummaryExcel} style={buttonStyle(false)}>
-              XUẤT FILE EXCEL TỔNG
+              XUẤT SUMMARY XLSX
             </button>
           </div>
         </section>
@@ -1450,7 +1437,7 @@ export default function Page() {
         >
           <h2 style={sectionTitleStyle}>Danh sách khách đang xử lý</h2>
           <p style={{ margin: "6px 0 14px", color: palette.sub }}>
-            Muốn bấm lại giờ cho khách nào thì chọn khách đó ở đây.
+            Chọn khách để quay lại bấm tiếp.
           </p>
 
           <div style={{ display: "grid", gap: 10 }}>
@@ -1464,7 +1451,7 @@ export default function Page() {
                   background: "#fff",
                 }}
               >
-                Chưa có khách nào đang chờ xử lý tiếp.
+                Chưa có khách nào đang xử lý.
               </div>
             ) : (
               activeCustomers.map((customer) => {
@@ -1483,10 +1470,7 @@ export default function Page() {
                         currentMaKH === customer.maKH
                           ? `2px solid ${theme.cardBorder}`
                           : `1px solid ${theme.cardBorder}`,
-                      background:
-                        currentMaKH === customer.maKH
-                          ? theme.cardBg
-                          : "#fff",
+                      background: currentMaKH === customer.maKH ? theme.cardBg : "#fff",
                       cursor: "pointer",
                     }}
                   >
@@ -1500,10 +1484,7 @@ export default function Page() {
                         marginBottom: 6,
                       }}
                     >
-                      <div style={{ fontWeight: 800, fontSize: 18 }}>
-                        {customer.maKH}
-                      </div>
-
+                      <div style={{ fontWeight: 800, fontSize: 18 }}>{customer.maKH}</div>
                       <div
                         style={{
                           padding: "6px 10px",
@@ -1519,7 +1500,10 @@ export default function Page() {
                     </div>
 
                     <div style={{ color: palette.sub, marginBottom: 6 }}>
-                      Người bấm: <strong style={{ color: palette.text }}>{customer.nguoiBam || "Chưa có"}</strong>
+                      Người bấm:{" "}
+                      <strong style={{ color: palette.text }}>
+                        {customer.nguoiBam || "Chưa có"}
+                      </strong>
                     </div>
 
                     <div style={{ color: palette.text }}>
@@ -1552,11 +1536,8 @@ export default function Page() {
           <h2 style={sectionTitleStyle}>
             Summary {loading ? "(đang tải...)" : ""}
           </h2>
-          <p style={{ margin: "6px 0 14px", color: palette.sub }}>
-            Mới bấm sẽ hiện trên đầu nhe
-          </p>
 
-          <div style={{ display: "grid", gap: 14 }}>
+          <div style={{ display: "grid", gap: 14, marginTop: 12 }}>
             {summaryRows.length === 0 ? (
               <div
                 style={{
@@ -1660,27 +1641,19 @@ export default function Page() {
 
                         <div>
                           {row.buoc1Label || "Bước 1"}:{" "}
-                          <strong>
-                            {row.T_B1 ? formatEventTime(row.T_B1) : "Chưa có"}
-                          </strong>
+                          <strong>{row.T_B1 ? formatEventTime(row.T_B1) : "Chưa có"}</strong>
                         </div>
                         <div>
                           {row.buoc2Label || "Bước 2"}:{" "}
-                          <strong>
-                            {row.T_B2 ? formatEventTime(row.T_B2) : "Chưa có"}
-                          </strong>
+                          <strong>{row.T_B2 ? formatEventTime(row.T_B2) : "Chưa có"}</strong>
                         </div>
                         <div>
                           {row.buoc3Label || "Bước 3"}:{" "}
-                          <strong>
-                            {row.T_B3 ? formatEventTime(row.T_B3) : "Chưa có"}
-                          </strong>
+                          <strong>{row.T_B3 ? formatEventTime(row.T_B3) : "Chưa có"}</strong>
                         </div>
                         <div>
                           {row.buoc4Label || "Bước 4"}:{" "}
-                          <strong>
-                            {row.T_B4 ? formatEventTime(row.T_B4) : "Chưa có"}
-                          </strong>
+                          <strong>{row.T_B4 ? formatEventTime(row.T_B4) : "Chưa có"}</strong>
                         </div>
                       </div>
 
@@ -1737,13 +1710,7 @@ export default function Page() {
                           background: "#ffffffcc",
                         }}
                       >
-                        <div
-                          style={{
-                            fontWeight: 800,
-                            marginBottom: 8,
-                            color: palette.text,
-                          }}
-                        >
+                        <div style={{ fontWeight: 800, marginBottom: 8 }}>
                           Chỉ tiêu thời gian
                         </div>
                         <div>
