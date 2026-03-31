@@ -1349,7 +1349,7 @@ export default function Page() {
         >
           <h2 style={sectionTitleStyle}>Bấm theo đúng thứ tự thực tế</h2>
           <p style={{ margin: "6px 0 12px", color: palette.sub }}>
-            Lưu ý: Quầy bạn đã chọn sẽ được giữ nguyên làm mặc định. Ghi chú gõ tới đâu Summary hiện tới đó.
+            Lưu ý: Chọn loại khách trước mới được chọn thứ tự các bước.
           </p>
 
           {loaiKH ? (
@@ -1434,7 +1434,7 @@ export default function Page() {
 
           <div style={{ marginTop: 12 }}>
             <button onClick={exportSummaryExcel} style={buttonStyle(false)}>
-              XUẤT SUMMARY XLSX
+              XUẤT EXCEL XLSX
             </button>
           </div>
         </section>
