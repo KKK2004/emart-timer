@@ -1421,14 +1421,14 @@ export default function Page() {
               onClick={resetCurrentCustomer}
               style={buttonStyle(false, "danger")}
             >
-              RESET KHÁCH NÀY
+              XÓA KHÁCH ĐANG CHỌN
             </button>
 
             <button
               onClick={clearAllData}
               style={buttonStyle(false, "danger")}
             >
-              XÓA TẤT CẢ
+              XÓA TẤT CẢ DỮ LIỆU
             </button>
           </div>
 
