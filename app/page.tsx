@@ -1135,7 +1135,7 @@ export default function Page() {
               Web bấm giờ mô phỏng ở emart - 3 quầy thanh toán
             </h1>
             <p style={{ margin: "8px 0 0", color: palette.sub }}>
-              Tác giả: Bùi Văn Cường
+              Tác giả: Bùi Văn Cường đẹp trai
             </p>
           </div>
 
