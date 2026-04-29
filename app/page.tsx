@@ -11,6 +11,24 @@ type CounterType =
   | "Quầy thanh toán 3 - Khu đồ ăn sẵn/chế biến";
 type EntranceType = "Entrance 1" | "Entrance 2" | "Entrance 3" | "Không ghi nhận";
 type RecordableEntrance = Exclude<EntranceType, "Không ghi nhận">;
+type DecisionName =
+  | "Turn or not 1"
+  | "Turn or not 2"
+  | "Turn or not 3"
+  | "Turn or not 4"
+  | "Turn or not 5"
+  | "Turn or not 6"
+  | "continue or not 1"
+  | "continue or not 2"
+  | "continue or not 3"
+  | "Can I pay now 1"
+  | "Can I pay now 2"
+  | "Can I pay now 3"
+  | "Can I pay now 4"
+  | "Can I pay now 5"
+  | "Can I pay now 6"
+  | "Chọn loại khách";
+type ChosenCounter = "Q1" | "Q2" | "Q3" | "";
 
 type EventName =
   | "CAM_DO_AN"
@@ -44,6 +62,22 @@ type EventRow = {
   nguoiBam: string;
 };
 
+type DecisionRow = {
+  id: number;
+  maKH: string;
+  thoiGian: string;
+  cuaVao: EntranceType;
+  decisionName: DecisionName;
+  optionSelected: string;
+  loaiKH: CustomerType | "";
+  q1Length: number | "";
+  q2Length: number | "";
+  q3Length: number | "";
+  chosenCounter: ChosenCounter;
+  ghiChu: string;
+  nguoiBam: string;
+};
+
 type DbRow = {
   id: number;
   ma_kh: string;
@@ -53,6 +87,22 @@ type DbRow = {
   thoi_gian: string;
   nhan_vien: string;
   quay: CounterType;
+  ghi_chu: string | null;
+  nguoi_bam: string | null;
+};
+
+type DecisionDbRow = {
+  id: number;
+  ma_kh: string | null;
+  thoi_gian: string;
+  cua_vao: EntranceType | null;
+  decision_name: DecisionName;
+  option_selected: string;
+  loai_kh: CustomerType | null;
+  q1_length: number | null;
+  q2_length: number | null;
+  q3_length: number | null;
+  chosen_counter: ChosenCounter | null;
   ghi_chu: string | null;
   nguoi_bam: string | null;
 };
@@ -129,6 +179,30 @@ const ALL_COUNTERS: CounterType[] = [
 ];
 
 const ENTRANCES: RecordableEntrance[] = ["Entrance 1", "Entrance 2", "Entrance 3"];
+
+const DECISION_NAMES: DecisionName[] = [
+  "Turn or not 1",
+  "Turn or not 2",
+  "Turn or not 3",
+  "Turn or not 4",
+  "Turn or not 5",
+  "Turn or not 6",
+  "continue or not 1",
+  "continue or not 2",
+  "continue or not 3",
+  "Can I pay now 1",
+  "Can I pay now 2",
+  "Can I pay now 3",
+  "Can I pay now 4",
+  "Can I pay now 5",
+  "Can I pay now 6",
+  "Chọn loại khách",
+];
+
+const TURN_OPTIONS = ["Turn", "Not turn"];
+const CONTINUE_OPTIONS = ["Continue", "Not continue"];
+const COUNTER_OPTIONS: ChosenCounter[] = ["Q1", "Q2", "Q3"];
+const CUSTOMER_DECISION_OPTIONS: CustomerType[] = ["NUOC", "SAN", "CHUAN", "PIZZA", "PIZZA_COMBO"];
 
 const palette = {
   bg: "#f6f8fb",
@@ -351,6 +425,114 @@ function mapDbRowToEventRow(row: DbRow): EventRow {
   };
 }
 
+function mapDbRowToDecisionRow(row: DecisionDbRow): DecisionRow {
+  return {
+    id: row.id,
+    maKH: row.ma_kh || "",
+    thoiGian: row.thoi_gian,
+    cuaVao: row.cua_vao || "Không ghi nhận",
+    decisionName: row.decision_name,
+    optionSelected: row.option_selected,
+    loaiKH: row.loai_kh || "",
+    q1Length: row.q1_length ?? "",
+    q2Length: row.q2_length ?? "",
+    q3Length: row.q3_length ?? "",
+    chosenCounter: row.chosen_counter || "",
+    ghiChu: row.ghi_chu || "",
+    nguoiBam: row.nguoi_bam || "",
+  };
+}
+
+function getDecisionMode(decisionName: DecisionName) {
+  if (decisionName.startsWith("Turn or not")) return "2-way by Chance";
+  if (decisionName.startsWith("continue or not")) return "2-way by Chance";
+  if (decisionName.startsWith("Can I pay now")) return "By Condition / kiểm tra NQ()";
+  return "N-way by Chance";
+}
+
+function getDefaultDecisionOption(decisionName: DecisionName) {
+  if (decisionName.startsWith("Turn or not")) return "Turn";
+  if (decisionName.startsWith("continue or not")) return "Continue";
+  if (decisionName.startsWith("Can I pay now")) return "Choose Q1";
+  return "NUOC";
+}
+
+function getDecisionOptions(decisionName: DecisionName) {
+  if (decisionName.startsWith("Turn or not")) return TURN_OPTIONS;
+  if (decisionName.startsWith("continue or not")) return CONTINUE_OPTIONS;
+  if (decisionName.startsWith("Can I pay now")) return ["Choose Q1", "Choose Q2", "Choose Q3"];
+  return CUSTOMER_DECISION_OPTIONS;
+}
+
+function getChosenCounterFromOption(option: string): ChosenCounter {
+  if (option.includes("Q1")) return "Q1";
+  if (option.includes("Q2")) return "Q2";
+  if (option.includes("Q3")) return "Q3";
+  return "";
+}
+
+function getShortestQueueCounter(q1: number | "", q2: number | "", q3: number | ""): ChosenCounter {
+  if (q1 === "" || q2 === "" || q3 === "") return "";
+  const min = Math.min(q1, q2, q3);
+  if (q1 === min) return "Q1";
+  if (q2 === min) return "Q2";
+  return "Q3";
+}
+
+function toNullableNumber(value: number | "") {
+  return value === "" || Number.isNaN(Number(value)) ? null : Number(value);
+}
+
+function summarizeDecisionPercent(decisionLog: DecisionRow[]) {
+  const grouped = new Map<string, DecisionRow[]>();
+  for (const row of decisionLog) {
+    if (!grouped.has(row.decisionName)) grouped.set(row.decisionName, []);
+    grouped.get(row.decisionName)!.push(row);
+  }
+
+  const result: Record<string, unknown>[] = [];
+  grouped.forEach((rows, decisionName) => {
+    const total = rows.length;
+    const optionCounts = new Map<string, number>();
+    for (const row of rows) {
+      optionCounts.set(row.optionSelected, (optionCounts.get(row.optionSelected) || 0) + 1);
+    }
+    optionCounts.forEach((count, option) => {
+      result.push({
+        decisionName,
+        arenaMode: getDecisionMode(decisionName as DecisionName),
+        optionSelected: option,
+        count,
+        total,
+        percent: total ? Number(((count / total) * 100).toFixed(2)) : 0,
+      });
+    });
+  });
+
+  return result.length ? result : [{ ghiChu: "Chưa có dữ liệu Decision_Log" }];
+}
+
+function summarizeQueueChoice(decisionLog: DecisionRow[]) {
+  const rows = decisionLog.filter((r) => r.decisionName.startsWith("Can I pay now"));
+  if (!rows.length) return [{ ghiChu: "Chưa có dữ liệu chọn quầy thanh toán" }];
+
+  return rows.map((r) => {
+    const shortest = getShortestQueueCounter(r.q1Length, r.q2Length, r.q3Length);
+    return {
+      maKH: r.maKH,
+      thoiGian: formatDateTimeVNms(r.thoiGian),
+      decisionName: r.decisionName,
+      q1Length: r.q1Length,
+      q2Length: r.q2Length,
+      q3Length: r.q3Length,
+      chosenCounter: r.chosenCounter,
+      shortestQueueCounter: shortest,
+      choseShortestQueue: shortest && r.chosenCounter ? shortest === r.chosenCounter : "",
+      ghiChu: r.ghiChu,
+    };
+  });
+}
+
 function sortEventsAsc(a: EventRow, b: EventRow) {
   const ta = parseDateTime(a.thoiGian)?.getTime() || 0;
   const tb = parseDateTime(b.thoiGian)?.getTime() || 0;
@@ -490,6 +672,14 @@ export default function Page() {
   const [ghiChu, setGhiChu] = useState("");
   const [deviceId, setDeviceId] = useState("");
   const [eventLog, setEventLog] = useState<EventRow[]>([]);
+  const [decisionLog, setDecisionLog] = useState<DecisionRow[]>([]);
+  const [decisionTableReady, setDecisionTableReady] = useState(true);
+  const [selectedDecisionName, setSelectedDecisionName] = useState<DecisionName>("Turn or not 1");
+  const [selectedDecisionOption, setSelectedDecisionOption] = useState("Turn");
+  const [q1Length, setQ1Length] = useState<number | "">("");
+  const [q2Length, setQ2Length] = useState<number | "">("");
+  const [q3Length, setQ3Length] = useState<number | "">("");
+  const [decisionNote, setDecisionNote] = useState("");
   const [loading, setLoading] = useState(false);
   const loadedRef = useRef(false);
 
@@ -516,6 +706,28 @@ export default function Page() {
     });
   }
 
+  function upsertDecisionRow(newRow: DecisionRow) {
+    setDecisionLog((prev) => {
+      const idx = prev.findIndex((x) => x.id === newRow.id);
+      if (idx >= 0) {
+        const copy = [...prev];
+        copy[idx] = newRow;
+        return copy.sort((a, b) => {
+          const ta = parseDateTime(a.thoiGian)?.getTime() || 0;
+          const tb = parseDateTime(b.thoiGian)?.getTime() || 0;
+          if (tb !== ta) return tb - ta;
+          return b.id - a.id;
+        });
+      }
+      return [newRow, ...prev].sort((a, b) => {
+        const ta = parseDateTime(a.thoiGian)?.getTime() || 0;
+        const tb = parseDateTime(b.thoiGian)?.getTime() || 0;
+        if (tb !== ta) return tb - ta;
+        return b.id - a.id;
+      });
+    });
+  }
+
   async function loadEventLog() {
     setLoading(true);
     const { data, error } = await supabase
@@ -532,6 +744,24 @@ export default function Page() {
 
     setEventLog(((data || []) as DbRow[]).map(mapDbRowToEventRow));
     setLoading(false);
+  }
+
+  async function loadDecisionLog() {
+    const { data, error } = await supabase
+      .from("decision_log")
+      .select("*")
+      .order("thoi_gian", { ascending: false })
+      .order("id", { ascending: false });
+
+    if (error) {
+      console.warn("Không tải được decision_log. Nếu chưa tạo bảng, hãy chạy SQL tạo bảng decision_log.", error.message);
+      setDecisionTableReady(false);
+      setDecisionLog([]);
+      return;
+    }
+
+    setDecisionTableReady(true);
+    setDecisionLog(((data || []) as DecisionDbRow[]).map(mapDbRowToDecisionRow));
   }
 
   useEffect(() => {
@@ -558,6 +788,7 @@ export default function Page() {
     if (!loadedRef.current) {
       loadedRef.current = true;
       loadEventLog();
+      loadDecisionLog();
     }
 
     const channel = supabase
@@ -569,6 +800,14 @@ export default function Page() {
         const oldRow = payload.old as { id?: number };
         if (oldRow?.id) setEventLog((prev) => prev.filter((x) => x.id !== oldRow.id));
         else loadEventLog();
+      })
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "decision_log" }, (payload) => {
+        upsertDecisionRow(mapDbRowToDecisionRow(payload.new as DecisionDbRow));
+      })
+      .on("postgres_changes", { event: "DELETE", schema: "public", table: "decision_log" }, (payload) => {
+        const oldRow = payload.old as { id?: number };
+        if (oldRow?.id) setDecisionLog((prev) => prev.filter((x) => x.id !== oldRow.id));
+        else loadDecisionLog();
       })
       .subscribe();
 
@@ -582,6 +821,10 @@ export default function Page() {
     const counters = getValidCounters(loaiKH);
     if (!counters.includes(quay)) setQuay(counters[0]);
   }, [loaiKH, quay]);
+
+  useEffect(() => {
+    setSelectedDecisionOption(getDefaultDecisionOption(selectedDecisionName));
+  }, [selectedDecisionName]);
 
   function startNewCustomer(selectedType: CustomerType) {
     if (!deviceId) {
@@ -674,6 +917,74 @@ export default function Page() {
     setCurrentMaKH("");
     setLoaiKH("");
     setGhiChu("");
+  }
+
+  async function addDecisionLog() {
+    if (!decisionTableReady) {
+      alert("Chưa có bảng decision_log trong Supabase. Hãy tạo bảng decision_log trước rồi tải lại trang.");
+      return;
+    }
+    if (!tenNguoiBam.trim()) {
+      alert("Bạn chưa nhập tên người bấm.");
+      return;
+    }
+
+    const isCanPay = selectedDecisionName.startsWith("Can I pay now");
+    const finalChosenCounter = getChosenCounterFromOption(selectedDecisionOption);
+
+    if (isCanPay && (q1Length === "" || q2Length === "" || q3Length === "")) {
+      alert("Với Can I pay now, cần nhập đủ số người đang chờ ở Q1, Q2, Q3.");
+      return;
+    }
+
+    const { data, error } = await supabase
+      .from("decision_log")
+      .insert({
+        ma_kh: currentMaKH || null,
+        thoi_gian: new Date().toISOString(),
+        cua_vao: cuaVao,
+        decision_name: selectedDecisionName,
+        option_selected: selectedDecisionOption,
+        loai_kh: loaiKH || null,
+        q1_length: isCanPay ? toNullableNumber(q1Length) : null,
+        q2_length: isCanPay ? toNullableNumber(q2Length) : null,
+        q3_length: isCanPay ? toNullableNumber(q3Length) : null,
+        chosen_counter: isCanPay ? finalChosenCounter : null,
+        ghi_chu: decisionNote.trim(),
+        nguoi_bam: tenNguoiBam.trim(),
+      })
+      .select("*");
+
+    if (error) {
+      alert(`Lưu Decision_Log thất bại: ${error.message}`);
+      return;
+    }
+
+    const inserted = data?.[0] as DecisionDbRow | undefined;
+    if (inserted) upsertDecisionRow(mapDbRowToDecisionRow(inserted));
+    setDecisionNote("");
+  }
+
+  async function deleteDecisionRow(id: number) {
+    const ok = window.confirm("Xóa dòng Decision_Log này?");
+    if (!ok) return;
+    const { error } = await supabase.from("decision_log").delete().eq("id", id);
+    if (error) {
+      alert(`Xóa Decision_Log thất bại: ${error.message}`);
+      return;
+    }
+    setDecisionLog((prev) => prev.filter((x) => x.id !== id));
+  }
+
+  async function clearDecisionData() {
+    const ok = window.confirm("Xóa toàn bộ dữ liệu Decision_Log?");
+    if (!ok) return;
+    const { error } = await supabase.from("decision_log").delete().neq("id", 0);
+    if (error) {
+      alert(`Xóa Decision_Log thất bại: ${error.message}`);
+      return;
+    }
+    setDecisionLog([]);
   }
 
   async function clearAllData() {
