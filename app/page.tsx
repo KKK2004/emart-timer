@@ -1150,6 +1150,10 @@ export default function Page() {
 
   const okCount = summaryRows.filter((r) => r.dataStatus === "OK").length;
   const errorCount = summaryRows.length - okCount;
+  const decisionPercentRows = useMemo(() => summarizeDecisionPercent(decisionLog), [decisionLog]);
+const queueChoiceRows = useMemo(() => summarizeQueueChoice(decisionLog), [decisionLog]);
+const isCanPayDecision = selectedDecisionName.startsWith("Can I pay now");
+const selectedDecisionOptions = getDecisionOptions(selectedDecisionName);
 
   function exportExcel() {
     const wb = XLSX.utils.book_new();
@@ -1248,6 +1252,35 @@ export default function Page() {
         quay: r.quay,
       }))
     );
+    appendSheet(
+  wb,
+  "Decision_Log",
+  decisionLog.map((r, i) => ({
+    stt: i + 1,
+    id: r.id,
+    maKH: r.maKH,
+    thoiGian: formatDateTimeVNms(r.thoiGian),
+    cuaVao: r.cuaVao,
+    decisionName: r.decisionName,
+    arenaMode: getDecisionMode(r.decisionName),
+    optionSelected: r.optionSelected,
+    loaiKH: r.loaiKH,
+    q1Length: r.q1Length,
+    q2Length: r.q2Length,
+    q3Length: r.q3Length,
+    chosenCounter: r.chosenCounter,
+    shortestQueueCounter: getShortestQueueCounter(r.q1Length, r.q2Length, r.q3Length),
+    choseShortestQueue:
+      getShortestQueueCounter(r.q1Length, r.q2Length, r.q3Length) && r.chosenCounter
+        ? getShortestQueueCounter(r.q1Length, r.q2Length, r.q3Length) === r.chosenCounter
+        : "",
+    ghiChu: r.ghiChu,
+    nguoiBam: r.nguoiBam,
+  }))
+);
+
+appendSheet(wb, "Decision_Percent", decisionPercentRows);
+appendSheet(wb, "Queue_Choice_Analysis", queueChoiceRows);
 
     appendSheet(wb, "IA_Create_Entrance_Long", makeLongIA(summaryRows, "systemInterarrivalByEntranceS", "createByEntrance", "Interarrival theo Create/Entrance"));
     appendSheet(wb, "IA_Create_Type_Long", makeLongIA(summaryRows, "systemInterarrivalByTypeS", "createByType", "Interarrival theo loại khách"));
@@ -1440,6 +1473,180 @@ export default function Page() {
             </div>
           )}
         </section>
+        <section style={cardStyle}>
+  <h2 style={sectionTitleStyle}>2B. Bấm dữ liệu cho các cục Decide</h2>
+
+  {!decisionTableReady && (
+    <div
+      style={{
+        background: palette.redSoft,
+        color: palette.red,
+        border: `1px solid ${palette.red}`,
+        borderRadius: 12,
+        padding: 10,
+        marginBottom: 12,
+        fontWeight: 700,
+      }}
+    >
+      Chưa có bảng decision_log trong Supabase. Hãy tạo bảng decision_log trước.
+    </div>
+  )}
+
+  <div style={gridFormStyle}>
+    <Field label="Tên cục Decide">
+      <select
+        value={selectedDecisionName}
+        onChange={(e) => setSelectedDecisionName(e.target.value as DecisionName)}
+        style={inputStyle}
+      >
+        {DECISION_NAMES.map((name) => (
+          <option key={name} value={name}>
+            {name}
+          </option>
+        ))}
+      </select>
+    </Field>
+
+    <Field label="Nhánh khách chọn">
+      <select
+        value={selectedDecisionOption}
+        onChange={(e) => setSelectedDecisionOption(e.target.value)}
+        style={inputStyle}
+      >
+        {selectedDecisionOptions.map((option) => (
+          <option key={option} value={option}>
+            {option}
+          </option>
+        ))}
+      </select>
+    </Field>
+
+    <Field label="Cửa vào">
+      <select
+        value={cuaVao}
+        onChange={(e) => setCuaVao(e.target.value as RecordableEntrance)}
+        style={inputStyle}
+      >
+        {ENTRANCES.map((x) => (
+          <option key={x} value={x}>
+            {x}
+          </option>
+        ))}
+      </select>
+    </Field>
+
+    <Field label="Loại dữ liệu Arena">
+      <input value={getDecisionMode(selectedDecisionName)} readOnly style={inputStyle} />
+    </Field>
+  </div>
+
+  {isCanPayDecision && (
+    <div style={{ ...gridFormStyle, marginTop: 12 }}>
+      <Field label="Q1 đang chờ">
+        <input
+          type="number"
+          min={0}
+          value={q1Length}
+          onChange={(e) => setQ1Length(e.target.value === "" ? "" : Number(e.target.value))}
+          style={inputStyle}
+        />
+      </Field>
+
+      <Field label="Q2 đang chờ">
+        <input
+          type="number"
+          min={0}
+          value={q2Length}
+          onChange={(e) => setQ2Length(e.target.value === "" ? "" : Number(e.target.value))}
+          style={inputStyle}
+        />
+      </Field>
+
+      <Field label="Q3 đang chờ">
+        <input
+          type="number"
+          min={0}
+          value={q3Length}
+          onChange={(e) => setQ3Length(e.target.value === "" ? "" : Number(e.target.value))}
+          style={inputStyle}
+        />
+      </Field>
+
+      <Field label="Quầy ngắn nhất">
+        <input
+          value={getShortestQueueCounter(q1Length, q2Length, q3Length)}
+          readOnly
+          style={inputStyle}
+        />
+      </Field>
+    </div>
+  )}
+
+  <Field label="Ghi chú Decide" block>
+    <textarea
+      value={decisionNote}
+      onChange={(e) => setDecisionNote(e.target.value)}
+      style={{ ...inputStyle, minHeight: 60, resize: "vertical" }}
+      placeholder="VD: khách chọn quầy gần nhất, khách đi theo nhóm, khách đổi hướng..."
+    />
+  </Field>
+
+  <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 12 }}>
+    <button onClick={addDecisionLog} style={primaryButtonStyle}>
+      Bấm Decision
+    </button>
+
+    <button onClick={clearDecisionData} style={dangerButtonStyle}>
+      Xóa Decision_Log
+    </button>
+  </div>
+
+  <div style={{ marginTop: 16, overflowX: "auto" }}>
+    <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+      <thead>
+        <tr style={{ background: palette.card2 }}>
+          {[
+            "Thời gian",
+            "Mã KH",
+            "Decide",
+            "Nhánh chọn",
+            "Q1",
+            "Q2",
+            "Q3",
+            "Quầy chọn",
+            "Người bấm",
+            "Xóa",
+          ].map((h) => (
+            <th key={h} style={thStyle}>
+              {h}
+            </th>
+          ))}
+        </tr>
+      </thead>
+
+      <tbody>
+        {decisionLog.slice(0, 20).map((r) => (
+          <tr key={r.id}>
+            <td style={tdStyle}>{formatDateTimeVNms(r.thoiGian)}</td>
+            <td style={tdStyle}>{r.maKH}</td>
+            <td style={tdStyle}>{r.decisionName}</td>
+            <td style={tdStyle}>{r.optionSelected}</td>
+            <td style={tdStyle}>{r.q1Length}</td>
+            <td style={tdStyle}>{r.q2Length}</td>
+            <td style={tdStyle}>{r.q3Length}</td>
+            <td style={tdStyle}>{r.chosenCounter}</td>
+            <td style={tdStyle}>{r.nguoiBam}</td>
+            <td style={tdStyle}>
+              <button onClick={() => deleteDecisionRow(r.id)} style={dangerButtonStyle}>
+                Xóa
+              </button>
+            </td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </div>
+</section>
 
         <section style={cardStyle}>
           <h2 style={sectionTitleStyle}>4. Bảng kiểm tra nhanh trước khi đưa vào Input Analyzer</h2>
