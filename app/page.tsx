@@ -9,6 +9,8 @@ type CounterType =
   | "Quầy thanh toán 1 - Khu bánh/pizza"
   | "Quầy thanh toán 2 - Khu nước"
   | "Quầy thanh toán 3 - Khu đồ ăn sẵn/chế biến";
+type EntranceType = "Entrance 1" | "Entrance 2" | "Entrance 3" | "Không ghi nhận";
+type RecordableEntrance = Exclude<EntranceType, "Không ghi nhận">;
 
 type EventName =
   | "CAM_DO_AN"
@@ -19,73 +21,27 @@ type EventName =
   | "NV_BAT_DAU_PHUC_VU"
   | "NHAN_HANG_ROI_QUAY";
 
+type FlowStep = {
+  code: EventName;
+  label: string;
+  shortLabel: string;
+  role: "SYSTEM_START" | "QUEUE_ARRIVAL" | "SERVICE_START" | "SERVICE_END";
+};
+
 type EventRow = {
   id: number;
   maKH: string;
   loaiKH: CustomerType;
+  loaiLabel: string;
   quyTrinh: string;
   suKien: EventName;
+  suKienLabel: string;
   thoiGian: string;
   nhanVien: string;
   quay: CounterType;
+  cuaVao: EntranceType;
   ghiChu: string;
   nguoiBam: string;
-};
-
-type SummaryRow = {
-  stt: number;
-  maKH: string;
-  loaiKH: string;
-  quyTrinh: string;
-  nhanVien: string;
-  quay: string;
-  ghiChu: string;
-  nguoiBam: string;
-
-  soBuoc: number;
-
-  buoc1Label: string;
-  buoc2Label: string;
-  buoc3Label: string;
-  buoc4Label: string;
-
-  T_B1: string;
-  T_B2: string;
-  T_B3: string;
-  T_B4: string;
-
-  thoiGianDenHeThong: string;
-  batDauXepHang: string;
-  batDauPhucVu: string;
-  ketThucPhucVuRoiHeThong: string;
-
-  interarrivalTimeGiay: number | "";
-  waitingTimeGiay: number | "";
-  serviceTimeGiay: number | "";
-  systemTimeGiay: number | "";
-
-  arenaEntityType: string;
-  arenaArrivalTime: string;
-  arenaInterarrivalS: number | "";
-  arenaServiceS: number | "";
-  arenaQueue: string;
-  arenaResource: string;
-  arenaProcessType: string;
-};
-
-type ActiveCustomerRow = {
-  maKH: string;
-  loaiKH: CustomerType;
-  loaiLabel: string;
-  quay: CounterType;
-  nhanVien: string;
-  ghiChu: string;
-  nguoiBam: string;
-  stepIndex: number;
-  totalSteps: number;
-  nextLabel: string;
-  done: boolean;
-  rows: EventRow[];
 };
 
 type DbRow = {
@@ -101,25 +57,94 @@ type DbRow = {
   nguoi_bam: string | null;
 };
 
+type SummaryRow = {
+  stt: number;
+  maKH: string;
+  loaiKH: CustomerType;
+  loaiLabel: string;
+  cuaVao: EntranceType;
+  quyTrinh: string;
+  nhanVien: string;
+  quay: CounterType;
+  ghiChu: string;
+  nguoiBam: string;
+  processKey: string;
+  createByEntrance: string;
+  createByType: string;
+  queueName: string;
+  resourceName: string;
+  expectedSteps: number;
+  actualSteps: number;
+  dataStatus: "OK" | "THIEU_BUOC" | "LOI_THOI_GIAN";
+  errorNote: string;
+  buoc1Label: string;
+  buoc2Label: string;
+  buoc3Label: string;
+  buoc4Label: string;
+  T_B1: string;
+  T_B2: string;
+  T_B3: string;
+  T_B4: string;
+  systemArrivalTime: string;
+  queueArrivalTime: string;
+  serviceStartTime: string;
+  serviceEndTime: string;
+  waitingTimeS: number | "";
+  serviceTimeS: number | "";
+  systemTimeS: number | "";
+  systemInterarrivalByEntranceS: number | "";
+  systemInterarrivalByTypeS: number | "";
+  queueInterarrivalByCounterS: number | "";
+  queueInterarrivalByProcessS: number | "";
+};
+
+type ActiveCustomerRow = {
+  maKH: string;
+  loaiKH: CustomerType;
+  loaiLabel: string;
+  cuaVao: EntranceType;
+  quay: CounterType;
+  nhanVien: string;
+  ghiChu: string;
+  nguoiBam: string;
+  stepIndex: number;
+  totalSteps: number;
+  nextStep?: FlowStep;
+  done: boolean;
+  rows: EventRow[];
+};
+
+const CUSTOMER_TYPES: { code: CustomerType; label: string; hint: string }[] = [
+  { code: "SAN", label: "Đồ ăn làm sẵn", hint: "Cầm món → xếp hàng → tính tiền → rời quầy" },
+  { code: "CHUAN", label: "Món cần đầu bếp làm", hint: "Nhận phiếu → xếp hàng → tính tiền → rời quầy" },
+  { code: "PIZZA", label: "Pizza", hint: "Vào hàng pizza → order/tính tiền → rời quầy" },
+  { code: "PIZZA_COMBO", label: "Pizza + món khác", hint: "Cầm món khác → hàng pizza → xử lý đơn → rời quầy" },
+  { code: "NUOC", label: "Nước", hint: "Lấy nước → xếp hàng → tính tiền → rời quầy" },
+];
+
 const ALL_COUNTERS: CounterType[] = [
   "Quầy thanh toán 1 - Khu bánh/pizza",
   "Quầy thanh toán 2 - Khu nước",
   "Quầy thanh toán 3 - Khu đồ ăn sẵn/chế biến",
 ];
 
+const ENTRANCES: RecordableEntrance[] = ["Entrance 1", "Entrance 2", "Entrance 3"];
+
 const palette = {
   bg: "#f6f8fb",
   card: "#ffffff",
+  card2: "#f9fafb",
   line: "#e5e7eb",
   text: "#111827",
   sub: "#6b7280",
   blue: "#2563eb",
   blueSoft: "#dbeafe",
   green: "#059669",
-  amberSoft: "#fffbeb",
+  greenSoft: "#dcfce7",
   amber: "#d97706",
-  redSoft: "#fef2f2",
+  amberSoft: "#fffbeb",
   red: "#dc2626",
+  redSoft: "#fef2f2",
 };
 
 function pad2(n: number) {
@@ -132,60 +157,41 @@ function pad3(n: number) {
 
 function parseDateTime(value: string): Date | null {
   if (!value) return null;
-
   const iso = new Date(value);
   if (!Number.isNaN(iso.getTime())) return iso;
 
-  const m = value.match(
-    /^(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2}):(\d{2})(?:\.(\d{1,3}))?$/
-  );
+  const m = value.match(/^(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2}):(\d{2})(?:\.(\d{1,3}))?$/);
   if (!m) return null;
-
   const [, y, mo, d, h, mi, s, ms = "0"] = m;
-  return new Date(
-    Number(y),
-    Number(mo) - 1,
-    Number(d),
-    Number(h),
-    Number(mi),
-    Number(s),
-    Number(ms.padEnd(3, "0"))
-  );
+  return new Date(Number(y), Number(mo) - 1, Number(d), Number(h), Number(mi), Number(s), Number(ms.padEnd(3, "0")));
 }
 
-function formatDateTimeVNms(date: Date) {
-  return `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(
-    date.getDate()
-  )} ${pad2(date.getHours())}:${pad2(date.getMinutes())}:${pad2(
-    date.getSeconds()
-  )}.${pad3(date.getMilliseconds())}`;
-}
-
-function formatEventTime(value: string) {
-  const d = parseDateTime(value);
-  return d ? formatDateTimeVNms(d) : "";
+function formatDateTimeVNms(value: string | Date) {
+  const d = value instanceof Date ? value : parseDateTime(value);
+  if (!d) return "";
+  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())} ${pad2(d.getHours())}:${pad2(d.getMinutes())}:${pad2(d.getSeconds())}.${pad3(d.getMilliseconds())}`;
 }
 
 function diffSecondsPrecise(start: string, end: string): number | "" {
   const s = parseDateTime(start);
   const e = parseDateTime(end);
   if (!s || !e) return "";
-  return Number(Math.max(0, (e.getTime() - s.getTime()) / 1000).toFixed(3));
+  const diff = e.getTime() - s.getTime();
+  if (diff < 0) return "";
+  return Number((diff / 1000).toFixed(3));
 }
 
 function generateDeviceId() {
   return `DV-${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
 }
 
-function generateShortCustomerCode(deviceId: string) {
+function generateCustomerCode(deviceId: string) {
   const now = new Date();
-  const hh = pad2(now.getHours());
-  const mi = pad2(now.getMinutes());
-  const ss = pad2(now.getSeconds());
-  const ms = pad3(now.getMilliseconds());
-  const deviceShort = deviceId.replace("DV-", "").slice(-4);
+  const datePart = `${now.getFullYear()}${pad2(now.getMonth() + 1)}${pad2(now.getDate())}`;
+  const timePart = `${pad2(now.getHours())}${pad2(now.getMinutes())}${pad2(now.getSeconds())}${pad3(now.getMilliseconds())}`;
+  const devicePart = deviceId.replace("DV-", "").slice(-4);
   const randomPart = Math.random().toString(36).slice(2, 5).toUpperCase();
-  return `KH-${hh}${mi}${ss}${ms}-${deviceShort}-${randomPart}`;
+  return `KH-${datePart}-${timePart}-${devicePart}-${randomPart}`;
 }
 
 function getLoaiKhachLabel(loai: CustomerType) {
@@ -200,8 +206,45 @@ function getLoaiKhachLabel(loai: CustomerType) {
       return "PIZZA KẾT HỢP MÓN KHÁC";
     case "NUOC":
       return "NƯỚC";
-    default:
-      return "";
+  }
+}
+
+function getFlow(loai: CustomerType): FlowStep[] {
+  switch (loai) {
+    case "SAN":
+      return [
+        { code: "CAM_DO_AN", label: "1. Khách cầm đồ ăn làm sẵn", shortLabel: "Cầm đồ ăn", role: "SYSTEM_START" },
+        { code: "VAO_HANG_THANH_TOAN", label: "2. Khách vào hàng đợi thanh toán", shortLabel: "Vào hàng thanh toán", role: "QUEUE_ARRIVAL" },
+        { code: "NV_BAT_DAU_PHUC_VU", label: "3. Nhân viên bắt đầu tính tiền", shortLabel: "Bắt đầu phục vụ", role: "SERVICE_START" },
+        { code: "NHAN_HANG_ROI_QUAY", label: "4. Khách nhận hàng và rời quầy", shortLabel: "Rời quầy", role: "SERVICE_END" },
+      ];
+    case "CHUAN":
+      return [
+        { code: "NV_DUA_THE_ORDER", label: "1. Nhân viên đưa phiếu/thẻ order", shortLabel: "Nhận phiếu order", role: "SYSTEM_START" },
+        { code: "VAO_HANG_THANH_TOAN", label: "2. Khách vào hàng đợi thanh toán", shortLabel: "Vào hàng thanh toán", role: "QUEUE_ARRIVAL" },
+        { code: "NV_BAT_DAU_PHUC_VU", label: "3. Nhân viên bắt đầu tính tiền", shortLabel: "Bắt đầu phục vụ", role: "SERVICE_START" },
+        { code: "NHAN_HANG_ROI_QUAY", label: "4. Khách nhận món và rời quầy", shortLabel: "Rời quầy", role: "SERVICE_END" },
+      ];
+    case "PIZZA":
+      return [
+        { code: "VAO_HANG_ORDER_PIZZA", label: "1. Khách vào hàng đợi order pizza", shortLabel: "Vào hàng pizza", role: "QUEUE_ARRIVAL" },
+        { code: "NV_BAT_DAU_PHUC_VU", label: "2. Nhân viên bắt đầu nhận order/tính tiền", shortLabel: "Bắt đầu phục vụ", role: "SERVICE_START" },
+        { code: "NHAN_HANG_ROI_QUAY", label: "3. Khách nhận pizza và rời quầy", shortLabel: "Rời quầy", role: "SERVICE_END" },
+      ];
+    case "PIZZA_COMBO":
+      return [
+        { code: "CAM_DO_AN", label: "1. Khách cầm món khác và qua quầy pizza", shortLabel: "Cầm món khác", role: "SYSTEM_START" },
+        { code: "VAO_HANG_ORDER_PIZZA", label: "2. Khách vào hàng order pizza/thanh toán", shortLabel: "Vào hàng pizza", role: "QUEUE_ARRIVAL" },
+        { code: "NV_BAT_DAU_PHUC_VU", label: "3. Nhân viên bắt đầu xử lý toàn bộ đơn", shortLabel: "Bắt đầu phục vụ", role: "SERVICE_START" },
+        { code: "NHAN_HANG_ROI_QUAY", label: "4. Khách nhận đủ món và rời quầy", shortLabel: "Rời quầy", role: "SERVICE_END" },
+      ];
+    case "NUOC":
+      return [
+        { code: "LAY_NUOC", label: "1. Khách lấy nước", shortLabel: "Lấy nước", role: "SYSTEM_START" },
+        { code: "VAO_HANG_THANH_TOAN", label: "2. Khách vào hàng đợi thanh toán", shortLabel: "Vào hàng thanh toán", role: "QUEUE_ARRIVAL" },
+        { code: "NV_BAT_DAU_PHUC_VU", label: "3. Nhân viên bắt đầu tính tiền", shortLabel: "Bắt đầu phục vụ", role: "SERVICE_START" },
+        { code: "NHAN_HANG_ROI_QUAY", label: "4. Khách thanh toán xong và rời quầy", shortLabel: "Rời quầy", role: "SERVICE_END" },
+      ];
   }
 }
 
@@ -217,298 +260,249 @@ function getValidCounters(loai: CustomerType): CounterType[] {
         "Quầy thanh toán 1 - Khu bánh/pizza",
       ];
     case "CHUAN":
-      return [
-        "Quầy thanh toán 3 - Khu đồ ăn sẵn/chế biến",
-        "Quầy thanh toán 2 - Khu nước",
-      ];
+      return ["Quầy thanh toán 3 - Khu đồ ăn sẵn/chế biến", "Quầy thanh toán 2 - Khu nước"];
     case "NUOC":
       return [
         "Quầy thanh toán 2 - Khu nước",
         "Quầy thanh toán 1 - Khu bánh/pizza",
         "Quầy thanh toán 3 - Khu đồ ăn sẵn/chế biến",
       ];
-    default:
-      return ALL_COUNTERS;
   }
 }
 
-function getCounterLabel(quay: CounterType) {
-  return quay;
-}
-
-function getFlow(loai: CustomerType) {
-  switch (loai) {
-    case "SAN":
-      return [
-        { code: "CAM_DO_AN" as EventName, label: "1. Khách cầm đồ ăn" },
-        {
-          code: "VAO_HANG_THANH_TOAN" as EventName,
-          label: "2. Khách vào hàng đợi thanh toán",
-        },
-        {
-          code: "NV_BAT_DAU_PHUC_VU" as EventName,
-          label: "3. Nhân viên bắt đầu tính tiền",
-        },
-        {
-          code: "NHAN_HANG_ROI_QUAY" as EventName,
-          label: "4. Khách nhận hàng và rời quầy",
-        },
-      ];
-    case "CHUAN":
-      return [
-        {
-          code: "NV_DUA_THE_ORDER" as EventName,
-          label: "1. Nhân viên đưa phiếu / thẻ order",
-        },
-        {
-          code: "VAO_HANG_THANH_TOAN" as EventName,
-          label: "2. Khách vào hàng đợi thanh toán",
-        },
-        {
-          code: "NV_BAT_DAU_PHUC_VU" as EventName,
-          label: "3. Nhân viên bắt đầu tính tiền",
-        },
-        {
-          code: "NHAN_HANG_ROI_QUAY" as EventName,
-          label: "4. Khách nhận món và rời quầy",
-        },
-      ];
-    case "PIZZA":
-      return [
-        {
-          code: "VAO_HANG_ORDER_PIZZA" as EventName,
-          label: "1. Khách vào hàng đợi order pizza",
-        },
-        {
-          code: "NV_BAT_DAU_PHUC_VU" as EventName,
-          label: "2. Nhân viên bắt đầu nhận order / tính tiền",
-        },
-        {
-          code: "NHAN_HANG_ROI_QUAY" as EventName,
-          label: "3. Khách nhận pizza và rời quầy",
-        },
-      ];
-    case "PIZZA_COMBO":
-      return [
-        {
-          code: "CAM_DO_AN" as EventName,
-          label: "1. Khách cầm món khác và qua quầy pizza",
-        },
-        {
-          code: "VAO_HANG_ORDER_PIZZA" as EventName,
-          label: "2. Khách vào hàng order pizza / thanh toán",
-        },
-        {
-          code: "NV_BAT_DAU_PHUC_VU" as EventName,
-          label: "3. Nhân viên bắt đầu xử lý toàn bộ đơn",
-        },
-        {
-          code: "NHAN_HANG_ROI_QUAY" as EventName,
-          label: "4. Khách nhận đủ món và rời quầy",
-        },
-      ];
-    case "NUOC":
-      return [
-        { code: "LAY_NUOC" as EventName, label: "1. Khách lấy nước" },
-        {
-          code: "VAO_HANG_THANH_TOAN" as EventName,
-          label: "2. Khách vào hàng đợi thanh toán",
-        },
-        {
-          code: "NV_BAT_DAU_PHUC_VU" as EventName,
-          label: "3. Nhân viên bắt đầu tính tiền",
-        },
-        {
-          code: "NHAN_HANG_ROI_QUAY" as EventName,
-          label: "4. Khách thanh toán xong và rời quầy",
-        },
-      ];
-    default:
-      return [];
+function getCounterCode(quay: CounterType) {
+  switch (quay) {
+    case "Quầy thanh toán 1 - Khu bánh/pizza":
+      return "Q1";
+    case "Quầy thanh toán 2 - Khu nước":
+      return "Q2";
+    case "Quầy thanh toán 3 - Khu đồ ăn sẵn/chế biến":
+      return "Q3";
   }
-}
-
-function isSanAtQ1(loai: CustomerType | "", quay: CounterType) {
-  return loai === "SAN" && quay === "Quầy thanh toán 1 - Khu bánh/pizza";
-}
-
-function getEffectiveLoaiForSummary(rows: EventRow[]): CustomerType {
-  if (rows.some((r) => r.loaiKH === "PIZZA_COMBO")) {
-    return "PIZZA_COMBO";
-  }
-  return rows[rows.length - 1]?.loaiKH || "SAN";
-}
-
-function getSummaryFlow(loai: CustomerType, rows: EventRow[]) {
-  const hasThanhToanStep = rows.some((r) => r.suKien === "VAO_HANG_THANH_TOAN");
-  const hasOrderPizzaStep = rows.some(
-    (r) => r.suKien === "VAO_HANG_ORDER_PIZZA"
-  );
-
-  if (loai === "PIZZA_COMBO" && hasThanhToanStep && !hasOrderPizzaStep) {
-    return [
-      { code: "CAM_DO_AN" as EventName, label: "1. Khách cầm đồ ăn" },
-      {
-        code: "VAO_HANG_THANH_TOAN" as EventName,
-        label: "2. Khách vào hàng đợi thanh toán tại quầy 1",
-      },
-      {
-        code: "NV_BAT_DAU_PHUC_VU" as EventName,
-        label: "3. Nhân viên bắt đầu tính tiền và xử lý mua kèm pizza",
-      },
-      {
-        code: "NHAN_HANG_ROI_QUAY" as EventName,
-        label: "4. Khách nhận đủ món và rời quầy",
-      },
-    ];
-  }
-
-  return getFlow(loai);
-}
-
-function getSystemStartEvent(loai: CustomerType): EventName {
-  switch (loai) {
-    case "SAN":
-    case "PIZZA_COMBO":
-      return "CAM_DO_AN";
-    case "CHUAN":
-      return "NV_DUA_THE_ORDER";
-    case "PIZZA":
-      return "VAO_HANG_ORDER_PIZZA";
-    case "NUOC":
-      return "LAY_NUOC";
-  }
-}
-
-function getArrivalEvent(loai: CustomerType): EventName {
-  switch (loai) {
-    case "PIZZA":
-    case "PIZZA_COMBO":
-      return "VAO_HANG_ORDER_PIZZA";
-    default:
-      return "VAO_HANG_THANH_TOAN";
-  }
-}
-
-function getServiceStartEvent(): EventName {
-  return "NV_BAT_DAU_PHUC_VU";
-}
-
-function getSystemEndEvent(): EventName {
-  return "NHAN_HANG_ROI_QUAY";
 }
 
 function getArenaQueue(quay: CounterType) {
-  switch (quay) {
-    case "Quầy thanh toán 1 - Khu bánh/pizza":
-      return "Q_ThanhToan_Q1";
-    case "Quầy thanh toán 2 - Khu nước":
-      return "Q_ThanhToan_Q2";
-    case "Quầy thanh toán 3 - Khu đồ ăn sẵn/chế biến":
-      return "Q_ThanhToan_Q3";
-  }
+  return `Q_ThanhToan_${getCounterCode(quay)}`;
 }
 
 function getArenaResource(quay: CounterType) {
-  switch (quay) {
-    case "Quầy thanh toán 1 - Khu bánh/pizza":
-      return "Cashier_Q1";
-    case "Quầy thanh toán 2 - Khu nước":
-      return "Cashier_Q2";
-    case "Quầy thanh toán 3 - Khu đồ ăn sẵn/chế biến":
-      return "Cashier_Q3";
-  }
+  return `Cashier_${getCounterCode(quay)}`;
 }
 
-function getArenaProcessType(loai: CustomerType, quay: CounterType) {
-  if (quay === "Quầy thanh toán 1 - Khu bánh/pizza") return `${loai}_Q1`;
-  if (quay === "Quầy thanh toán 2 - Khu nước") return `${loai}_Q2`;
-  return `${loai}_Q3`;
+function getProcessKey(loai: CustomerType, quay: CounterType) {
+  return `${loai}_${getCounterCode(quay)}`;
 }
 
-function getCustomerTypeTheme(loaiLabel: string) {
-  switch (loaiLabel) {
-    case "ĐỒ ĂN LÀM SẴN":
-      return {
-        badgeBg: "#dbeafe",
-        badgeText: "#1d4ed8",
-        cardBorder: "#93c5fd",
-        cardBg: "#eff6ff",
-      };
-    case "MÓN CẦN ĐẦU BẾP LÀM":
-      return {
-        badgeBg: "#fef3c7",
-        badgeText: "#b45309",
-        cardBorder: "#fcd34d",
-        cardBg: "#fffbeb",
-      };
-    case "PIZZA":
-      return {
-        badgeBg: "#fee2e2",
-        badgeText: "#b91c1c",
-        cardBorder: "#fca5a5",
-        cardBg: "#fef2f2",
-      };
-    case "PIZZA KẾT HỢP MÓN KHÁC":
-      return {
-        badgeBg: "#ede9fe",
-        badgeText: "#6d28d9",
-        cardBorder: "#c4b5fd",
-        cardBg: "#f5f3ff",
-      };
-    case "NƯỚC":
-      return {
-        badgeBg: "#dcfce7",
-        badgeText: "#15803d",
-        cardBorder: "#86efac",
-        cardBg: "#f0fdf4",
-      };
-    default:
-      return {
-        badgeBg: "#e5e7eb",
-        badgeText: "#374151",
-        cardBorder: "#d1d5db",
-        cardBg: "#f9fafb",
-      };
-  }
+function getCreateByEntrance(cuaVao: EntranceType) {
+  return cuaVao === "Không ghi nhận" ? "Create_Khong_Ghi_Nhan" : `Create_${cuaVao.replaceAll(" ", "_")}`;
+}
+
+function getCreateByType(loai: CustomerType) {
+  return `Create_${loai}`;
+}
+
+function findStepByEvent(loai: CustomerType, eventName: EventName) {
+  return getFlow(loai).find((x) => x.code === eventName);
+}
+
+function getEventLabel(loai: CustomerType, eventName: EventName) {
+  return findStepByEvent(loai, eventName)?.shortLabel || eventName;
+}
+
+function parseEntrance(text: string | null | undefined): EntranceType {
+  const raw = text || "";
+  if (raw.includes("Entrance 1")) return "Entrance 1";
+  if (raw.includes("Entrance 2")) return "Entrance 2";
+  if (raw.includes("Entrance 3")) return "Entrance 3";
+  return "Không ghi nhận";
+}
+
+function cleanNote(text: string | null | undefined) {
+  const raw = text || "";
+  return raw.replace(/Cửa vào:\s*Entrance [123]\s*\|\s*/i, "").trim();
+}
+
+function buildQuyTrinh(loai: CustomerType, quay: CounterType, cuaVao: RecordableEntrance) {
+  return `${cuaVao} | ${getLoaiKhachLabel(loai)} | ${quay}`;
+}
+
+function buildGhiChu(note: string, cuaVao: RecordableEntrance) {
+  const clean = note.trim();
+  return clean ? `Cửa vào: ${cuaVao} | ${clean}` : `Cửa vào: ${cuaVao}`;
 }
 
 function mapDbRowToEventRow(row: DbRow): EventRow {
+  const cuaVao = parseEntrance(row.quy_trinh || row.ghi_chu || "");
+  const loaiLabel = getLoaiKhachLabel(row.loai_kh);
   return {
     id: row.id,
     maKH: row.ma_kh,
     loaiKH: row.loai_kh,
+    loaiLabel,
     quyTrinh: row.quy_trinh || "",
     suKien: row.su_kien,
+    suKienLabel: getEventLabel(row.loai_kh, row.su_kien),
     thoiGian: row.thoi_gian,
     nhanVien: row.nhan_vien,
     quay: row.quay,
-    ghiChu: row.ghi_chu || "",
+    cuaVao,
+    ghiChu: cleanNote(row.ghi_chu),
     nguoiBam: row.nguoi_bam || "",
   };
 }
 
+function sortEventsAsc(a: EventRow, b: EventRow) {
+  const ta = parseDateTime(a.thoiGian)?.getTime() || 0;
+  const tb = parseDateTime(b.thoiGian)?.getTime() || 0;
+  if (ta !== tb) return ta - tb;
+  return a.id - b.id;
+}
+
+function sortEventsDesc(a: EventRow, b: EventRow) {
+  return sortEventsAsc(b, a);
+}
+
+function getCustomerTypeTheme(loai: CustomerType) {
+  switch (loai) {
+    case "SAN":
+      return { bg: "#eff6ff", border: "#93c5fd", text: "#1d4ed8" };
+    case "CHUAN":
+      return { bg: "#fffbeb", border: "#fcd34d", text: "#b45309" };
+    case "PIZZA":
+      return { bg: "#fef2f2", border: "#fca5a5", text: "#b91c1c" };
+    case "PIZZA_COMBO":
+      return { bg: "#f5f3ff", border: "#c4b5fd", text: "#6d28d9" };
+    case "NUOC":
+      return { bg: "#f0fdf4", border: "#86efac", text: "#15803d" };
+  }
+}
+
+function toNumberOrBlank(value: number | "") {
+  return value === "" ? "" : Number(value.toFixed(3));
+}
+
+function addInterarrivalByGroup(
+  rows: SummaryRow[],
+  getGroup: (r: SummaryRow) => string,
+  getTime: (r: SummaryRow) => string,
+  field: keyof Pick<
+    SummaryRow,
+    "systemInterarrivalByEntranceS" | "systemInterarrivalByTypeS" | "queueInterarrivalByCounterS" | "queueInterarrivalByProcessS"
+  >
+) {
+  const grouped = new Map<string, SummaryRow[]>();
+  for (const row of rows) {
+    const t = getTime(row);
+    if (!t) continue;
+    const group = getGroup(row);
+    if (!grouped.has(group)) grouped.set(group, []);
+    grouped.get(group)!.push(row);
+  }
+
+  grouped.forEach((items) => {
+    items.sort((a, b) => {
+      const ta = parseDateTime(getTime(a))?.getTime() || 0;
+      const tb = parseDateTime(getTime(b))?.getTime() || 0;
+      if (ta !== tb) return ta - tb;
+      return a.maKH.localeCompare(b.maKH);
+    });
+
+    for (let i = 0; i < items.length; i++) {
+      if (i === 0) {
+        items[i][field] = "";
+        continue;
+      }
+      const ia = diffSecondsPrecise(getTime(items[i - 1]), getTime(items[i]));
+      items[i][field] = ia;
+    }
+  });
+}
+
+function makeLongIA(rows: SummaryRow[], valueField: keyof SummaryRow, groupField: keyof SummaryRow, label: string) {
+  return rows
+    .filter((row) => row.dataStatus === "OK")
+    .map((row) => ({
+      phanTich: label,
+      nhomDuLieu: String(row[groupField]),
+      maKH: row.maKH,
+      loaiKH: row.loaiLabel,
+      cuaVao: row.cuaVao,
+      quay: row.quay,
+      processKey: row.processKey,
+      giaTriGiay: row[valueField] as number | "",
+    }))
+    .filter((row) => row.giaTriGiay !== "");
+}
+
+function makeWideIA(
+  rows: SummaryRow[],
+  getGroup: (r: SummaryRow) => string,
+  getValue: (r: SummaryRow) => number | ""
+) {
+  const grouped = new Map<string, number[]>();
+  for (const row of rows) {
+    if (row.dataStatus !== "OK") continue;
+    const value = getValue(row);
+    if (value === "") continue;
+    const group = getGroup(row);
+    if (!grouped.has(group)) grouped.set(group, []);
+    grouped.get(group)!.push(value);
+  }
+
+  const keys = Array.from(grouped.keys()).sort();
+  const maxLength = Math.max(0, ...keys.map((key) => grouped.get(key)!.length));
+  const result: Record<string, number | "">[] = [];
+
+  for (let i = 0; i < maxLength; i++) {
+    const obj: Record<string, number | ""> = {};
+    for (const key of keys) obj[key] = grouped.get(key)?.[i] ?? "";
+    result.push(obj);
+  }
+
+  return result.length ? result : [{ ghiChu: "Chưa có đủ dữ liệu hợp lệ" } as unknown as Record<string, number | "">];
+}
+
+function autoFitColumns(ws: XLSX.WorkSheet, rows: Record<string, unknown>[]) {
+  const keys = rows.length ? Object.keys(rows[0]) : [];
+  ws["!cols"] = keys.map((key) => {
+    const max = Math.max(
+      key.length,
+      ...rows.map((row) => String(row[key] ?? "").length)
+    );
+    return { wch: Math.min(Math.max(max + 2, 12), 45) };
+  });
+}
+
+function appendSheet(wb: XLSX.WorkBook, name: string, rows: Record<string, unknown>[]) {
+  const safeRows = rows.length ? rows : [{ ghiChu: "Không có dữ liệu" }];
+  const ws = XLSX.utils.json_to_sheet(safeRows);
+  autoFitColumns(ws, safeRows);
+  XLSX.utils.book_append_sheet(wb, ws, name.slice(0, 31));
+}
+
 export default function Page() {
-  const [currentMaKH, setCurrentMaKH] = useState<string>("");
+  const [currentMaKH, setCurrentMaKH] = useState("");
   const [loaiKH, setLoaiKH] = useState<CustomerType | "">("");
+  const [cuaVao, setCuaVao] = useState<RecordableEntrance>("Entrance 1");
   const [quay, setQuay] = useState<CounterType>("Quầy thanh toán 2 - Khu nước");
-  const [nhanVien, setNhanVien] = useState<string>("NV1");
-  const [tenNguoiBam, setTenNguoiBam] = useState<string>("");
-  const [deviceId, setDeviceId] = useState<string>("");
-  const [draftNotes, setDraftNotes] = useState<Record<string, string>>({});
+  const [nhanVien, setNhanVien] = useState("NV1");
+  const [tenNguoiBam, setTenNguoiBam] = useState("");
+  const [ghiChu, setGhiChu] = useState("");
+  const [deviceId, setDeviceId] = useState("");
   const [eventLog, setEventLog] = useState<EventRow[]>([]);
   const [loading, setLoading] = useState(false);
   const loadedRef = useRef(false);
 
-  function getCurrentDraftNote(maKH: string) {
-    return draftNotes[maKH] ?? "";
-  }
+  const currentFlow = loaiKH ? getFlow(loaiKH) : [];
+  const validCounters = loaiKH ? getValidCounters(loaiKH) : ALL_COUNTERS;
 
-  function getDisplayGhiChu(maKH: string, savedGhiChu: string) {
-    const draft = draftNotes[maKH];
-    if (draft !== undefined) return draft;
-    return savedGhiChu || "";
-  }
+  const currentCustomerEvents = useMemo(() => {
+    return eventLog.filter((row) => row.maKH === currentMaKH).sort(sortEventsAsc);
+  }, [eventLog, currentMaKH]);
+
+  const nextStepIndex = currentCustomerEvents.length;
+  const nextStep = currentFlow[nextStepIndex];
+  const isCurrentDone = Boolean(loaiKH && currentFlow.length > 0 && nextStepIndex >= currentFlow.length);
 
   function upsertEventRow(newRow: EventRow) {
     setEventLog((prev) => {
@@ -516,26 +510,14 @@ export default function Page() {
       if (idx >= 0) {
         const copy = [...prev];
         copy[idx] = newRow;
-        return copy.sort((a, b) => {
-          const t =
-            new Date(b.thoiGian).getTime() - new Date(a.thoiGian).getTime();
-          if (t !== 0) return t;
-          return b.id - a.id;
-        });
+        return copy.sort(sortEventsDesc);
       }
-
-      return [newRow, ...prev].sort((a, b) => {
-        const t =
-          new Date(b.thoiGian).getTime() - new Date(a.thoiGian).getTime();
-        if (t !== 0) return t;
-        return b.id - a.id;
-      });
+      return [newRow, ...prev].sort(sortEventsDesc);
     });
   }
 
   async function loadEventLog() {
     setLoading(true);
-
     const { data, error } = await supabase
       .from("event_log")
       .select("*")
@@ -553,25 +535,24 @@ export default function Page() {
   }
 
   useEffect(() => {
-    const savedName = localStorage.getItem("emart_ten_nguoi_bam");
+    const savedName = localStorage.getItem("emart_ten_nguoi_bam") || "";
     if (savedName) {
       setTenNguoiBam(savedName);
     } else {
-      const inputName = window.prompt("Nhập tên người đang bấm:", "") || "";
-      const finalName = inputName.trim();
-      if (finalName) {
-        localStorage.setItem("emart_ten_nguoi_bam", finalName);
-        setTenNguoiBam(finalName);
+      const input = window.prompt("Nhập tên người đang bấm giờ:", "") || "";
+      if (input.trim()) {
+        localStorage.setItem("emart_ten_nguoi_bam", input.trim());
+        setTenNguoiBam(input.trim());
       }
     }
 
-    const savedDeviceId = localStorage.getItem("emart_device_id");
-    if (savedDeviceId) {
-      setDeviceId(savedDeviceId);
+    const savedDevice = localStorage.getItem("emart_device_id");
+    if (savedDevice) {
+      setDeviceId(savedDevice);
     } else {
-      const newDeviceId = generateDeviceId();
-      localStorage.setItem("emart_device_id", newDeviceId);
-      setDeviceId(newDeviceId);
+      const newDevice = generateDeviceId();
+      localStorage.setItem("emart_device_id", newDevice);
+      setDeviceId(newDevice);
     }
 
     if (!loadedRef.current) {
@@ -580,27 +561,15 @@ export default function Page() {
     }
 
     const channel = supabase
-      .channel("event-log-live-3counter")
-      .on(
-        "postgres_changes",
-        { event: "INSERT", schema: "public", table: "event_log" },
-        (payload) => {
-          const row = mapDbRowToEventRow(payload.new as DbRow);
-          upsertEventRow(row);
-        }
-      )
-      .on(
-        "postgres_changes",
-        { event: "DELETE", schema: "public", table: "event_log" },
-        (payload) => {
-          const oldRow = payload.old as { id?: number };
-          if (oldRow?.id) {
-            setEventLog((prev) => prev.filter((x) => x.id !== oldRow.id));
-          } else {
-            loadEventLog();
-          }
-        }
-      )
+      .channel("event-log-live-arena-input")
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "event_log" }, (payload) => {
+        upsertEventRow(mapDbRowToEventRow(payload.new as DbRow));
+      })
+      .on("postgres_changes", { event: "DELETE", schema: "public", table: "event_log" }, (payload) => {
+        const oldRow = payload.old as { id?: number };
+        if (oldRow?.id) setEventLog((prev) => prev.filter((x) => x.id !== oldRow.id));
+        else loadEventLog();
+      })
       .subscribe();
 
     return () => {
@@ -608,114 +577,72 @@ export default function Page() {
     };
   }, []);
 
+  useEffect(() => {
+    if (!loaiKH) return;
+    const counters = getValidCounters(loaiKH);
+    if (!counters.includes(quay)) setQuay(counters[0]);
+  }, [loaiKH, quay]);
+
   function startNewCustomer(selectedType: CustomerType) {
     if (!deviceId) {
       alert("Thiết bị chưa sẵn sàng, vui lòng thử lại.");
       return;
     }
 
-    const newCode = generateShortCustomerCode(deviceId);
-    setLoaiKH(selectedType);
+    const counters = getValidCounters(selectedType);
+    const newCode = generateCustomerCode(deviceId);
     setCurrentMaKH(newCode);
-    setDraftNotes((prev) => ({
-      ...prev,
-      [newCode]: "",
-    }));
+    setLoaiKH(selectedType);
+    setQuay(counters.includes(quay) ? quay : counters[0]);
+    setGhiChu("");
   }
 
   function selectCustomerToContinue(maKH: string) {
-    const rows = eventLog
-      .filter((x) => x.maKH === maKH)
-      .sort((a, b) => {
-        const t =
-          new Date(a.thoiGian).getTime() - new Date(b.thoiGian).getTime();
-        if (t !== 0) return t;
-        return a.id - b.id;
-      });
-
-    if (rows.length === 0) return;
-
+    const rows = eventLog.filter((x) => x.maKH === maKH).sort(sortEventsAsc);
+    if (!rows.length) return;
     const lastRow = rows[rows.length - 1];
-    const effectiveLoai = getEffectiveLoaiForSummary(rows);
-
     setCurrentMaKH(maKH);
-    setLoaiKH(effectiveLoai);
+    setLoaiKH(lastRow.loaiKH);
+    setCuaVao(lastRow.cuaVao === "Không ghi nhận" ? "Entrance 1" : lastRow.cuaVao);
     setQuay(lastRow.quay);
     setNhanVien(lastRow.nhanVien || "NV1");
-
-    setDraftNotes((prev) => {
-      if (prev[maKH] !== undefined) return prev;
-      return {
-        ...prev,
-        [maKH]: lastRow.ghiChu || "",
-      };
-    });
+    setGhiChu(lastRow.ghiChu || "");
   }
 
-  const currentFlow = loaiKH ? getFlow(loaiKH) : [];
-
-  const currentCustomerEvents = eventLog
-    .filter((row) => row.maKH === currentMaKH)
-    .sort((a, b) => {
-      const t = new Date(a.thoiGian).getTime() - new Date(b.thoiGian).getTime();
-      if (t !== 0) return t;
-      return a.id - b.id;
-    });
-
-  const nextStepIndex = currentCustomerEvents.length;
-  const nextExpectedEvent = currentFlow[nextStepIndex]?.code;
-  const validCounters: CounterType[] = loaiKH ? getValidCounters(loaiKH) : ALL_COUNTERS;
-
-  async function addEvent(suKien: EventName, forcedLoaiKH?: CustomerType) {
+  async function addNextEvent() {
     if (!currentMaKH || !loaiKH) {
       alert("Bạn phải chọn loại khách trước.");
       return;
     }
-
+    if (!nextStep) {
+      alert("Khách này đã đủ bước, không cần bấm thêm.");
+      return;
+    }
     if (!tenNguoiBam.trim()) {
       alert("Bạn chưa nhập tên người bấm.");
       return;
     }
-
     if (!validCounters.includes(quay)) {
       alert("Quầy đang chọn không phù hợp với loại khách này.");
       return;
     }
 
-    if (suKien !== nextExpectedEvent) {
-      alert("Bạn đang bấm sai thứ tự quy trình.");
-      return;
-    }
-
-    const currentNote = getCurrentDraftNote(currentMaKH).trim();
-
-    if (nextStepIndex === 0 && !currentNote) {
-      alert("Bước đầu tiên bắt buộc phải điền ghi chú trước khi bấm.");
-      return;
-    }
-
-    const finalLoaiKH = forcedLoaiKH || loaiKH;
     const now = new Date();
-
-    const quyTrinhText =
-      finalLoaiKH === "PIZZA_COMBO" &&
-      loaiKH === "SAN" &&
-      quay === "Quầy thanh toán 1 - Khu bánh/pizza"
-        ? `ĐỒ ĂN LÀM SẴN MUA KÈM PIZZA - ${quay}`
-        : `${getLoaiKhachLabel(finalLoaiKH)} - ${quay}`;
+    const quyTrinh = buildQuyTrinh(loaiKH, quay, cuaVao);
+    const savedNote = buildGhiChu(ghiChu, cuaVao);
 
     const { data, error } = await supabase
       .from("event_log")
       .insert({
         ma_kh: currentMaKH,
-        loai_kh: finalLoaiKH,
-        quy_trinh: quyTrinhText,
-        su_kien: suKien,
+        loai_kh: loaiKH,
+        quy_trinh: quyTrinh,
+        su_kien: nextStep.code,
         thoi_gian: now.toISOString(),
-        nhan_vien: nhanVien,
-        quay: quay,
-        ghi_chu: currentNote,
-        nguoi_bam: tenNguoiBam,
+        nhan_vien: nhanVien.trim() || "NV1",
+        quay,
+        ghi_chu: savedNote,
+        nguoi_bam: tenNguoiBam.trim(),
       })
       .select("*");
 
@@ -724,14 +651,8 @@ export default function Page() {
       return;
     }
 
-    if (forcedLoaiKH) {
-      setLoaiKH(forcedLoaiKH);
-    }
-
     const inserted = data?.[0] as DbRow | undefined;
-    if (inserted) {
-      upsertEventRow(mapDbRowToEventRow(inserted));
-    }
+    if (inserted) upsertEventRow(mapDbRowToEventRow(inserted));
   }
 
   async function resetCurrentCustomer() {
@@ -739,16 +660,11 @@ export default function Page() {
       alert("Chưa có khách hiện tại để reset.");
       return;
     }
-
-    const deletingMaKH = currentMaKH;
-    const ok = window.confirm(`Xóa toàn bộ log của khách ${deletingMaKH}?`);
+    const ok = window.confirm(`Xóa toàn bộ log của khách ${currentMaKH}?`);
     if (!ok) return;
 
-    const { error } = await supabase
-      .from("event_log")
-      .delete()
-      .eq("ma_kh", deletingMaKH);
-
+    const deletingMaKH = currentMaKH;
+    const { error } = await supabase.from("event_log").delete().eq("ma_kh", deletingMaKH);
     if (error) {
       alert(`Xóa dữ liệu thất bại: ${error.message}`);
       return;
@@ -757,40 +673,26 @@ export default function Page() {
     setEventLog((prev) => prev.filter((x) => x.maKH !== deletingMaKH));
     setCurrentMaKH("");
     setLoaiKH("");
-    setDraftNotes((prev) => {
-      const copy = { ...prev };
-      delete copy[deletingMaKH];
-      return copy;
-    });
+    setGhiChu("");
   }
 
   async function clearAllData() {
-    const ok = window.confirm("Bạn có chắc muốn xóa toàn bộ dữ liệu?");
+    const ok = window.confirm("Bạn có chắc muốn xóa toàn bộ dữ liệu trong bảng event_log không?");
     if (!ok) return;
-
     const { error } = await supabase.from("event_log").delete().neq("id", 0);
-
     if (error) {
       alert(`Xóa toàn bộ dữ liệu thất bại: ${error.message}`);
       return;
     }
-
     setEventLog([]);
     setCurrentMaKH("");
     setLoaiKH("");
-    setNhanVien("NV1");
-    setQuay("Quầy thanh toán 2 - Khu nước");
-    setDraftNotes({});
+    setGhiChu("");
   }
 
   const summaryRows = useMemo<SummaryRow[]>(() => {
     const grouped = new Map<string, EventRow[]>();
-
-    const sortedEvents = [...eventLog].sort((a, b) => {
-      const t = new Date(a.thoiGian).getTime() - new Date(b.thoiGian).getTime();
-      if (t !== 0) return t;
-      return a.id - b.id;
-    });
+    const sortedEvents = [...eventLog].sort(sortEventsAsc);
 
     for (const row of sortedEvents) {
       if (!grouped.has(row.maKH)) grouped.set(row.maKH, []);
@@ -801,959 +703,572 @@ export default function Page() {
     let stt = 1;
 
     grouped.forEach((rows, maKH) => {
-      const firstRow = rows[0];
-      const lastRow = rows[rows.length - 1];
-      const loai = getEffectiveLoaiForSummary(rows);
-      const flow = getSummaryFlow(loai, rows);
+      const ordered = rows.sort(sortEventsAsc);
+      const firstRow = ordered[0];
+      const lastRow = ordered[ordered.length - 1];
+      const loai = lastRow.loaiKH;
+      const flow = getFlow(loai);
 
-      const findTime = (eventName: EventName) =>
-        rows.find((r) => r.suKien === eventName)?.thoiGian || "";
+      const findRow = (role: FlowStep["role"]) => {
+        const step = flow.find((x) => x.role === role);
+        if (!step) return undefined;
+        return ordered.find((r) => r.suKien === step.code);
+      };
 
-      const heThongStart = findTime(getSystemStartEvent(loai));
-      const arrivalQueue = findTime(getArrivalEvent(loai));
-      const serviceStart = findTime(getServiceStartEvent());
-      const systemEnd = findTime(getSystemEndEvent());
+      const findByIndex = (index: number) => {
+        const step = flow[index];
+        if (!step) return undefined;
+        return ordered.find((r) => r.suKien === step.code);
+      };
+
+      const systemStart = findRow("SYSTEM_START") || findRow("QUEUE_ARRIVAL");
+      const queueArrival = findRow("QUEUE_ARRIVAL") || systemStart;
+      const serviceStart = findRow("SERVICE_START");
+      const serviceEnd = findRow("SERVICE_END");
+
+      const waitingTimeS = diffSecondsPrecise(queueArrival?.thoiGian || "", serviceStart?.thoiGian || "");
+      const serviceTimeS = diffSecondsPrecise(serviceStart?.thoiGian || "", serviceEnd?.thoiGian || "");
+      const systemTimeS = diffSecondsPrecise(systemStart?.thoiGian || "", serviceEnd?.thoiGian || "");
+
+      const missingSteps = flow
+        .filter((step) => !ordered.some((r) => r.suKien === step.code))
+        .map((step) => step.shortLabel);
+
+      const timeError =
+        waitingTimeS === "" || serviceTimeS === "" || systemTimeS === "" || Number(serviceTimeS) <= 0;
+
+      const dataStatus: SummaryRow["dataStatus"] = missingSteps.length
+        ? "THIEU_BUOC"
+        : timeError
+          ? "LOI_THOI_GIAN"
+          : "OK";
+
+      const errorNote = missingSteps.length
+        ? `Thiếu bước: ${missingSteps.join(", ")}`
+        : timeError
+          ? "Kiểm tra lại mốc thời gian: service/system time rỗng hoặc service time <= 0"
+          : "Đủ dữ liệu";
 
       result.push({
         stt: stt++,
         maKH,
-        loaiKH: getLoaiKhachLabel(loai),
-        quyTrinh:
-          loai === "PIZZA_COMBO" &&
-          firstRow.loaiKH === "SAN" &&
-          firstRow.quay === "Quầy thanh toán 1 - Khu bánh/pizza"
-            ? `ĐỒ ĂN LÀM SẴN MUA KÈM PIZZA - ${lastRow.quay}`
-            : lastRow.quyTrinh || `${getLoaiKhachLabel(loai)} - ${lastRow.quay}`,
-        nhanVien: lastRow.nhanVien || "",
-        quay: lastRow.quay || "",
-        ghiChu: getDisplayGhiChu(maKH, lastRow.ghiChu || ""),
-        nguoiBam: lastRow.nguoiBam || "",
-
-        soBuoc: flow.length,
-
+        loaiKH: loai,
+        loaiLabel: getLoaiKhachLabel(loai),
+        cuaVao: firstRow.cuaVao,
+        quyTrinh: lastRow.quyTrinh,
+        nhanVien: lastRow.nhanVien,
+        quay: lastRow.quay,
+        ghiChu: lastRow.ghiChu,
+        nguoiBam: lastRow.nguoiBam,
+        processKey: getProcessKey(loai, lastRow.quay),
+        createByEntrance: getCreateByEntrance(firstRow.cuaVao),
+        createByType: getCreateByType(loai),
+        queueName: getArenaQueue(lastRow.quay),
+        resourceName: getArenaResource(lastRow.quay),
+        expectedSteps: flow.length,
+        actualSteps: ordered.length,
+        dataStatus,
+        errorNote,
         buoc1Label: flow[0]?.label || "",
         buoc2Label: flow[1]?.label || "",
         buoc3Label: flow[2]?.label || "",
         buoc4Label: flow[3]?.label || "",
-
-        T_B1: flow[0] ? findTime(flow[0].code) : "",
-        T_B2: flow[1] ? findTime(flow[1].code) : "",
-        T_B3: flow[2] ? findTime(flow[2].code) : "",
-        T_B4: flow[3] ? findTime(flow[3].code) : "",
-
-        thoiGianDenHeThong: heThongStart,
-        batDauXepHang: arrivalQueue,
-        batDauPhucVu: serviceStart,
-        ketThucPhucVuRoiHeThong: systemEnd,
-
-        interarrivalTimeGiay: "",
-        waitingTimeGiay: diffSecondsPrecise(arrivalQueue, serviceStart),
-        serviceTimeGiay: diffSecondsPrecise(serviceStart, systemEnd),
-        systemTimeGiay: diffSecondsPrecise(heThongStart, systemEnd),
-
-        arenaEntityType: loai,
-        arenaArrivalTime: arrivalQueue,
-        arenaInterarrivalS: "",
-        arenaServiceS: diffSecondsPrecise(serviceStart, systemEnd),
-        arenaQueue: getArenaQueue(lastRow.quay),
-        arenaResource: getArenaResource(lastRow.quay),
-        arenaProcessType: getArenaProcessType(loai, lastRow.quay),
+        T_B1: formatDateTimeVNms(findByIndex(0)?.thoiGian || ""),
+        T_B2: formatDateTimeVNms(findByIndex(1)?.thoiGian || ""),
+        T_B3: formatDateTimeVNms(findByIndex(2)?.thoiGian || ""),
+        T_B4: formatDateTimeVNms(findByIndex(3)?.thoiGian || ""),
+        systemArrivalTime: formatDateTimeVNms(systemStart?.thoiGian || ""),
+        queueArrivalTime: formatDateTimeVNms(queueArrival?.thoiGian || ""),
+        serviceStartTime: formatDateTimeVNms(serviceStart?.thoiGian || ""),
+        serviceEndTime: formatDateTimeVNms(serviceEnd?.thoiGian || ""),
+        waitingTimeS,
+        serviceTimeS,
+        systemTimeS,
+        systemInterarrivalByEntranceS: "",
+        systemInterarrivalByTypeS: "",
+        queueInterarrivalByCounterS: "",
+        queueInterarrivalByProcessS: "",
       });
     });
 
-    const sorted = result.sort((a, b) => {
-      const ta = parseDateTime(a.thoiGianDenHeThong)?.getTime() || 0;
-      const tb = parseDateTime(b.thoiGianDenHeThong)?.getTime() || 0;
+    addInterarrivalByGroup(result, (r) => r.createByEntrance, (r) => r.systemArrivalTime, "systemInterarrivalByEntranceS");
+    addInterarrivalByGroup(result, (r) => r.createByType, (r) => r.systemArrivalTime, "systemInterarrivalByTypeS");
+    addInterarrivalByGroup(result, (r) => r.queueName, (r) => r.queueArrivalTime, "queueInterarrivalByCounterS");
+    addInterarrivalByGroup(result, (r) => r.processKey, (r) => r.queueArrivalTime, "queueInterarrivalByProcessS");
+
+    return result.sort((a, b) => {
+      const ta = parseDateTime(a.systemArrivalTime)?.getTime() || 0;
+      const tb = parseDateTime(b.systemArrivalTime)?.getTime() || 0;
       if (tb !== ta) return tb - ta;
       return a.maKH.localeCompare(b.maKH);
     });
-
-    const arrivalSorted = [...sorted]
-      .filter((r) => r.batDauXepHang)
-      .sort((a, b) => {
-        const ta = parseDateTime(a.batDauXepHang)?.getTime() || 0;
-        const tb = parseDateTime(b.batDauXepHang)?.getTime() || 0;
-        if (ta !== tb) return ta - tb;
-        return a.maKH.localeCompare(b.maKH);
-      });
-
-    for (let i = 0; i < arrivalSorted.length; i++) {
-      if (i === 0) {
-        arrivalSorted[i].interarrivalTimeGiay = "";
-        arrivalSorted[i].arenaInterarrivalS = "";
-      } else {
-        const ia = diffSecondsPrecise(
-          arrivalSorted[i - 1].batDauXepHang,
-          arrivalSorted[i].batDauXepHang
-        );
-        arrivalSorted[i].interarrivalTimeGiay = ia;
-        arrivalSorted[i].arenaInterarrivalS = ia;
-      }
-    }
-
-    const mapBack = new Map(
-      arrivalSorted.map((r) => [
-        r.maKH,
-        {
-          interarrival: r.interarrivalTimeGiay,
-          arenaInterarrival: r.arenaInterarrivalS,
-        },
-      ])
-    );
-
-    return sorted.map((row) => ({
-      ...row,
-      interarrivalTimeGiay: mapBack.get(row.maKH)?.interarrival ?? "",
-      arenaInterarrivalS: mapBack.get(row.maKH)?.arenaInterarrival ?? "",
-    }));
-  }, [eventLog, currentMaKH, draftNotes]);
+  }, [eventLog]);
 
   const activeCustomers = useMemo<ActiveCustomerRow[]>(() => {
     const grouped = new Map<string, EventRow[]>();
-
-    const sortedEvents = [...eventLog].sort((a, b) => {
-      const t = new Date(a.thoiGian).getTime() - new Date(b.thoiGian).getTime();
-      if (t !== 0) return t;
-      return a.id - b.id;
-    });
-
-    for (const row of sortedEvents) {
+    for (const row of eventLog) {
       if (!grouped.has(row.maKH)) grouped.set(row.maKH, []);
       grouped.get(row.maKH)!.push(row);
     }
 
-    const result = Array.from(grouped.entries()).map(([maKH, rows]) => {
-      const loai = getEffectiveLoaiForSummary(rows);
-      const flow = getSummaryFlow(loai, rows);
-      const stepIndex = rows.length;
-      const done = stepIndex >= flow.length;
-      const lastRow = rows[rows.length - 1];
-
-      return {
+    const result: ActiveCustomerRow[] = [];
+    grouped.forEach((rows, maKH) => {
+      const ordered = rows.sort(sortEventsAsc);
+      const last = ordered[ordered.length - 1];
+      const flow = getFlow(last.loaiKH);
+      const stepIndex = ordered.length;
+      result.push({
         maKH,
-        loaiKH: loai,
-        loaiLabel: getLoaiKhachLabel(loai),
-        quay: lastRow.quay,
-        nhanVien: lastRow.nhanVien,
-        ghiChu: getDisplayGhiChu(maKH, lastRow.ghiChu || ""),
-        nguoiBam: lastRow.nguoiBam,
+        loaiKH: last.loaiKH,
+        loaiLabel: getLoaiKhachLabel(last.loaiKH),
+        cuaVao: last.cuaVao,
+        quay: last.quay,
+        nhanVien: last.nhanVien,
+        ghiChu: last.ghiChu,
+        nguoiBam: last.nguoiBam,
         stepIndex,
         totalSteps: flow.length,
-        nextLabel: done ? "Đã hoàn tất" : flow[stepIndex]?.label || "Đã hoàn tất",
-        done,
-        rows,
-      };
-    });
-
-    return result
-      .filter((x) => !x.done)
-      .sort((a, b) => {
-        const ta = parseDateTime(a.rows[a.rows.length - 1].thoiGian)?.getTime() || 0;
-        const tb = parseDateTime(b.rows[b.rows.length - 1].thoiGian)?.getTime() || 0;
-        return tb - ta;
+        nextStep: flow[stepIndex],
+        done: stepIndex >= flow.length,
+        rows: ordered,
       });
-  }, [eventLog, currentMaKH, draftNotes]);
-
-  function exportSummaryExcel() {
-    const rows = summaryRows.map((row) => ({
-      STT: row.stt,
-      MaKH: row.maKH,
-      LoaiKH: row.loaiKH,
-      QuyTrinh: row.quyTrinh,
-      NhanVien: row.nhanVien,
-      Quay: row.quay,
-      GhiChu: row.ghiChu,
-      NguoiBam: row.nguoiBam,
-      SoBuoc: row.soBuoc,
-
-      ThoiGianDenHeThong: parseDateTime(row.thoiGianDenHeThong),
-      BatDauXepHang: parseDateTime(row.batDauXepHang),
-      BatDauPhucVu: parseDateTime(row.batDauPhucVu),
-      KetThucPhucVu_RoiHeThong: parseDateTime(row.ketThucPhucVuRoiHeThong),
-
-      InterarrivalTime_Giay:
-        row.interarrivalTimeGiay === "" ? "" : row.interarrivalTimeGiay,
-      WaitingTime_Giay:
-        row.waitingTimeGiay === "" ? "" : row.waitingTimeGiay,
-      ServiceTime_Giay:
-        row.serviceTimeGiay === "" ? "" : row.serviceTimeGiay,
-      SystemTime_Giay:
-        row.systemTimeGiay === "" ? "" : row.systemTimeGiay,
-
-      Arena_EntityType: row.arenaEntityType,
-      Arena_ArrivalTime: parseDateTime(row.arenaArrivalTime),
-      Arena_Interarrival_s:
-        row.arenaInterarrivalS === "" ? "" : row.arenaInterarrivalS,
-      Arena_Service_s: row.arenaServiceS === "" ? "" : row.arenaServiceS,
-      Arena_Queue: row.arenaQueue,
-      Arena_Resource: row.arenaResource,
-      Arena_ProcessType: row.arenaProcessType,
-
-      Buoc_1: row.buoc1Label,
-      TG_Buoc_1: parseDateTime(row.T_B1),
-      Buoc_2: row.buoc2Label,
-      TG_Buoc_2: parseDateTime(row.T_B2),
-      Buoc_3: row.buoc3Label,
-      TG_Buoc_3: parseDateTime(row.T_B3),
-      Buoc_4: row.buoc4Label,
-      TG_Buoc_4: parseDateTime(row.T_B4),
-    }));
-
-    const ws = XLSX.utils.json_to_sheet(rows, {
-      cellDates: true,
-      dateNF: "yyyy-mm-dd hh:mm:ss.000",
     });
 
-    ws["!cols"] = [
-      { wch: 8 },
-      { wch: 20 },
-      { wch: 24 },
-      { wch: 30 },
-      { wch: 12 },
-      { wch: 18 },
-      { wch: 18 },
-      { wch: 14 },
-      { wch: 8 },
-      { wch: 24 },
-      { wch: 24 },
-      { wch: 24 },
-      { wch: 24 },
-      { wch: 16 },
-      { wch: 16 },
-      { wch: 16 },
-      { wch: 16 },
-      { wch: 18 },
-      { wch: 24 },
-      { wch: 18 },
-      { wch: 16 },
-      { wch: 22 },
-      { wch: 22 },
-      { wch: 22 },
-      { wch: 24 },
-      { wch: 24 },
-      { wch: 24 },
-      { wch: 24 },
-      { wch: 24 },
-      { wch: 24 },
-      { wch: 24 },
-      { wch: 24 },
-    ];
+    return result.sort((a, b) => Number(a.done) - Number(b.done) || b.maKH.localeCompare(a.maKH));
+  }, [eventLog]);
 
+  const okCount = summaryRows.filter((r) => r.dataStatus === "OK").length;
+  const errorCount = summaryRows.length - okCount;
+
+  function exportExcel() {
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Summary");
-    XLSX.writeFileXLSX(wb, "summary.xlsx", { compression: true });
+    const chronologicalEvents = [...eventLog].sort(sortEventsAsc);
+
+    appendSheet(
+      wb,
+      "Event_Log",
+      chronologicalEvents.map((r, i) => ({
+        stt: i + 1,
+        maKH: r.maKH,
+        loaiKH: r.loaiKH,
+        loaiLabel: r.loaiLabel,
+        cuaVao: r.cuaVao,
+        quay: r.quay,
+        nhanVien: r.nhanVien,
+        suKien: r.suKien,
+        suKienLabel: r.suKienLabel,
+        thoiGianISO: r.thoiGian,
+        thoiGianVN_ms: formatDateTimeVNms(r.thoiGian),
+        nguoiBam: r.nguoiBam,
+        ghiChu: r.ghiChu,
+        quyTrinh: r.quyTrinh,
+      }))
+    );
+
+    appendSheet(
+      wb,
+      "Summary",
+      summaryRows.map((r) => ({
+        stt: r.stt,
+        maKH: r.maKH,
+        loaiKH: r.loaiKH,
+        loaiLabel: r.loaiLabel,
+        cuaVao: r.cuaVao,
+        quay: r.quay,
+        nhanVien: r.nhanVien,
+        processKey: r.processKey,
+        dataStatus: r.dataStatus,
+        errorNote: r.errorNote,
+        expectedSteps: r.expectedSteps,
+        actualSteps: r.actualSteps,
+        systemArrivalTime: r.systemArrivalTime,
+        queueArrivalTime: r.queueArrivalTime,
+        serviceStartTime: r.serviceStartTime,
+        serviceEndTime: r.serviceEndTime,
+        waitingTimeS: toNumberOrBlank(r.waitingTimeS),
+        serviceTimeS: toNumberOrBlank(r.serviceTimeS),
+        systemTimeS: toNumberOrBlank(r.systemTimeS),
+        systemInterarrivalByEntranceS: toNumberOrBlank(r.systemInterarrivalByEntranceS),
+        systemInterarrivalByTypeS: toNumberOrBlank(r.systemInterarrivalByTypeS),
+        queueInterarrivalByCounterS: toNumberOrBlank(r.queueInterarrivalByCounterS),
+        queueInterarrivalByProcessS: toNumberOrBlank(r.queueInterarrivalByProcessS),
+        ghiChu: r.ghiChu,
+      }))
+    );
+
+    appendSheet(
+      wb,
+      "Arena_Input_Table",
+      summaryRows
+        .filter((r) => r.dataStatus === "OK")
+        .map((r, i) => ({
+          stt: i + 1,
+          maKH: r.maKH,
+          entityType: r.loaiKH,
+          entityLabel: r.loaiLabel,
+          entrance: r.cuaVao,
+          counter: getCounterCode(r.quay),
+          processKey: r.processKey,
+          arenaCreateByEntrance: r.createByEntrance,
+          arenaCreateByType: r.createByType,
+          arenaQueue: r.queueName,
+          arenaResource: r.resourceName,
+          systemInterarrivalByEntranceS: toNumberOrBlank(r.systemInterarrivalByEntranceS),
+          systemInterarrivalByTypeS: toNumberOrBlank(r.systemInterarrivalByTypeS),
+          queueInterarrivalByCounterS: toNumberOrBlank(r.queueInterarrivalByCounterS),
+          queueInterarrivalByProcessS: toNumberOrBlank(r.queueInterarrivalByProcessS),
+          waitingTimeS: toNumberOrBlank(r.waitingTimeS),
+          serviceTimeS: toNumberOrBlank(r.serviceTimeS),
+          systemTimeS: toNumberOrBlank(r.systemTimeS),
+        }))
+    );
+
+    appendSheet(
+      wb,
+      "Data_Check",
+      summaryRows.map((r) => ({
+        maKH: r.maKH,
+        dataStatus: r.dataStatus,
+        errorNote: r.errorNote,
+        expectedSteps: r.expectedSteps,
+        actualSteps: r.actualSteps,
+        loaiKH: r.loaiKH,
+        cuaVao: r.cuaVao,
+        quay: r.quay,
+      }))
+    );
+
+    appendSheet(wb, "IA_Create_Entrance_Long", makeLongIA(summaryRows, "systemInterarrivalByEntranceS", "createByEntrance", "Interarrival theo Create/Entrance"));
+    appendSheet(wb, "IA_Create_Type_Long", makeLongIA(summaryRows, "systemInterarrivalByTypeS", "createByType", "Interarrival theo loại khách"));
+    appendSheet(wb, "IA_Queue_Counter_Long", makeLongIA(summaryRows, "queueInterarrivalByCounterS", "queueName", "Interarrival vào hàng theo quầy"));
+    appendSheet(wb, "IA_Service_Long", makeLongIA(summaryRows, "serviceTimeS", "processKey", "Service time theo process"));
+
+    appendSheet(
+      wb,
+      "IA_Create_Entrance_Wide",
+      makeWideIA(summaryRows, (r) => r.createByEntrance, (r) => r.systemInterarrivalByEntranceS)
+    );
+    appendSheet(
+      wb,
+      "IA_Service_Process_Wide",
+      makeWideIA(summaryRows, (r) => r.processKey, (r) => r.serviceTimeS)
+    );
+
+    const stamp = formatDateTimeVNms(new Date()).replaceAll("-", "").replaceAll(":", "").replaceAll(" ", "_").replaceAll(".", "");
+    XLSX.writeFile(wb, `emart_arena_input_${stamp}.xlsx`);
   }
 
-  const infoItemStyle: React.CSSProperties = {
-    padding: "10px 12px",
-    borderRadius: 10,
-    border: `1px solid ${palette.line}`,
-    background: "#fff",
-  };
-
-  const sectionTitleStyle: React.CSSProperties = {
-    margin: 0,
-    fontSize: 18,
-    fontWeight: 700,
-    color: palette.text,
-  };
-
-  const buttonStyle = (
-    disabled = false,
-    tone: "normal" | "danger" | "primary" = "normal"
-  ): React.CSSProperties => {
-    const styles = {
-      normal: {
-        background: "#fff",
-        border: `1px solid ${palette.line}`,
-        color: palette.text,
-      },
-      danger: {
-        background: palette.redSoft,
-        border: `1px solid #fecaca`,
-        color: palette.red,
-      },
-      primary: {
-        background: palette.blue,
-        border: `1px solid ${palette.blue}`,
-        color: "#fff",
-      },
-    };
-
-    return {
-      width: "100%",
-      padding: "14px 16px",
-      borderRadius: 12,
-      cursor: disabled ? "not-allowed" : "pointer",
-      fontWeight: 700,
-      fontSize: 16,
-      opacity: disabled ? 0.55 : 1,
-      ...styles[tone],
-    };
-  };
-
-  const typeButtonStyle = (active: boolean): React.CSSProperties => ({
-    width: "100%",
-    padding: "14px 16px",
-    borderRadius: 12,
-    cursor: "pointer",
-    fontWeight: 700,
-    fontSize: 16,
-    border: active ? `2px solid ${palette.blue}` : `1px solid ${palette.line}`,
-    background: active ? palette.blueSoft : "#fff",
-    color: palette.text,
-  });
-
   return (
-    <main
-      style={{
-        minHeight: "100vh",
-        background: palette.bg,
-        padding: 16,
-        color: palette.text,
-      }}
-    >
-      <div
-        style={{
-          maxWidth: 980,
-          margin: "0 auto",
-          display: "grid",
-          gap: 16,
-        }}
-      >
-        <section
-          style={{
-            background: palette.card,
-            border: `1px solid ${palette.line}`,
-            borderRadius: 18,
-            padding: 18,
-            boxShadow: "0 4px 20px rgba(0,0,0,0.04)",
-          }}
-        >
-          <div style={{ marginBottom: 12 }}>
-            <h1 style={{ margin: 0, fontSize: 28, fontWeight: 800 }}>
-              Web bấm giờ mô phỏng ở emart - 3 quầy thanh toán
-            </h1>
-            <p style={{ margin: "8px 0 0", color: palette.sub }}>
-              Tác giả: Bùi Văn Cường đẹp trai
-            </p>
-          </div>
-
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-              gap: 10,
-            }}
-          >
-            <div style={infoItemStyle}>
-              <div style={{ color: palette.sub, fontSize: 13 }}>Khách hiện tại</div>
-              <div style={{ fontWeight: 800, fontSize: 18 }}>
-                {currentMaKH || "Chưa chọn"}
-              </div>
-            </div>
-
-            <div style={infoItemStyle}>
-              <div style={{ color: palette.sub, fontSize: 13 }}>Loại khách</div>
-              <div style={{ fontWeight: 700 }}>
-                {loaiKH ? getLoaiKhachLabel(loaiKH) : "Chưa chọn"}
-              </div>
-            </div>
-
-            <div style={infoItemStyle}>
-              <div style={{ color: palette.sub, fontSize: 13 }}>Người đang bấm</div>
-              <div style={{ fontWeight: 700 }}>
-                {tenNguoiBam || "Chưa nhập tên"}
-              </div>
-            </div>
-
-            <div style={infoItemStyle}>
-              <div style={{ color: palette.sub, fontSize: 13 }}>Mã thiết bị</div>
-              <div style={{ fontWeight: 700 }}>
-                {deviceId || "Đang tạo..."}
-              </div>
-            </div>
-
-            <div style={infoItemStyle}>
-              <div style={{ color: palette.sub, fontSize: 13 }}>Trạng thái tải</div>
-              <div
-                style={{
-                  fontWeight: 700,
-                  color: loading ? palette.amber : palette.green,
-                }}
-              >
-                {loading ? "Đang tải..." : "Sẵn sàng"}
-              </div>
-            </div>
-          </div>
-
-          <div style={{ marginTop: 12 }}>
-            <button
-              onClick={() => {
-                const newName =
-                  window.prompt("Nhập lại tên người đang bấm:", tenNguoiBam) || "";
-                const finalName = newName.trim();
-                if (finalName) {
-                  localStorage.setItem("emart_ten_nguoi_bam", finalName);
-                  setTenNguoiBam(finalName);
-                }
-              }}
-              style={buttonStyle(false)}
-            >
-              ĐỔI TÊN NGƯỜI BẤM
-            </button>
-          </div>
-        </section>
-
-        <section
-          style={{
-            background: palette.card,
-            border: `1px solid ${palette.line}`,
-            borderRadius: 18,
-            padding: 18,
-            boxShadow: "0 4px 20px rgba(0,0,0,0.04)",
-          }}
-        >
-          <h2 style={sectionTitleStyle}>Thông tin thao tác</h2>
-
-          <div style={{ display: "grid", gap: 12, marginTop: 12 }}>
+    <main style={{ minHeight: "100vh", background: palette.bg, color: palette.text, padding: 16 }}>
+      <section style={{ maxWidth: 1180, margin: "0 auto", display: "grid", gap: 16 }}>
+        <header style={cardStyle}>
+          <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
             <div>
-              <label style={{ display: "block", marginBottom: 6, fontWeight: 600 }}>
-                Nhân viên
-              </label>
-              <select
-                value={nhanVien}
-                onChange={(e) => setNhanVien(e.target.value)}
-                style={{
-                  width: "100%",
-                  padding: 12,
-                  borderRadius: 12,
-                  border: `1px solid ${palette.line}`,
-                  fontSize: 16,
-                  background: "#fff",
-                }}
-              >
-                <option value="NV1">NV1</option>
-                <option value="NV2">NV2</option>
-                <option value="NV3">NV3</option>
-                <option value="NV4">NV4</option>
-              </select>
+              <h1 style={{ margin: 0, fontSize: 24 }}>Bấm giờ Emart cho Arena Input Analyzer</h1>
+              <p style={{ margin: "6px 0 0", color: palette.sub }}>
+                Ghi nhận đúng mốc: đến hệ thống, vào hàng đợi, bắt đầu phục vụ, kết thúc phục vụ. Xuất Excel có sẵn sheet cho Input Analyzer.
+              </p>
             </div>
-
-            <div>
-              <label style={{ display: "block", marginBottom: 6, fontWeight: 600 }}>
-                Quầy thanh toán
-              </label>
-              <select
-                value={quay}
-                onChange={(e) => setQuay(e.target.value as CounterType)}
-                style={{
-                  width: "100%",
-                  padding: 12,
-                  borderRadius: 12,
-                  border: `1px solid ${palette.line}`,
-                  fontSize: 16,
-                  background: "#fff",
-                }}
-              >
-                {ALL_COUNTERS.map((q) => (
-                  <option key={q} value={q}>
-                    {getCounterLabel(q)}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label style={{ display: "block", marginBottom: 6, fontWeight: 600 }}>
-                Ghi chú
-              </label>
-              <input
-                value={currentMaKH ? getCurrentDraftNote(currentMaKH) : ""}
-                onChange={(e) => {
-                  if (!currentMaKH) return;
-                  const value = e.target.value;
-                  setDraftNotes((prev) => ({
-                    ...prev,
-                    [currentMaKH]: value,
-                  }));
-                }}
-                placeholder="Ví dụ: áo caro, áo đen, mũ đỏ..."
-                style={{
-                  width: "100%",
-                  padding: 12,
-                  borderRadius: 12,
-                  border: `1px solid ${palette.line}`,
-                  fontSize: 16,
-                  background: "#fff",
-                }}
-              />
+            <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+              <button onClick={loadEventLog} style={secondaryButtonStyle}>{loading ? "Đang tải..." : "Tải lại"}</button>
+              <button onClick={exportExcel} style={primaryButtonStyle}>Xuất Excel Input Analyzer</button>
+              <button onClick={clearAllData} style={dangerButtonStyle}>Xóa toàn bộ</button>
             </div>
           </div>
-        </section>
 
-        <section
-          style={{
-            background: palette.card,
-            border: `1px solid ${palette.line}`,
-            borderRadius: 18,
-            padding: 18,
-            boxShadow: "0 4px 20px rgba(0,0,0,0.04)",
-          }}
-        >
-          <h2 style={sectionTitleStyle}>Chọn loại khách</h2>
-
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-              gap: 10,
-              marginTop: 12,
-            }}
-          >
-            <button onClick={() => startNewCustomer("SAN")} style={typeButtonStyle(loaiKH === "SAN")}>
-              ĐỒ ĂN LÀM SẴN
-            </button>
-            <button onClick={() => startNewCustomer("CHUAN")} style={typeButtonStyle(loaiKH === "CHUAN")}>
-              MÓN CẦN ĐẦU BẾP LÀM
-            </button>
-            <button onClick={() => startNewCustomer("PIZZA")} style={typeButtonStyle(loaiKH === "PIZZA")}>
-              PIZZA
-            </button>
-            <button
-              onClick={() => startNewCustomer("PIZZA_COMBO")}
-              style={typeButtonStyle(loaiKH === "PIZZA_COMBO")}
-            >
-              PIZZA KẾT HỢP MÓN KHÁC
-            </button>
-            <button onClick={() => startNewCustomer("NUOC")} style={typeButtonStyle(loaiKH === "NUOC")}>
-              NƯỚC
-            </button>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: 10, marginTop: 14 }}>
+            <InfoBox label="Tổng khách" value={String(summaryRows.length)} />
+            <InfoBox label="Đủ dữ liệu" value={String(okCount)} tone="green" />
+            <InfoBox label="Cần kiểm tra" value={String(errorCount)} tone={errorCount ? "red" : "green"} />
+            <InfoBox label="Thiết bị" value={deviceId || "Đang tạo..."} />
           </div>
-        </section>
+        </header>
 
-        <section
-          style={{
-            background: palette.card,
-            border: `1px solid ${palette.line}`,
-            borderRadius: 18,
-            padding: 18,
-            boxShadow: "0 4px 20px rgba(0,0,0,0.04)",
-          }}
-        >
-          <h2 style={sectionTitleStyle}>Bấm theo đúng thứ tự thực tế (Lưu Ý: Người ta cầm lên bầm liền nhe không mua thì qua khách khác ko đc xóa)</h2>
-          <p style={{ margin: "6px 0 12px", color: palette.sub }}>
-            Bước đầu tiên bắt buộc phải có ghi chú trước khi bấm.
-          </p>
-
-          {loaiKH ? (
-            <div style={{ display: "grid", gap: 10 }}>
-              {currentFlow.map((step, index) => {
-                const disabled = !currentMaKH || nextStepIndex !== index;
-                const isSpecialComboChoice =
-                  isSanAtQ1(loaiKH, quay) && step.code === "NV_BAT_DAU_PHUC_VU";
-
-                if (isSpecialComboChoice) {
-                  return (
-                    <div key={step.code} style={{ display: "grid", gap: 10 }}>
-                      <button
-                        onClick={() => addEvent(step.code)}
-                        disabled={disabled}
-                        style={buttonStyle(disabled, disabled ? "normal" : "primary")}
-                      >
-                        3. Nhân viên bắt đầu tính tiền - KHÔNG mua kèm pizza
-                      </button>
-
-                      <button
-                        onClick={() => addEvent(step.code, "PIZZA_COMBO")}
-                        disabled={disabled}
-                        style={buttonStyle(disabled, disabled ? "normal" : "primary")}
-                      >
-                        3. Nhân viên bắt đầu tính tiền - CÓ mua kèm pizza
-                      </button>
-                    </div>
-                  );
-                }
-
+        <section style={{ display: "grid", gridTemplateColumns: "minmax(0, 1.25fr) minmax(320px, 0.75fr)", gap: 16 }}>
+          <div style={cardStyle}>
+            <h2 style={sectionTitleStyle}>1. Tạo khách mới</h2>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 10 }}>
+              {CUSTOMER_TYPES.map((item) => {
+                const theme = getCustomerTypeTheme(item.code);
                 return (
                   <button
-                    key={step.code}
-                    onClick={() => addEvent(step.code)}
-                    disabled={disabled}
-                    style={buttonStyle(disabled, disabled ? "normal" : "primary")}
+                    key={item.code}
+                    onClick={() => startNewCustomer(item.code)}
+                    style={{
+                      textAlign: "left",
+                      border: `1px solid ${theme.border}`,
+                      background: loaiKH === item.code ? theme.bg : palette.card,
+                      borderRadius: 14,
+                      padding: 12,
+                      cursor: "pointer",
+                    }}
                   >
-                    {step.label}
+                    <div style={{ fontWeight: 800, color: theme.text }}>{item.label}</div>
+                    <div style={{ color: palette.sub, fontSize: 12, marginTop: 4 }}>{item.hint}</div>
                   </button>
                 );
               })}
             </div>
-          ) : (
-            <div
-              style={{
-                padding: 14,
-                borderRadius: 12,
-                background: palette.amberSoft,
-                border: "1px solid #fde68a",
-                color: palette.amber,
-                fontWeight: 600,
-              }}
-            >
-              Hãy chọn khách trước.
+
+            <div style={{ ...gridFormStyle, marginTop: 16 }}>
+              <Field label="Người bấm">
+                <input
+                  value={tenNguoiBam}
+                  onChange={(e) => {
+                    setTenNguoiBam(e.target.value);
+                    localStorage.setItem("emart_ten_nguoi_bam", e.target.value);
+                  }}
+                  style={inputStyle}
+                  placeholder="VD: Cường"
+                />
+              </Field>
+
+              <Field label="Cửa vào">
+                <select value={cuaVao} onChange={(e) => setCuaVao(e.target.value as RecordableEntrance)} style={inputStyle}>
+                  {ENTRANCES.map((x) => <option key={x} value={x}>{x}</option>)}
+                </select>
+              </Field>
+
+              <Field label="Quầy/Resource">
+                <select value={quay} onChange={(e) => setQuay(e.target.value as CounterType)} style={inputStyle}>
+                  {validCounters.map((x) => <option key={x} value={x}>{x}</option>)}
+                </select>
+              </Field>
+
+              <Field label="Nhân viên/Resource name">
+                <input value={nhanVien} onChange={(e) => setNhanVien(e.target.value)} style={inputStyle} placeholder="NV1" />
+              </Field>
             </div>
-          )}
 
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
-              gap: 10,
-              marginTop: 14,
-            }}
-          >
-            <button onClick={resetCurrentCustomer} style={buttonStyle(false, "danger")}>
-              RESET KHÁCH NÀY
-            </button>
-
-            <button onClick={clearAllData} style={buttonStyle(false, "danger")}>
-              XÓA TẤT CẢ
-            </button>
+            <Field label="Ghi chú quan sát" block>
+              <textarea
+                value={ghiChu}
+                onChange={(e) => setGhiChu(e.target.value)}
+                style={{ ...inputStyle, minHeight: 70, resize: "vertical" }}
+                placeholder="VD: khách mua combo, đổi quầy, thanh toán nhiều món..."
+              />
+            </Field>
           </div>
 
-          <div style={{ marginTop: 12 }}>
-            <button onClick={exportSummaryExcel} style={buttonStyle(false)}>
-              XUẤT SUMMARY XLSX
-            </button>
+          <div style={cardStyle}>
+            <h2 style={sectionTitleStyle}>2. Bấm mốc thời gian</h2>
+            {currentMaKH ? (
+              <div style={{ display: "grid", gap: 10 }}>
+                <div style={{ background: palette.card2, border: `1px solid ${palette.line}`, borderRadius: 14, padding: 12 }}>
+                  <div style={{ color: palette.sub, fontSize: 12 }}>Khách hiện tại</div>
+                  <div style={{ fontWeight: 900, wordBreak: "break-all" }}>{currentMaKH}</div>
+                  <div style={{ marginTop: 4, color: palette.sub }}>{loaiKH ? getLoaiKhachLabel(loaiKH) : ""} • {cuaVao} • {getCounterCode(quay)}</div>
+                </div>
+
+                <div style={{ display: "grid", gap: 6 }}>
+                  {currentFlow.map((step, idx) => {
+                    const event = currentCustomerEvents.find((r) => r.suKien === step.code);
+                    const active = idx === nextStepIndex;
+                    return (
+                      <div
+                        key={step.code}
+                        style={{
+                          border: `1px solid ${event ? "#86efac" : active ? "#93c5fd" : palette.line}`,
+                          background: event ? palette.greenSoft : active ? palette.blueSoft : palette.card2,
+                          borderRadius: 12,
+                          padding: 10,
+                        }}
+                      >
+                        <div style={{ fontWeight: 700 }}>{step.label}</div>
+                        <div style={{ color: palette.sub, fontSize: 12 }}>{event ? formatDateTimeVNms(event.thoiGian) : active ? "Đang chờ bấm" : "Chưa đến bước"}</div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                <button
+                  onClick={addNextEvent}
+                  disabled={isCurrentDone}
+                  style={{ ...primaryButtonStyle, width: "100%", opacity: isCurrentDone ? 0.5 : 1 }}
+                >
+                  {isCurrentDone ? "Khách đã đủ bước" : `Bấm: ${nextStep?.shortLabel || "Bước tiếp theo"}`}
+                </button>
+                <button onClick={resetCurrentCustomer} style={{ ...dangerButtonStyle, width: "100%" }}>Reset khách hiện tại</button>
+              </div>
+            ) : (
+              <p style={{ color: palette.sub, margin: 0 }}>Chọn loại khách ở bên trái để bắt đầu bấm giờ.</p>
+            )}
           </div>
         </section>
 
-        <section
-          style={{
-            background: palette.card,
-            border: `1px solid ${palette.line}`,
-            borderRadius: 18,
-            padding: 18,
-            boxShadow: "0 4px 20px rgba(0,0,0,0.04)",
-          }}
-        >
-          <h2 style={sectionTitleStyle}>Danh sách khách đang xử lý</h2>
-          <p style={{ margin: "6px 0 14px", color: palette.sub }}>
-            Chọn khách để quay lại bấm tiếp.
-          </p>
-
-          <div style={{ display: "grid", gap: 10 }}>
-            {activeCustomers.length === 0 ? (
-              <div
-                style={{
-                  padding: 14,
-                  borderRadius: 12,
-                  border: `1px dashed ${palette.line}`,
-                  color: palette.sub,
-                  background: "#fff",
-                }}
-              >
-                Chưa có khách nào đang xử lý.
-              </div>
-            ) : (
-              activeCustomers.map((customer) => {
-                const theme = getCustomerTypeTheme(customer.loaiLabel);
-
+        <section style={cardStyle}>
+          <h2 style={sectionTitleStyle}>3. Khách đang theo dõi</h2>
+          {activeCustomers.length === 0 ? (
+            <p style={{ color: palette.sub }}>Chưa có dữ liệu.</p>
+          ) : (
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))", gap: 10 }}>
+              {activeCustomers.slice(0, 12).map((c) => {
+                const theme = getCustomerTypeTheme(c.loaiKH);
                 return (
                   <button
-                    key={customer.maKH}
-                    onClick={() => selectCustomerToContinue(customer.maKH)}
+                    key={c.maKH}
+                    onClick={() => selectCustomerToContinue(c.maKH)}
                     style={{
-                      width: "100%",
                       textAlign: "left",
-                      padding: 14,
+                      border: `1px solid ${currentMaKH === c.maKH ? palette.blue : theme.border}`,
+                      background: c.done ? palette.card2 : theme.bg,
                       borderRadius: 14,
-                      border:
-                        currentMaKH === customer.maKH
-                          ? `2px solid ${theme.cardBorder}`
-                          : `1px solid ${theme.cardBorder}`,
-                      background: currentMaKH === customer.maKH ? theme.cardBg : "#fff",
+                      padding: 12,
                       cursor: "pointer",
                     }}
                   >
-                    <div
-                      style={{
-                        display: "flex",
-                        justifyContent: "space-between",
-                        gap: 10,
-                        flexWrap: "wrap",
-                        alignItems: "center",
-                        marginBottom: 6,
-                      }}
-                    >
-                      <div style={{ fontWeight: 800, fontSize: 18 }}>{customer.maKH}</div>
-                      <div
-                        style={{
-                          padding: "6px 10px",
-                          borderRadius: 999,
-                          background: theme.badgeBg,
-                          color: theme.badgeText,
-                          fontWeight: 700,
-                          fontSize: 13,
-                        }}
-                      >
-                        {customer.loaiLabel}
-                      </div>
-                    </div>
-
-                    <div style={{ color: palette.sub, marginBottom: 6 }}>
-                      Người bấm:{" "}
-                      <strong style={{ color: palette.text }}>
-                        {customer.nguoiBam || "Chưa có"}
-                      </strong>
-                    </div>
-
-                    <div style={{ color: palette.text }}>
-                      {customer.loaiLabel} - {customer.quay}
-                    </div>
-
-                    <div style={{ color: palette.sub, marginTop: 4 }}>
-                      Bước tiếp theo: {customer.nextLabel}
-                    </div>
-
-                    <div style={{ color: palette.sub, marginTop: 4 }}>
-                      Ghi chú: {customer.ghiChu || "Chưa có"}
+                    <div style={{ fontWeight: 900, wordBreak: "break-all" }}>{c.maKH}</div>
+                    <div style={{ color: theme.text, fontWeight: 700, fontSize: 13 }}>{c.loaiLabel}</div>
+                    <div style={{ color: palette.sub, fontSize: 12 }}>{c.cuaVao} • {getCounterCode(c.quay)} • {c.stepIndex}/{c.totalSteps}</div>
+                    <div style={{ marginTop: 6, fontSize: 12, color: c.done ? palette.green : palette.amber }}>
+                      {c.done ? "Đã đủ bước" : `Cần bấm: ${c.nextStep?.shortLabel}`}
                     </div>
                   </button>
                 );
-              })
-            )}
-          </div>
+              })}
+            </div>
+          )}
         </section>
 
-        <section
-          style={{
-            background: palette.card,
-            border: `1px solid ${palette.line}`,
-            borderRadius: 18,
-            padding: 18,
-            boxShadow: "0 4px 20px rgba(0,0,0,0.04)",
-          }}
-        >
-          <h2 style={sectionTitleStyle}>
-            Summary {loading ? "(đang tải...)" : ""}
-          </h2>
-
-          <div style={{ display: "grid", gap: 14, marginTop: 12 }}>
-            {summaryRows.length === 0 ? (
-              <div
-                style={{
-                  padding: 16,
-                  borderRadius: 12,
-                  border: `1px dashed ${palette.line}`,
-                  color: palette.sub,
-                  background: "#fff",
-                }}
-              >
-                Chưa có dữ liệu.
-              </div>
-            ) : (
-              summaryRows.map((row) => {
-                const theme = getCustomerTypeTheme(row.loaiKH);
-
-                return (
-                  <div
-                    key={row.maKH}
-                    style={{
-                      border: `2px solid ${theme.cardBorder}`,
-                      borderRadius: 16,
-                      padding: 14,
-                      background: theme.cardBg,
-                    }}
-                  >
-                    <div
-                      style={{
-                        display: "flex",
-                        justifyContent: "space-between",
-                        gap: 10,
-                        flexWrap: "wrap",
-                        marginBottom: 12,
-                        alignItems: "center",
-                      }}
-                    >
-                      <div
-                        style={{
-                          fontSize: 20,
-                          fontWeight: 800,
-                          wordBreak: "break-word",
-                        }}
-                      >
-                        {row.maKH}
-                      </div>
-
-                      <div
-                        style={{
-                          padding: "6px 10px",
-                          borderRadius: 999,
-                          background: theme.badgeBg,
-                          color: theme.badgeText,
-                          fontWeight: 700,
-                          fontSize: 13,
-                        }}
-                      >
-                        {row.loaiKH}
-                      </div>
-                    </div>
-
-                    <div
-                      style={{
-                        display: "grid",
-                        gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
-                        gap: 8,
-                        marginBottom: 12,
-                      }}
-                    >
-                      <div style={infoItemStyle}>
-                        STT khách: <strong>{row.stt}</strong>
-                      </div>
-                      <div style={infoItemStyle}>
-                        Quy trình: <strong>{row.quyTrinh || "Chưa có"}</strong>
-                      </div>
-                      <div style={infoItemStyle}>
-                        Nhân viên: <strong>{row.nhanVien || "Chưa có"}</strong>
-                      </div>
-                      <div style={infoItemStyle}>
-                        Quầy: <strong>{row.quay || "Chưa có"}</strong>
-                      </div>
-                      <div style={infoItemStyle}>
-                        Người bấm: <strong>{row.nguoiBam || "Chưa có"}</strong>
-                      </div>
-                      <div style={infoItemStyle}>
-                        Ghi chú: <strong>{row.ghiChu || "Chưa có"}</strong>
-                      </div>
-                    </div>
-
-                    <div style={{ display: "grid", gap: 12 }}>
-                      <div
-                        style={{
-                          border: `1px solid ${palette.line}`,
-                          borderRadius: 12,
-                          padding: 12,
-                          background: "#ffffffcc",
-                        }}
-                      >
-                        <div style={{ fontWeight: 800, marginBottom: 8 }}>
-                          Thời gian từng bước
-                        </div>
-
-                        <div>
-                          {row.buoc1Label || "Bước 1"}:{" "}
-                          <strong>{row.T_B1 ? formatEventTime(row.T_B1) : "Chưa có"}</strong>
-                        </div>
-                        <div>
-                          {row.buoc2Label || "Bước 2"}:{" "}
-                          <strong>{row.T_B2 ? formatEventTime(row.T_B2) : "Chưa có"}</strong>
-                        </div>
-                        <div>
-                          {row.buoc3Label || "Bước 3"}:{" "}
-                          <strong>{row.T_B3 ? formatEventTime(row.T_B3) : "Chưa có"}</strong>
-                        </div>
-                        <div>
-                          {row.buoc4Label || "Bước 4"}:{" "}
-                          <strong>{row.T_B4 ? formatEventTime(row.T_B4) : "Chưa có"}</strong>
-                        </div>
-                      </div>
-
-                      <div
-                        style={{
-                          border: `1px solid ${palette.line}`,
-                          borderRadius: 12,
-                          padding: 12,
-                          background: "#ffffffcc",
-                        }}
-                      >
-                        <div style={{ fontWeight: 800, marginBottom: 8 }}>
-                          Mốc mô phỏng
-                        </div>
-                        <div>
-                          Đến hệ thống:{" "}
-                          <strong>
-                            {row.thoiGianDenHeThong
-                              ? formatEventTime(row.thoiGianDenHeThong)
-                              : "Chưa có"}
-                          </strong>
-                        </div>
-                        <div>
-                          Bắt đầu xếp hàng:{" "}
-                          <strong>
-                            {row.batDauXepHang
-                              ? formatEventTime(row.batDauXepHang)
-                              : "Chưa có"}
-                          </strong>
-                        </div>
-                        <div>
-                          Bắt đầu phục vụ:{" "}
-                          <strong>
-                            {row.batDauPhucVu
-                              ? formatEventTime(row.batDauPhucVu)
-                              : "Chưa có"}
-                          </strong>
-                        </div>
-                        <div>
-                          Rời hệ thống:{" "}
-                          <strong>
-                            {row.ketThucPhucVuRoiHeThong
-                              ? formatEventTime(row.ketThucPhucVuRoiHeThong)
-                              : "Chưa có"}
-                          </strong>
-                        </div>
-                      </div>
-
-                      <div
-                        style={{
-                          border: `1px solid ${palette.line}`,
-                          borderRadius: 12,
-                          padding: 12,
-                          background: "#ffffffcc",
-                        }}
-                      >
-                        <div style={{ fontWeight: 800, marginBottom: 8 }}>
-                          Chỉ tiêu thời gian
-                        </div>
-                        <div>
-                          Interarrival(s):{" "}
-                          <strong>
-                            {row.interarrivalTimeGiay === ""
-                              ? "Chưa đủ dữ liệu"
-                              : row.interarrivalTimeGiay}
-                          </strong>
-                        </div>
-                        <div>
-                          Waiting(s):{" "}
-                          <strong>
-                            {row.waitingTimeGiay === ""
-                              ? "Chưa đủ dữ liệu"
-                              : row.waitingTimeGiay}
-                          </strong>
-                        </div>
-                        <div>
-                          Service(s):{" "}
-                          <strong>
-                            {row.serviceTimeGiay === ""
-                              ? "Chưa đủ dữ liệu"
-                              : row.serviceTimeGiay}
-                          </strong>
-                        </div>
-                        <div>
-                          System(s):{" "}
-                          <strong>
-                            {row.systemTimeGiay === ""
-                              ? "Chưa đủ dữ liệu"
-                              : row.systemTimeGiay}
-                          </strong>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })
-            )}
+        <section style={cardStyle}>
+          <h2 style={sectionTitleStyle}>4. Bảng kiểm tra nhanh trước khi đưa vào Input Analyzer</h2>
+          <div style={{ overflowX: "auto" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+              <thead>
+                <tr style={{ background: palette.card2 }}>
+                  {[
+                    "Mã KH",
+                    "Loại",
+                    "Cửa",
+                    "Quầy",
+                    "Trạng thái",
+                    "IA Entrance (s)",
+                    "IA Type (s)",
+                    "Wait (s)",
+                    "Service (s)",
+                    "System (s)",
+                  ].map((h) => (
+                    <th key={h} style={thStyle}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {summaryRows.slice(0, 30).map((r) => (
+                  <tr key={r.maKH}>
+                    <td style={tdStyle}>{r.maKH}</td>
+                    <td style={tdStyle}>{r.loaiKH}</td>
+                    <td style={tdStyle}>{r.cuaVao}</td>
+                    <td style={tdStyle}>{getCounterCode(r.quay)}</td>
+                    <td style={{ ...tdStyle, color: r.dataStatus === "OK" ? palette.green : palette.red, fontWeight: 800 }} title={r.errorNote}>{r.dataStatus}</td>
+                    <td style={tdStyle}>{toNumberOrBlank(r.systemInterarrivalByEntranceS)}</td>
+                    <td style={tdStyle}>{toNumberOrBlank(r.systemInterarrivalByTypeS)}</td>
+                    <td style={tdStyle}>{toNumberOrBlank(r.waitingTimeS)}</td>
+                    <td style={tdStyle}>{toNumberOrBlank(r.serviceTimeS)}</td>
+                    <td style={tdStyle}>{toNumberOrBlank(r.systemTimeS)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
+          <p style={{ margin: "10px 0 0", color: palette.sub, fontSize: 13 }}>
+            Khi mở Excel, dùng các sheet bắt đầu bằng IA_. Với Input Analyzer, ưu tiên lấy cột số giây trong sheet Wide hoặc Long theo đúng Create/Process của mô hình Arena.
+          </p>
         </section>
-      </div>
+      </section>
     </main>
   );
 }
+
+function InfoBox({ label, value, tone }: { label: string; value: string; tone?: "green" | "red" }) {
+  const color = tone === "green" ? palette.green : tone === "red" ? palette.red : palette.blue;
+  const bg = tone === "green" ? palette.greenSoft : tone === "red" ? palette.redSoft : palette.blueSoft;
+  return (
+    <div style={{ background: bg, border: `1px solid ${palette.line}`, borderRadius: 14, padding: 12 }}>
+      <div style={{ color: palette.sub, fontSize: 12 }}>{label}</div>
+      <div style={{ color, fontSize: 20, fontWeight: 900, wordBreak: "break-word" }}>{value}</div>
+    </div>
+  );
+}
+
+function Field({ label, children, block }: { label: string; children: React.ReactNode; block?: boolean }) {
+  return (
+    <label style={{ display: "grid", gap: 6, marginTop: block ? 12 : 0 }}>
+      <span style={{ color: palette.sub, fontSize: 13, fontWeight: 700 }}>{label}</span>
+      {children}
+    </label>
+  );
+}
+
+const cardStyle: React.CSSProperties = {
+  background: palette.card,
+  border: `1px solid ${palette.line}`,
+  borderRadius: 18,
+  padding: 16,
+  boxShadow: "0 10px 25px rgba(15, 23, 42, 0.06)",
+};
+
+const sectionTitleStyle: React.CSSProperties = {
+  margin: "0 0 12px",
+  fontSize: 18,
+};
+
+const gridFormStyle: React.CSSProperties = {
+  display: "grid",
+  gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+  gap: 10,
+};
+
+const inputStyle: React.CSSProperties = {
+  width: "100%",
+  border: `1px solid ${palette.line}`,
+  borderRadius: 12,
+  padding: "10px 12px",
+  outline: "none",
+  fontSize: 14,
+  background: palette.card,
+  color: palette.text,
+  boxSizing: "border-box",
+};
+
+const primaryButtonStyle: React.CSSProperties = {
+  border: "none",
+  borderRadius: 12,
+  padding: "10px 14px",
+  background: palette.blue,
+  color: "white",
+  fontWeight: 800,
+  cursor: "pointer",
+};
+
+const secondaryButtonStyle: React.CSSProperties = {
+  border: `1px solid ${palette.line}`,
+  borderRadius: 12,
+  padding: "10px 14px",
+  background: palette.card,
+  color: palette.text,
+  fontWeight: 800,
+  cursor: "pointer",
+};
+
+const dangerButtonStyle: React.CSSProperties = {
+  border: "none",
+  borderRadius: 12,
+  padding: "10px 14px",
+  background: palette.red,
+  color: "white",
+  fontWeight: 800,
+  cursor: "pointer",
+};
+
+const thStyle: React.CSSProperties = {
+  borderBottom: `1px solid ${palette.line}`,
+  padding: 8,
+  textAlign: "left",
+  whiteSpace: "nowrap",
+};
+
+const tdStyle: React.CSSProperties = {
+  borderBottom: `1px solid ${palette.line}`,
+  padding: 8,
+  whiteSpace: "nowrap",
+};
