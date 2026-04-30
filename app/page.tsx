@@ -1308,9 +1308,9 @@ appendSheet(wb, "Queue_Choice_Analysis", queueChoiceRows);
         <header style={cardStyle}>
           <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
             <div>
-              <h1 style={{ margin: 0, fontSize: 24 }}>Bấm giờ Emart cho Arena Input Analyzer</h1>
+              <h1 style={{ margin: 0, fontSize: 24 }}>Bấm giờ Emart cho Arena </h1>
               <p style={{ margin: "6px 0 0", color: palette.sub }}>
-                Ghi nhận đúng mốc: đến hệ thống, vào hàng đợi, bắt đầu phục vụ, kết thúc phục vụ. Xuất Excel có sẵn sheet cho Input Analyzer.
+                Tác Giả: Bùi Văn Cường.
               </p>
             </div>
             <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
