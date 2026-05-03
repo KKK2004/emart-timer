@@ -18,6 +18,7 @@ type DecisionName =
   | "Turn or not 4"
   | "Turn or not 5"
   | "Turn or not 6"
+  | "Turn or not 7"
   | "continue or not 1"
   | "continue or not 2"
   | "continue or not 3"
@@ -187,6 +188,7 @@ const DECISION_NAMES: DecisionName[] = [
   "Turn or not 4",
   "Turn or not 5",
   "Turn or not 6",
+  "Turn or not 7",
   "continue or not 1",
   "continue or not 2",
   "continue or not 3",
@@ -199,7 +201,10 @@ const DECISION_NAMES: DecisionName[] = [
   "Chọn loại khách",
 ];
 
-const TURN_OPTIONS = ["Turn", "Not turn"];
+const TURN_OPTIONS = ["Rẽ", "Không rẽ"];
+const TURN_OR_NOT_1_OPTIONS = ["Rẽ", "Không rẽ", "Ra về Exit 1"];
+const TURN_OR_NOT_2_OPTIONS = ["Rẽ", "Không rẽ", "Ra về Exit 3"];
+const TURN_OR_NOT_7_OPTIONS = ["Rẽ", "Không rẽ"];
 const CONTINUE_OPTIONS = ["Continue", "Not continue"];
 const COUNTER_OPTIONS: ChosenCounter[] = ["Q1", "Q2", "Q3"];
 const CUSTOMER_DECISION_OPTIONS: CustomerType[] = ["NUOC", "SAN", "CHUAN", "PIZZA", "PIZZA_COMBO"];
@@ -444,6 +449,8 @@ function mapDbRowToDecisionRow(row: DecisionDbRow): DecisionRow {
 }
 
 function getDecisionMode(decisionName: DecisionName) {
+  if (decisionName === "Turn or not 1") return "N-way by Chance";
+  if (decisionName === "Turn or not 2") return "N-way by Chance";
   if (decisionName.startsWith("Turn or not")) return "2-way by Chance";
   if (decisionName.startsWith("continue or not")) return "2-way by Chance";
   if (decisionName.startsWith("Can I pay now")) return "By Condition / kiểm tra NQ()";
@@ -451,17 +458,28 @@ function getDecisionMode(decisionName: DecisionName) {
 }
 
 function getDefaultDecisionOption(decisionName: DecisionName) {
-  if (decisionName.startsWith("Turn or not")) return "Turn";
+  if (decisionName.startsWith("Turn or not")) return "Rẽ";
   if (decisionName.startsWith("continue or not")) return "Continue";
   if (decisionName.startsWith("Can I pay now")) return "Choose Q1";
   return "NUOC";
 }
 
 function getDecisionOptions(decisionName: DecisionName) {
+  if (decisionName === "Turn or not 1") return TURN_OR_NOT_1_OPTIONS;
+  if (decisionName === "Turn or not 2") return TURN_OR_NOT_2_OPTIONS;
+  if (decisionName === "Turn or not 7") return TURN_OR_NOT_7_OPTIONS;
   if (decisionName.startsWith("Turn or not")) return TURN_OPTIONS;
   if (decisionName.startsWith("continue or not")) return CONTINUE_OPTIONS;
   if (decisionName.startsWith("Can I pay now")) return ["Choose Q1", "Choose Q2", "Choose Q3"];
   return CUSTOMER_DECISION_OPTIONS;
+}
+
+function getArenaBranchNote(decisionName: DecisionName, option: string) {
+  if (decisionName === "Turn or not 1" && option === "Ra về Exit 1") return "Nối nhánh này về Exit 1";
+  if (decisionName === "Turn or not 2" && option === "Ra về Exit 3") return "Nối nhánh này về Exit 3";
+  if (option === "Rẽ") return "Khách rẽ theo hướng trong layout Arena";
+  if (option === "Không rẽ") return "Khách không rẽ/đi tiếp theo hướng chính";
+  return "";
 }
 
 function getChosenCounterFromOption(option: string): ChosenCounter {
@@ -492,16 +510,21 @@ function summarizeDecisionPercent(decisionLog: DecisionRow[]) {
 
   const result: Record<string, unknown>[] = [];
   grouped.forEach((rows, decisionName) => {
+    const typedDecisionName = decisionName as DecisionName;
     const total = rows.length;
     const optionCounts = new Map<string, number>();
     for (const row of rows) {
       optionCounts.set(row.optionSelected, (optionCounts.get(row.optionSelected) || 0) + 1);
     }
-    optionCounts.forEach((count, option) => {
+
+    getDecisionOptions(typedDecisionName).forEach((option, index) => {
+      const count = optionCounts.get(option) || 0;
       result.push({
         decisionName,
-        arenaMode: getDecisionMode(decisionName as DecisionName),
+        arenaMode: getDecisionMode(typedDecisionName),
+        branchOrder: index + 1,
         optionSelected: option,
+        arenaBranchNote: getArenaBranchNote(typedDecisionName, option),
         count,
         total,
         percent: total ? Number(((count / total) * 100).toFixed(2)) : 0,
@@ -675,7 +698,7 @@ export default function Page() {
   const [decisionLog, setDecisionLog] = useState<DecisionRow[]>([]);
   const [decisionTableReady, setDecisionTableReady] = useState(true);
   const [selectedDecisionName, setSelectedDecisionName] = useState<DecisionName>("Turn or not 1");
-  const [selectedDecisionOption, setSelectedDecisionOption] = useState("Turn");
+  const [selectedDecisionOption, setSelectedDecisionOption] = useState("Rẽ");
   const [q1Length, setQ1Length] = useState<number | "">("");
   const [q2Length, setQ2Length] = useState<number | "">("");
   const [q3Length, setQ3Length] = useState<number | "">("");
@@ -1264,6 +1287,7 @@ const selectedDecisionOptions = getDecisionOptions(selectedDecisionName);
     decisionName: r.decisionName,
     arenaMode: getDecisionMode(r.decisionName),
     optionSelected: r.optionSelected,
+    arenaBranchNote: getArenaBranchNote(r.decisionName, r.optionSelected),
     loaiKH: r.loaiKH,
     q1Length: r.q1Length,
     q2Length: r.q2Length,
@@ -1280,6 +1304,19 @@ const selectedDecisionOptions = getDecisionOptions(selectedDecisionName);
 );
 
 appendSheet(wb, "Decision_Percent", decisionPercentRows);
+appendSheet(
+  wb,
+  "Arena_Decide_Setup",
+  DECISION_NAMES.flatMap((decisionName) =>
+    getDecisionOptions(decisionName).map((option, index) => ({
+      decisionName,
+      arenaMode: getDecisionMode(decisionName),
+      branchOrder: index + 1,
+      optionSelected: option,
+      arenaBranchNote: getArenaBranchNote(decisionName, option),
+    }))
+  )
+);
 appendSheet(wb, "Queue_Choice_Analysis", queueChoiceRows);
 
     appendSheet(wb, "IA_Create_Entrance_Long", makeLongIA(summaryRows, "systemInterarrivalByEntranceS", "createByEntrance", "Interarrival theo Create/Entrance"));
