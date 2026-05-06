@@ -234,12 +234,12 @@ const CUSTOMER_TYPES: { code: CustomerType; label: string; hint: string }[] = [
   {
     code: "SAN",
     label: "Đồ ăn làm sẵn",
-    hint: "Cầm món → xếp hàng → tính tiền → rời quầy",
+    hint: "Xếp hàng thanh toán → tính tiền → rời quầy",
   },
   {
     code: "CHUAN",
     label: "Món cần đầu bếp làm",
-    hint: "Nhận phiếu → xếp hàng → tính tiền → rời quầy",
+    hint: "Xếp hàng thanh toán → tính tiền → nhận món/rời quầy",
   },
   {
     code: "PIZZA",
@@ -254,7 +254,7 @@ const CUSTOMER_TYPES: { code: CustomerType; label: string; hint: string }[] = [
   {
     code: "NUOC",
     label: "Nước",
-    hint: "Lấy nước → xếp hàng → tính tiền → rời quầy",
+    hint: "Xếp hàng thanh toán → tính tiền → rời quầy",
   },
 ];
 
@@ -427,26 +427,20 @@ function getFlow(loai: CustomerType): FlowStep[] {
     case "SAN":
       return [
         {
-          code: "CAM_DO_AN",
-          label: "1. Khách cầm đồ ăn làm sẵn",
-          shortLabel: "Cầm đồ ăn",
-          role: "SYSTEM_START",
-        },
-        {
           code: "VAO_HANG_THANH_TOAN",
-          label: "2. Khách vào hàng đợi thanh toán",
+          label: "1. Khách vào hàng đợi thanh toán",
           shortLabel: "Vào hàng thanh toán",
           role: "QUEUE_ARRIVAL",
         },
         {
           code: "NV_BAT_DAU_PHUC_VU",
-          label: "3. Nhân viên bắt đầu tính tiền",
+          label: "2. Nhân viên bắt đầu tính tiền",
           shortLabel: "Bắt đầu phục vụ",
           role: "SERVICE_START",
         },
         {
           code: "NHAN_HANG_ROI_QUAY",
-          label: "4. Khách nhận hàng và rời quầy",
+          label: "3. Khách nhận hàng và rời quầy",
           shortLabel: "Rời quầy",
           role: "SERVICE_END",
         },
@@ -529,26 +523,20 @@ function getFlow(loai: CustomerType): FlowStep[] {
     case "NUOC":
       return [
         {
-          code: "LAY_NUOC",
-          label: "1. Khách lấy nước",
-          shortLabel: "Lấy nước",
-          role: "SYSTEM_START",
-        },
-        {
           code: "VAO_HANG_THANH_TOAN",
-          label: "2. Khách vào hàng đợi thanh toán",
+          label: "1. Khách vào hàng đợi thanh toán",
           shortLabel: "Vào hàng thanh toán",
           role: "QUEUE_ARRIVAL",
         },
         {
           code: "NV_BAT_DAU_PHUC_VU",
-          label: "3. Nhân viên bắt đầu tính tiền",
+          label: "2. Nhân viên bắt đầu tính tiền",
           shortLabel: "Bắt đầu phục vụ",
           role: "SERVICE_START",
         },
         {
           code: "NHAN_HANG_ROI_QUAY",
-          label: "4. Khách thanh toán xong và rời quầy",
+          label: "3. Khách thanh toán xong và rời quầy",
           shortLabel: "Rời quầy",
           role: "SERVICE_END",
         },
@@ -1187,8 +1175,11 @@ export default function Page() {
   const [loading, setLoading] = useState(false);
   const loadedRef = useRef(false);
 
-  const currentFlow = loaiKH ? getFlow(loaiKH) : [];
-  const validCounters = loaiKH ? getValidCounters(loaiKH) : ALL_COUNTERS;
+  const currentFlow = useMemo(() => (loaiKH ? getFlow(loaiKH) : []), [loaiKH]);
+  const validCounters = useMemo(
+    () => (loaiKH ? getValidCounters(loaiKH) : ALL_COUNTERS),
+    [loaiKH],
+  );
 
   const currentCustomerEvents = useMemo(() => {
     return eventLog
@@ -1196,7 +1187,13 @@ export default function Page() {
       .sort(sortEventsAsc);
   }, [eventLog, currentMaKH]);
 
-  const nextStepIndex = currentCustomerEvents.length;
+  const currentExpectedEvents = useMemo(() => {
+    if (!loaiKH) return [];
+    const expectedEventCodes = new Set(currentFlow.map((step) => step.code));
+    return currentCustomerEvents.filter((row) => expectedEventCodes.has(row.suKien));
+  }, [currentCustomerEvents, currentFlow, loaiKH]);
+
+  const nextStepIndex = currentExpectedEvents.length;
   const nextStep = currentFlow[nextStepIndex];
   const isCurrentDone = Boolean(
     loaiKH && currentFlow.length > 0 && nextStepIndex >= currentFlow.length,
@@ -1784,7 +1781,7 @@ export default function Page() {
         queueName: getArenaQueue(lastRow.quay),
         resourceName: getArenaResource(lastRow.quay),
         expectedSteps: flow.length,
-        actualSteps: ordered.length,
+        actualSteps: flow.filter((step) => ordered.some((r) => r.suKien === step.code)).length,
         dataStatus,
         errorNote,
         buoc1Label: flow[0]?.label || "",
@@ -1854,7 +1851,7 @@ export default function Page() {
       const ordered = rows.sort(sortEventsAsc);
       const last = ordered[ordered.length - 1];
       const flow = getFlow(last.loaiKH);
-      const stepIndex = ordered.length;
+      const stepIndex = flow.filter((step) => ordered.some((r) => r.suKien === step.code)).length;
       result.push({
         maKH,
         loaiKH: last.loaiKH,
