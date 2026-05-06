@@ -2289,7 +2289,7 @@ export default function Page() {
 
         <section style={cardStyle}>
           <h2 style={sectionTitleStyle}>
-            Bấm START/END để lấy phân phối cho cục Process
+            Bước 1: Bấm START/END để lấy phân phối cho cục Process
           </h2>
 
           {!processTableReady && (
@@ -2506,7 +2506,7 @@ export default function Page() {
 
 
         <section style={cardStyle}>
-          <h2 style={sectionTitleStyle}> Bấm dữ liệu cho các cục Decide</h2>
+          <h2 style={sectionTitleStyle}> Bước 2: Bấm dữ liệu cho các cục Decide (nếu có)</h2>
 
           {!decisionTableReady && (
             <div
@@ -2721,7 +2721,7 @@ export default function Page() {
           }}
         >
           <div style={cardStyle}>
-            <h2 style={sectionTitleStyle}>Bấm để phân loại khách theo món ăn</h2>
+            <h2 style={sectionTitleStyle}>Bước 3: Bấm phân loại khách theo món khi khách thanh toán</h2>
             <div
               style={{
                 display: "grid",
