@@ -9,7 +9,11 @@ type CounterType =
   | "Quầy thanh toán 1 - Khu bánh/pizza"
   | "Quầy thanh toán 2 - Khu nước"
   | "Quầy thanh toán 3 - Khu đồ ăn sẵn/chế biến";
-type EntranceType = "Entrance 1" | "Entrance 2" | "Entrance 3" | "Không ghi nhận";
+type EntranceType =
+  | "Entrance 1"
+  | "Entrance 2"
+  | "Entrance 3"
+  | "Không ghi nhận";
 type RecordableEntrance = Exclude<EntranceType, "Không ghi nhận">;
 type DecisionName =
   | "Turn or not 1"
@@ -30,6 +34,21 @@ type DecisionName =
   | "Can I pay now 6"
   | "Chọn loại khách";
 type ChosenCounter = "Q1" | "Q2" | "Q3" | "";
+type ProcessEventType = "START" | "END";
+type ProcessName =
+  | "customer selects items"
+  | "customer selects items 1"
+  | "customer selects items 2"
+  | "customer selects items 3"
+  | "customer selects items 4"
+  | "customer selects items 5"
+  | "customer selects items 6"
+  | "customer selects items 7"
+  | "customer selects items 8"
+  | "customer selects items 9"
+  | "Payment_1"
+  | "Payment_2"
+  | "Payment_3";
 
 type EventName =
   | "CAM_DO_AN"
@@ -108,6 +127,34 @@ type DecisionDbRow = {
   nguoi_bam: string | null;
 };
 
+type ProcessLogRow = {
+  id: number;
+  runId: string;
+  maKH: string;
+  thoiGian: string;
+  processName: ProcessName;
+  eventType: ProcessEventType;
+  cuaVao: EntranceType;
+  loaiKH: CustomerType | "";
+  quay: CounterType | "";
+  ghiChu: string;
+  nguoiBam: string;
+};
+
+type ProcessDbRow = {
+  id: number;
+  run_id: string;
+  ma_kh: string | null;
+  thoi_gian: string;
+  process_name: ProcessName;
+  event_type: ProcessEventType;
+  cua_vao: EntranceType | null;
+  loai_kh: CustomerType | null;
+  quay: CounterType | null;
+  ghi_chu: string | null;
+  nguoi_bam: string | null;
+};
+
 type SummaryRow = {
   stt: number;
   maKH: string;
@@ -149,6 +196,24 @@ type SummaryRow = {
   queueInterarrivalByProcessS: number | "";
 };
 
+type ProcessSummaryRow = {
+  runId: string;
+  maKH: string;
+  processName: ProcessName;
+  arenaModule: string;
+  cuaVao: EntranceType;
+  loaiKH: CustomerType | "";
+  quay: CounterType | "";
+  startTime: string;
+  endTime: string;
+  processDurationS: number | "";
+  processInterarrivalS: number | "";
+  status: "OK" | "DANG_CHAY" | "THIEU_START" | "THIEU_END" | "LOI_THOI_GIAN";
+  errorNote: string;
+  ghiChu: string;
+  nguoiBam: string;
+};
+
 type ActiveCustomerRow = {
   maKH: string;
   loaiKH: CustomerType;
@@ -166,11 +231,31 @@ type ActiveCustomerRow = {
 };
 
 const CUSTOMER_TYPES: { code: CustomerType; label: string; hint: string }[] = [
-  { code: "SAN", label: "Đồ ăn làm sẵn", hint: "Cầm món → xếp hàng → tính tiền → rời quầy" },
-  { code: "CHUAN", label: "Món cần đầu bếp làm", hint: "Nhận phiếu → xếp hàng → tính tiền → rời quầy" },
-  { code: "PIZZA", label: "Pizza", hint: "Vào hàng pizza → order/tính tiền → rời quầy" },
-  { code: "PIZZA_COMBO", label: "Pizza + món khác", hint: "Cầm món khác → hàng pizza → xử lý đơn → rời quầy" },
-  { code: "NUOC", label: "Nước", hint: "Lấy nước → xếp hàng → tính tiền → rời quầy" },
+  {
+    code: "SAN",
+    label: "Đồ ăn làm sẵn",
+    hint: "Cầm món → xếp hàng → tính tiền → rời quầy",
+  },
+  {
+    code: "CHUAN",
+    label: "Món cần đầu bếp làm",
+    hint: "Nhận phiếu → xếp hàng → tính tiền → rời quầy",
+  },
+  {
+    code: "PIZZA",
+    label: "Pizza",
+    hint: "Vào hàng pizza → order/tính tiền → rời quầy",
+  },
+  {
+    code: "PIZZA_COMBO",
+    label: "Pizza + món khác",
+    hint: "Cầm món khác → hàng pizza → xử lý đơn → rời quầy",
+  },
+  {
+    code: "NUOC",
+    label: "Nước",
+    hint: "Lấy nước → xếp hàng → tính tiền → rời quầy",
+  },
 ];
 
 const ALL_COUNTERS: CounterType[] = [
@@ -206,8 +291,34 @@ const TURN_OR_NOT_1_OPTIONS = ["Rẽ", "Không rẽ", "Ra về Exit 1"];
 const TURN_OR_NOT_2_OPTIONS = ["Rẽ", "Không rẽ", "Ra về Exit 3"];
 const TURN_OR_NOT_7_OPTIONS = ["Rẽ", "Không rẽ"];
 const CONTINUE_OPTIONS = ["Continue", "Not continue"];
-const COUNTER_OPTIONS: ChosenCounter[] = ["Q1", "Q2", "Q3"];
 const CUSTOMER_DECISION_OPTIONS: CustomerType[] = ["NUOC", "SAN", "CHUAN", "PIZZA", "PIZZA_COMBO"];
+
+const ARENA_PROCESS_NAMES: ProcessName[] = [
+  "customer selects items",
+  "customer selects items 1",
+  "customer selects items 2",
+  "customer selects items 3",
+  "customer selects items 4",
+  "customer selects items 5",
+  "customer selects items 6",
+  "customer selects items 7",
+  "customer selects items 8",
+  "customer selects items 9",
+  "Payment_1",
+  "Payment_2",
+  "Payment_3",
+];
+
+const PROCESS_GROUPS: { label: string; names: ProcessName[] }[] = [
+  {
+    label: "Customer selects items",
+    names: ARENA_PROCESS_NAMES.filter((name) => name.startsWith("customer selects items")),
+  },
+  {
+    label: "Payment",
+    names: ["Payment_1", "Payment_2", "Payment_3"],
+  },
+];
 
 const palette = {
   bg: "#f6f8fb",
@@ -448,6 +559,53 @@ function mapDbRowToDecisionRow(row: DecisionDbRow): DecisionRow {
   };
 }
 
+function mapDbRowToProcessLogRow(row: ProcessDbRow): ProcessLogRow {
+  return {
+    id: row.id,
+    runId: row.run_id,
+    maKH: row.ma_kh || "",
+    thoiGian: row.thoi_gian,
+    processName: row.process_name,
+    eventType: row.event_type,
+    cuaVao: row.cua_vao || "Không ghi nhận",
+    loaiKH: row.loai_kh || "",
+    quay: row.quay || "",
+    ghiChu: row.ghi_chu || "",
+    nguoiBam: row.nguoi_bam || "",
+  };
+}
+
+function generateProcessRunId(processName: ProcessName, deviceId: string) {
+  const now = new Date();
+  const stamp = `${now.getFullYear()}${pad2(now.getMonth() + 1)}${pad2(now.getDate())}${pad2(now.getHours())}${pad2(now.getMinutes())}${pad2(now.getSeconds())}${pad3(now.getMilliseconds())}`;
+  const cleanProcess = processName.replaceAll(" ", "_").replaceAll("/", "_");
+  const devicePart = deviceId.replace("DV-", "").slice(-4) || "NODE";
+  const randomPart = Math.random().toString(36).slice(2, 5).toUpperCase();
+  return `RUN-${cleanProcess}-${stamp}-${devicePart}-${randomPart}`;
+}
+
+function sortEventsAsc(a: EventRow, b: EventRow) {
+  const ta = parseDateTime(a.thoiGian)?.getTime() || 0;
+  const tb = parseDateTime(b.thoiGian)?.getTime() || 0;
+  if (ta !== tb) return ta - tb;
+  return a.id - b.id;
+}
+
+function sortEventsDesc(a: EventRow, b: EventRow) {
+  return sortEventsAsc(b, a);
+}
+
+function sortProcessLogAsc(a: ProcessLogRow, b: ProcessLogRow) {
+  const ta = parseDateTime(a.thoiGian)?.getTime() || 0;
+  const tb = parseDateTime(b.thoiGian)?.getTime() || 0;
+  if (ta !== tb) return ta - tb;
+  return a.id - b.id;
+}
+
+function sortProcessLogDesc(a: ProcessLogRow, b: ProcessLogRow) {
+  return sortProcessLogAsc(b, a);
+}
+
 function getDecisionMode(decisionName: DecisionName) {
   if (decisionName === "Turn or not 1") return "N-way by Chance";
   if (decisionName === "Turn or not 2") return "N-way by Chance";
@@ -556,15 +714,92 @@ function summarizeQueueChoice(decisionLog: DecisionRow[]) {
   });
 }
 
-function sortEventsAsc(a: EventRow, b: EventRow) {
-  const ta = parseDateTime(a.thoiGian)?.getTime() || 0;
-  const tb = parseDateTime(b.thoiGian)?.getTime() || 0;
-  if (ta !== tb) return ta - tb;
-  return a.id - b.id;
-}
+function buildProcessSummaryRows(processLog: ProcessLogRow[]): ProcessSummaryRow[] {
+  const grouped = new Map<string, ProcessLogRow[]>();
+  for (const row of [...processLog].sort(sortProcessLogAsc)) {
+    if (!grouped.has(row.runId)) grouped.set(row.runId, []);
+    grouped.get(row.runId)!.push(row);
+  }
 
-function sortEventsDesc(a: EventRow, b: EventRow) {
-  return sortEventsAsc(b, a);
+  const result: ProcessSummaryRow[] = [];
+
+  grouped.forEach((rows, runId) => {
+    const ordered = rows.sort(sortProcessLogAsc);
+    const first = ordered[0];
+    const start = ordered.find((r) => r.eventType === "START");
+    const end = ordered.find(
+      (r) => r.eventType === "END" && (!start || (parseDateTime(r.thoiGian)?.getTime() || 0) >= (parseDateTime(start.thoiGian)?.getTime() || 0)),
+    );
+
+    const duration = diffSecondsPrecise(start?.thoiGian || "", end?.thoiGian || "");
+    const status: ProcessSummaryRow["status"] = !start
+      ? "THIEU_START"
+      : !end
+        ? "DANG_CHAY"
+        : duration === "" || Number(duration) <= 0
+          ? "LOI_THOI_GIAN"
+          : "OK";
+
+    const errorNote =
+      status === "OK"
+        ? "Đủ dữ liệu"
+        : status === "DANG_CHAY"
+          ? "Đã bấm START nhưng chưa bấm END"
+          : status === "THIEU_START"
+            ? "Thiếu START"
+            : status === "THIEU_END"
+              ? "Thiếu END"
+              : "Kiểm tra thứ tự thời gian START/END";
+
+    result.push({
+      runId,
+      maKH: first.maKH,
+      processName: first.processName,
+      arenaModule: first.processName,
+      cuaVao: first.cuaVao,
+      loaiKH: first.loaiKH,
+      quay: first.quay,
+      startTime: formatDateTimeVNms(start?.thoiGian || ""),
+      endTime: formatDateTimeVNms(end?.thoiGian || ""),
+      processDurationS: duration,
+      processInterarrivalS: "",
+      status,
+      errorNote,
+      ghiChu: first.ghiChu,
+      nguoiBam: first.nguoiBam,
+    });
+  });
+
+  const byProcess = new Map<string, ProcessSummaryRow[]>();
+  for (const row of result) {
+    if (!row.startTime) continue;
+    if (!byProcess.has(row.processName)) byProcess.set(row.processName, []);
+    byProcess.get(row.processName)!.push(row);
+  }
+
+  byProcess.forEach((items) => {
+    items.sort((a, b) => {
+      const ta = parseDateTime(a.startTime)?.getTime() || 0;
+      const tb = parseDateTime(b.startTime)?.getTime() || 0;
+      if (ta !== tb) return ta - tb;
+      return a.runId.localeCompare(b.runId);
+    });
+
+    for (let i = 0; i < items.length; i++) {
+      if (i === 0) {
+        items[i].processInterarrivalS = "";
+        continue;
+      }
+      items[i].processInterarrivalS = diffSecondsPrecise(items[i - 1].startTime, items[i].startTime);
+    }
+  });
+
+  return result.sort((a, b) => {
+    const ta = parseDateTime(a.startTime)?.getTime() || 0;
+    const tb = parseDateTime(b.startTime)?.getTime() || 0;
+    if (tb !== ta) return tb - ta;
+    return a.runId.localeCompare(b.runId);
+  });
 }
 
 function getCustomerTypeTheme(loai: CustomerType) {
@@ -590,10 +825,7 @@ function addInterarrivalByGroup(
   rows: SummaryRow[],
   getGroup: (r: SummaryRow) => string,
   getTime: (r: SummaryRow) => string,
-  field: keyof Pick<
-    SummaryRow,
-    "systemInterarrivalByEntranceS" | "systemInterarrivalByTypeS" | "queueInterarrivalByCounterS" | "queueInterarrivalByProcessS"
-  >
+  field: keyof Pick<SummaryRow, "systemInterarrivalByEntranceS" | "systemInterarrivalByTypeS" | "queueInterarrivalByCounterS" | "queueInterarrivalByProcessS">,
 ) {
   const grouped = new Map<string, SummaryRow[]>();
   for (const row of rows) {
@@ -639,11 +871,7 @@ function makeLongIA(rows: SummaryRow[], valueField: keyof SummaryRow, groupField
     .filter((row) => row.giaTriGiay !== "");
 }
 
-function makeWideIA(
-  rows: SummaryRow[],
-  getGroup: (r: SummaryRow) => string,
-  getValue: (r: SummaryRow) => number | ""
-) {
+function makeWideIA(rows: SummaryRow[], getGroup: (r: SummaryRow) => string, getValue: (r: SummaryRow) => number | "") {
   const grouped = new Map<string, number[]>();
   for (const row of rows) {
     if (row.dataStatus !== "OK") continue;
@@ -664,16 +892,66 @@ function makeWideIA(
     result.push(obj);
   }
 
-  return result.length ? result : [{ ghiChu: "Chưa có đủ dữ liệu hợp lệ" } as unknown as Record<string, number | "">];
+  return result.length ? result : ([{ ghiChu: "Chưa có đủ dữ liệu hợp lệ" }] as unknown as Record<string, number | "">[]);
+}
+
+function makeProcessLongIA(rows: ProcessSummaryRow[]) {
+  return rows
+    .filter((row) => row.status === "OK" && row.processDurationS !== "")
+    .map((row) => ({
+      phanTich: "Delay/Process time theo từng Process module trong Arena",
+      processName: row.processName,
+      arenaModule: row.arenaModule,
+      maKH: row.maKH,
+      loaiKH: row.loaiKH,
+      cuaVao: row.cuaVao,
+      quay: row.quay,
+      processDurationS: toNumberOrBlank(row.processDurationS),
+    }));
+}
+
+function makeProcessInterarrivalLongIA(rows: ProcessSummaryRow[]) {
+  return rows
+    .filter((row) => row.status === "OK" && row.processInterarrivalS !== "")
+    .map((row) => ({
+      phanTich: "Interarrival vào từng Process module",
+      processName: row.processName,
+      arenaModule: row.arenaModule,
+      maKH: row.maKH,
+      loaiKH: row.loaiKH,
+      cuaVao: row.cuaVao,
+      quay: row.quay,
+      processInterarrivalS: toNumberOrBlank(row.processInterarrivalS),
+    }));
+}
+
+function makeProcessWideIA(rows: ProcessSummaryRow[], value: "duration" | "interarrival") {
+  const grouped = new Map<string, number[]>();
+  for (const row of rows) {
+    if (row.status !== "OK") continue;
+    const raw = value === "duration" ? row.processDurationS : row.processInterarrivalS;
+    if (raw === "") continue;
+    if (!grouped.has(row.processName)) grouped.set(row.processName, []);
+    grouped.get(row.processName)!.push(Number(raw));
+  }
+
+  const keys = ARENA_PROCESS_NAMES.filter((key) => grouped.has(key));
+  const maxLength = Math.max(0, ...keys.map((key) => grouped.get(key)!.length));
+  const result: Record<string, number | "">[] = [];
+
+  for (let i = 0; i < maxLength; i++) {
+    const obj: Record<string, number | ""> = {};
+    for (const key of keys) obj[key] = grouped.get(key)?.[i] ?? "";
+    result.push(obj);
+  }
+
+  return result.length ? result : ([{ ghiChu: "Chưa có đủ dữ liệu process hợp lệ" }] as unknown as Record<string, number | "">[]);
 }
 
 function autoFitColumns(ws: XLSX.WorkSheet, rows: Record<string, unknown>[]) {
   const keys = rows.length ? Object.keys(rows[0]) : [];
   ws["!cols"] = keys.map((key) => {
-    const max = Math.max(
-      key.length,
-      ...rows.map((row) => String(row[key] ?? "").length)
-    );
+    const max = Math.max(key.length, ...rows.map((row) => String(row[key] ?? "").length));
     return { wch: Math.min(Math.max(max + 2, 12), 45) };
   });
 }
@@ -696,12 +974,17 @@ export default function Page() {
   const [deviceId, setDeviceId] = useState("");
   const [eventLog, setEventLog] = useState<EventRow[]>([]);
   const [decisionLog, setDecisionLog] = useState<DecisionRow[]>([]);
+  const [processLog, setProcessLog] = useState<ProcessLogRow[]>([]);
   const [decisionTableReady, setDecisionTableReady] = useState(true);
+  const [processTableReady, setProcessTableReady] = useState(true);
   const [selectedDecisionName, setSelectedDecisionName] = useState<DecisionName>("Turn or not 1");
   const [selectedDecisionOption, setSelectedDecisionOption] = useState("Rẽ");
   const [q1Length, setQ1Length] = useState<number | "">("");
   const [q2Length, setQ2Length] = useState<number | "">("");
   const [q3Length, setQ3Length] = useState<number | "">("");
+  const [selectedProcessName, setSelectedProcessName] = useState<ProcessName>("customer selects items");
+  const [activeProcessRunId, setActiveProcessRunId] = useState("");
+  const [processNote, setProcessNote] = useState("");
   const [decisionNote, setDecisionNote] = useState("");
   const [loading, setLoading] = useState(false);
   const loadedRef = useRef(false);
@@ -709,9 +992,7 @@ export default function Page() {
   const currentFlow = loaiKH ? getFlow(loaiKH) : [];
   const validCounters = loaiKH ? getValidCounters(loaiKH) : ALL_COUNTERS;
 
-  const currentCustomerEvents = useMemo(() => {
-    return eventLog.filter((row) => row.maKH === currentMaKH).sort(sortEventsAsc);
-  }, [eventLog, currentMaKH]);
+  const currentCustomerEvents = useMemo(() => eventLog.filter((row) => row.maKH === currentMaKH).sort(sortEventsAsc), [eventLog, currentMaKH]);
 
   const nextStepIndex = currentCustomerEvents.length;
   const nextStep = currentFlow[nextStepIndex];
@@ -751,13 +1032,21 @@ export default function Page() {
     });
   }
 
+  function upsertProcessRow(newRow: ProcessLogRow) {
+    setProcessLog((prev) => {
+      const idx = prev.findIndex((x) => x.id === newRow.id);
+      if (idx >= 0) {
+        const copy = [...prev];
+        copy[idx] = newRow;
+        return copy.sort(sortProcessLogDesc);
+      }
+      return [newRow, ...prev].sort(sortProcessLogDesc);
+    });
+  }
+
   async function loadEventLog() {
     setLoading(true);
-    const { data, error } = await supabase
-      .from("event_log")
-      .select("*")
-      .order("thoi_gian", { ascending: false })
-      .order("id", { ascending: false });
+    const { data, error } = await supabase.from("event_log").select("*").order("thoi_gian", { ascending: false }).order("id", { ascending: false });
 
     if (error) {
       alert(`Không tải được dữ liệu: ${error.message}`);
@@ -770,11 +1059,7 @@ export default function Page() {
   }
 
   async function loadDecisionLog() {
-    const { data, error } = await supabase
-      .from("decision_log")
-      .select("*")
-      .order("thoi_gian", { ascending: false })
-      .order("id", { ascending: false });
+    const { data, error } = await supabase.from("decision_log").select("*").order("thoi_gian", { ascending: false }).order("id", { ascending: false });
 
     if (error) {
       console.warn("Không tải được decision_log. Nếu chưa tạo bảng, hãy chạy SQL tạo bảng decision_log.", error.message);
@@ -785,6 +1070,26 @@ export default function Page() {
 
     setDecisionTableReady(true);
     setDecisionLog(((data || []) as DecisionDbRow[]).map(mapDbRowToDecisionRow));
+  }
+
+  async function loadProcessLog() {
+    const { data, error } = await supabase.from("process_log").select("*").order("thoi_gian", { ascending: false }).order("id", { ascending: false });
+
+    if (error) {
+      console.warn("Không tải được process_log. Nếu chưa tạo bảng, hãy chạy SQL tạo bảng process_log.", error.message);
+      setProcessTableReady(false);
+      setProcessLog([]);
+      return;
+    }
+
+    setProcessTableReady(true);
+    setProcessLog(((data || []) as ProcessDbRow[]).map(mapDbRowToProcessLogRow));
+  }
+
+  function refreshAllData() {
+    loadEventLog();
+    loadDecisionLog();
+    loadProcessLog();
   }
 
   useEffect(() => {
@@ -812,6 +1117,7 @@ export default function Page() {
       loadedRef.current = true;
       loadEventLog();
       loadDecisionLog();
+      loadProcessLog();
     }
 
     const channel = supabase
@@ -831,6 +1137,14 @@ export default function Page() {
         const oldRow = payload.old as { id?: number };
         if (oldRow?.id) setDecisionLog((prev) => prev.filter((x) => x.id !== oldRow.id));
         else loadDecisionLog();
+      })
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "process_log" }, (payload) => {
+        upsertProcessRow(mapDbRowToProcessLogRow(payload.new as ProcessDbRow));
+      })
+      .on("postgres_changes", { event: "DELETE", schema: "public", table: "process_log" }, (payload) => {
+        const oldRow = payload.old as { id?: number };
+        if (oldRow?.id) setProcessLog((prev) => prev.filter((x) => x.id !== oldRow.id));
+        else loadProcessLog();
       })
       .subscribe();
 
@@ -1010,6 +1324,85 @@ export default function Page() {
     setDecisionLog([]);
   }
 
+  async function addProcessEvent(eventType: ProcessEventType) {
+    if (!processTableReady) {
+      alert("Chưa có bảng process_log trong Supabase. Hãy tạo bảng process_log trước rồi tải lại trang.");
+      return;
+    }
+    if (!tenNguoiBam.trim()) {
+      alert("Bạn chưa nhập tên người bấm.");
+      return;
+    }
+
+    let runId = activeProcessRunId;
+    if (eventType === "START") {
+      runId = generateProcessRunId(selectedProcessName, deviceId);
+      setActiveProcessRunId(runId);
+    } else if (!runId) {
+      const latestStart = [...processLog]
+        .filter((row) => row.processName === selectedProcessName && row.eventType === "START")
+        .sort(sortProcessLogDesc)
+        .find((start) => !processLog.some((row) => row.runId === start.runId && row.eventType === "END"));
+      runId = latestStart?.runId || "";
+    }
+
+    if (!runId) {
+      alert("Chưa có lần START nào đang chạy cho Process này.");
+      return;
+    }
+
+    const { data, error } = await supabase
+      .from("process_log")
+      .insert({
+        run_id: runId,
+        ma_kh: currentMaKH || null,
+        thoi_gian: new Date().toISOString(),
+        process_name: selectedProcessName,
+        event_type: eventType,
+        cua_vao: cuaVao,
+        loai_kh: loaiKH || null,
+        quay: quay || null,
+        ghi_chu: processNote.trim(),
+        nguoi_bam: tenNguoiBam.trim(),
+      })
+      .select("*");
+
+    if (error) {
+      alert(`Lưu Process_Log thất bại: ${error.message}`);
+      return;
+    }
+
+    const inserted = data?.[0] as ProcessDbRow | undefined;
+    if (inserted) upsertProcessRow(mapDbRowToProcessLogRow(inserted));
+    if (eventType === "END") {
+      setActiveProcessRunId("");
+      setProcessNote("");
+    }
+  }
+
+  async function deleteProcessRow(id: number) {
+    const ok = window.confirm("Xóa dòng Process_Log này?");
+    if (!ok) return;
+    const { error } = await supabase.from("process_log").delete().eq("id", id);
+    if (error) {
+      alert(`Xóa Process_Log thất bại: ${error.message}`);
+      return;
+    }
+    setProcessLog((prev) => prev.filter((x) => x.id !== id));
+  }
+
+  async function clearProcessData() {
+    const ok = window.confirm("Xóa toàn bộ dữ liệu Process_Log?");
+    if (!ok) return;
+    const { error } = await supabase.from("process_log").delete().neq("id", 0);
+    if (error) {
+      alert(`Xóa Process_Log thất bại: ${error.message}`);
+      return;
+    }
+    setProcessLog([]);
+    setActiveProcessRunId("");
+  }
+
   async function clearAllData() {
     const ok = window.confirm("Bạn có chắc muốn xóa toàn bộ dữ liệu trong bảng event_log không?");
     if (!ok) return;
@@ -1064,18 +1457,11 @@ export default function Page() {
       const serviceTimeS = diffSecondsPrecise(serviceStart?.thoiGian || "", serviceEnd?.thoiGian || "");
       const systemTimeS = diffSecondsPrecise(systemStart?.thoiGian || "", serviceEnd?.thoiGian || "");
 
-      const missingSteps = flow
-        .filter((step) => !ordered.some((r) => r.suKien === step.code))
-        .map((step) => step.shortLabel);
+      const missingSteps = flow.filter((step) => !ordered.some((r) => r.suKien === step.code)).map((step) => step.shortLabel);
 
-      const timeError =
-        waitingTimeS === "" || serviceTimeS === "" || systemTimeS === "" || Number(serviceTimeS) <= 0;
+      const timeError = waitingTimeS === "" || serviceTimeS === "" || systemTimeS === "" || Number(serviceTimeS) <= 0;
 
-      const dataStatus: SummaryRow["dataStatus"] = missingSteps.length
-        ? "THIEU_BUOC"
-        : timeError
-          ? "LOI_THOI_GIAN"
-          : "OK";
+      const dataStatus: SummaryRow["dataStatus"] = missingSteps.length ? "THIEU_BUOC" : timeError ? "LOI_THOI_GIAN" : "OK";
 
       const errorNote = missingSteps.length
         ? `Thiếu bước: ${missingSteps.join(", ")}`
@@ -1171,12 +1557,26 @@ export default function Page() {
     return result.sort((a, b) => Number(a.done) - Number(b.done) || b.maKH.localeCompare(a.maKH));
   }, [eventLog]);
 
+  const processSummaryRows = useMemo(() => buildProcessSummaryRows(processLog), [processLog]);
+  const processOKCount = processSummaryRows.filter((r) => r.status === "OK").length;
+  const activeProcessCount = processSummaryRows.filter((r) => r.status === "DANG_CHAY").length;
+  const processLongIARows = useMemo(() => makeProcessLongIA(processSummaryRows), [processSummaryRows]);
+  const processInterarrivalLongIARows = useMemo(() => makeProcessInterarrivalLongIA(processSummaryRows), [processSummaryRows]);
+  const processWideDurationRows = useMemo(() => makeProcessWideIA(processSummaryRows, "duration"), [processSummaryRows]);
+  const processWideInterarrivalRows = useMemo(() => makeProcessWideIA(processSummaryRows, "interarrival"), [processSummaryRows]);
+  const selectedProcessActiveRun = useMemo(() => {
+    return [...processLog]
+      .filter((row) => row.processName === selectedProcessName && row.eventType === "START")
+      .sort(sortProcessLogDesc)
+      .find((start) => !processLog.some((row) => row.runId === start.runId && row.eventType === "END"));
+  }, [processLog, selectedProcessName]);
+
   const okCount = summaryRows.filter((r) => r.dataStatus === "OK").length;
   const errorCount = summaryRows.length - okCount;
   const decisionPercentRows = useMemo(() => summarizeDecisionPercent(decisionLog), [decisionLog]);
-const queueChoiceRows = useMemo(() => summarizeQueueChoice(decisionLog), [decisionLog]);
-const isCanPayDecision = selectedDecisionName.startsWith("Can I pay now");
-const selectedDecisionOptions = getDecisionOptions(selectedDecisionName);
+  const queueChoiceRows = useMemo(() => summarizeQueueChoice(decisionLog), [decisionLog]);
+  const isCanPayDecision = selectedDecisionName.startsWith("Can I pay now");
+  const selectedDecisionOptions = getDecisionOptions(selectedDecisionName);
 
   function exportExcel() {
     const wb = XLSX.utils.book_new();
@@ -1200,7 +1600,7 @@ const selectedDecisionOptions = getDecisionOptions(selectedDecisionName);
         nguoiBam: r.nguoiBam,
         ghiChu: r.ghiChu,
         quyTrinh: r.quyTrinh,
-      }))
+      })),
     );
 
     appendSheet(
@@ -1231,7 +1631,7 @@ const selectedDecisionOptions = getDecisionOptions(selectedDecisionName);
         queueInterarrivalByCounterS: toNumberOrBlank(r.queueInterarrivalByCounterS),
         queueInterarrivalByProcessS: toNumberOrBlank(r.queueInterarrivalByProcessS),
         ghiChu: r.ghiChu,
-      }))
+      })),
     );
 
     appendSheet(
@@ -1258,7 +1658,7 @@ const selectedDecisionOptions = getDecisionOptions(selectedDecisionName);
           waitingTimeS: toNumberOrBlank(r.waitingTimeS),
           serviceTimeS: toNumberOrBlank(r.serviceTimeS),
           systemTimeS: toNumberOrBlank(r.systemTimeS),
-        }))
+        })),
     );
 
     appendSheet(
@@ -1273,67 +1673,105 @@ const selectedDecisionOptions = getDecisionOptions(selectedDecisionName);
         loaiKH: r.loaiKH,
         cuaVao: r.cuaVao,
         quay: r.quay,
-      }))
+      })),
     );
-    appendSheet(
-  wb,
-  "Decision_Log",
-  decisionLog.map((r, i) => ({
-    stt: i + 1,
-    id: r.id,
-    maKH: r.maKH,
-    thoiGian: formatDateTimeVNms(r.thoiGian),
-    cuaVao: r.cuaVao,
-    decisionName: r.decisionName,
-    arenaMode: getDecisionMode(r.decisionName),
-    optionSelected: r.optionSelected,
-    arenaBranchNote: getArenaBranchNote(r.decisionName, r.optionSelected),
-    loaiKH: r.loaiKH,
-    q1Length: r.q1Length,
-    q2Length: r.q2Length,
-    q3Length: r.q3Length,
-    chosenCounter: r.chosenCounter,
-    shortestQueueCounter: getShortestQueueCounter(r.q1Length, r.q2Length, r.q3Length),
-    choseShortestQueue:
-      getShortestQueueCounter(r.q1Length, r.q2Length, r.q3Length) && r.chosenCounter
-        ? getShortestQueueCounter(r.q1Length, r.q2Length, r.q3Length) === r.chosenCounter
-        : "",
-    ghiChu: r.ghiChu,
-    nguoiBam: r.nguoiBam,
-  }))
-);
 
-appendSheet(wb, "Decision_Percent", decisionPercentRows);
-appendSheet(
-  wb,
-  "Arena_Decide_Setup",
-  DECISION_NAMES.flatMap((decisionName) =>
-    getDecisionOptions(decisionName).map((option, index) => ({
-      decisionName,
-      arenaMode: getDecisionMode(decisionName),
-      branchOrder: index + 1,
-      optionSelected: option,
-      arenaBranchNote: getArenaBranchNote(decisionName, option),
-    }))
-  )
-);
-appendSheet(wb, "Queue_Choice_Analysis", queueChoiceRows);
+    appendSheet(
+      wb,
+      "Decision_Log",
+      decisionLog.map((r, i) => ({
+        stt: i + 1,
+        id: r.id,
+        maKH: r.maKH,
+        thoiGian: formatDateTimeVNms(r.thoiGian),
+        cuaVao: r.cuaVao,
+        decisionName: r.decisionName,
+        arenaMode: getDecisionMode(r.decisionName),
+        optionSelected: r.optionSelected,
+        arenaBranchNote: getArenaBranchNote(r.decisionName, r.optionSelected),
+        loaiKH: r.loaiKH,
+        q1Length: r.q1Length,
+        q2Length: r.q2Length,
+        q3Length: r.q3Length,
+        chosenCounter: r.chosenCounter,
+        shortestQueueCounter: getShortestQueueCounter(r.q1Length, r.q2Length, r.q3Length),
+        choseShortestQueue:
+          getShortestQueueCounter(r.q1Length, r.q2Length, r.q3Length) && r.chosenCounter ? getShortestQueueCounter(r.q1Length, r.q2Length, r.q3Length) === r.chosenCounter : "",
+        ghiChu: r.ghiChu,
+        nguoiBam: r.nguoiBam,
+      })),
+    );
+
+    appendSheet(wb, "Decision_Percent", decisionPercentRows);
+    appendSheet(
+      wb,
+      "Arena_Decide_Setup",
+      DECISION_NAMES.flatMap((decisionName) =>
+        getDecisionOptions(decisionName).map((option, index) => ({
+          decisionName,
+          arenaMode: getDecisionMode(decisionName),
+          branchOrder: index + 1,
+          optionSelected: option,
+          arenaBranchNote: getArenaBranchNote(decisionName, option),
+        })),
+      ),
+    );
+    appendSheet(wb, "Queue_Choice_Analysis", queueChoiceRows);
+
+    appendSheet(
+      wb,
+      "Process_Log",
+      [...processLog].sort(sortProcessLogAsc).map((r, i) => ({
+        stt: i + 1,
+        id: r.id,
+        runId: r.runId,
+        maKH: r.maKH,
+        processName: r.processName,
+        eventType: r.eventType,
+        thoiGian: formatDateTimeVNms(r.thoiGian),
+        cuaVao: r.cuaVao,
+        loaiKH: r.loaiKH,
+        quay: r.quay,
+        ghiChu: r.ghiChu,
+        nguoiBam: r.nguoiBam,
+      })),
+    );
+
+    appendSheet(
+      wb,
+      "Process_Summary",
+      processSummaryRows.map((r, i) => ({
+        stt: i + 1,
+        runId: r.runId,
+        maKH: r.maKH,
+        arenaModule: r.arenaModule,
+        processName: r.processName,
+        cuaVao: r.cuaVao,
+        loaiKH: r.loaiKH,
+        quay: r.quay,
+        startTime: r.startTime,
+        endTime: r.endTime,
+        processDurationS: toNumberOrBlank(r.processDurationS),
+        processInterarrivalS: toNumberOrBlank(r.processInterarrivalS),
+        status: r.status,
+        errorNote: r.errorNote,
+        nguoiBam: r.nguoiBam,
+        ghiChu: r.ghiChu,
+      })),
+    );
+
+    appendSheet(wb, "IA_All_Process_Long", processLongIARows);
+    appendSheet(wb, "IA_All_Process_Wide", processWideDurationRows);
+    appendSheet(wb, "IA_Process_IArr_Long", processInterarrivalLongIARows);
+    appendSheet(wb, "IA_Process_IArr_Wide", processWideInterarrivalRows);
 
     appendSheet(wb, "IA_Create_Entrance_Long", makeLongIA(summaryRows, "systemInterarrivalByEntranceS", "createByEntrance", "Interarrival theo Create/Entrance"));
     appendSheet(wb, "IA_Create_Type_Long", makeLongIA(summaryRows, "systemInterarrivalByTypeS", "createByType", "Interarrival theo loại khách"));
     appendSheet(wb, "IA_Queue_Counter_Long", makeLongIA(summaryRows, "queueInterarrivalByCounterS", "queueName", "Interarrival vào hàng theo quầy"));
     appendSheet(wb, "IA_Service_Long", makeLongIA(summaryRows, "serviceTimeS", "processKey", "Service time theo process"));
 
-    appendSheet(
-      wb,
-      "IA_Create_Entrance_Wide",
-      makeWideIA(summaryRows, (r) => r.createByEntrance, (r) => r.systemInterarrivalByEntranceS)
-    );
-    appendSheet(
-      wb,
-      "IA_Service_Process_Wide",
-      makeWideIA(summaryRows, (r) => r.processKey, (r) => r.serviceTimeS)
-    );
+    appendSheet(wb, "IA_Create_Entrance_Wide", makeWideIA(summaryRows, (r) => r.createByEntrance, (r) => r.systemInterarrivalByEntranceS));
+    appendSheet(wb, "IA_Service_Process_Wide", makeWideIA(summaryRows, (r) => r.processKey, (r) => r.serviceTimeS));
 
     const stamp = formatDateTimeVNms(new Date()).replaceAll("-", "").replaceAll(":", "").replaceAll(" ", "_").replaceAll(".", "");
     XLSX.writeFile(wb, `emart_arena_input_${stamp}.xlsx`);
@@ -1345,15 +1783,13 @@ appendSheet(wb, "Queue_Choice_Analysis", queueChoiceRows);
         <header style={cardStyle}>
           <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
             <div>
-              <h1 style={{ margin: 0, fontSize: 24 }}>Bấm giờ Emart cho Arena </h1>
-              <p style={{ margin: "6px 0 0", color: palette.sub }}>
-                Tác Giả: Bùi Văn Cường.
-              </p>
+              <h1 style={{ margin: 0, fontSize: 24 }}>Bấm giờ Emart cho Arena</h1>
+              <p style={{ margin: "6px 0 0", color: palette.sub }}>Tác giả: Bùi Văn Cường.</p>
             </div>
             <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-              <button onClick={loadEventLog} style={secondaryButtonStyle}>{loading ? "Đang tải..." : "Tải lại"}</button>
+              <button onClick={refreshAllData} style={secondaryButtonStyle}>{loading ? "Đang tải..." : "Tải lại"}</button>
               <button onClick={exportExcel} style={primaryButtonStyle}>Xuất Excel Input Analyzer</button>
-              <button onClick={clearAllData} style={dangerButtonStyle}>Xóa toàn bộ</button>
+              <button onClick={clearAllData} style={dangerButtonStyle}>Xóa event_log</button>
             </div>
           </div>
 
@@ -1361,6 +1797,8 @@ appendSheet(wb, "Queue_Choice_Analysis", queueChoiceRows);
             <InfoBox label="Tổng khách" value={String(summaryRows.length)} />
             <InfoBox label="Đủ dữ liệu" value={String(okCount)} tone="green" />
             <InfoBox label="Cần kiểm tra" value={String(errorCount)} tone={errorCount ? "red" : "green"} />
+            <InfoBox label="Process OK" value={`${processOKCount}/${processSummaryRows.length}`} tone={processSummaryRows.length && processOKCount === processSummaryRows.length ? "green" : undefined} />
+            <InfoBox label="Process đang chạy" value={String(activeProcessCount)} tone={activeProcessCount ? "red" : "green"} />
             <InfoBox label="Thiết bị" value={deviceId || "Đang tạo..."} />
           </div>
         </header>
@@ -1422,17 +1860,12 @@ appendSheet(wb, "Queue_Choice_Analysis", queueChoiceRows);
             </div>
 
             <Field label="Ghi chú quan sát" block>
-              <textarea
-                value={ghiChu}
-                onChange={(e) => setGhiChu(e.target.value)}
-                style={{ ...inputStyle, minHeight: 70, resize: "vertical" }}
-                placeholder="VD: khách mua combo, đổi quầy, thanh toán nhiều món..."
-              />
+              <textarea value={ghiChu} onChange={(e) => setGhiChu(e.target.value)} style={{ ...inputStyle, minHeight: 70, resize: "vertical" }} placeholder="VD: khách mua combo, đổi quầy, thanh toán nhiều món..." />
             </Field>
           </div>
 
           <div style={cardStyle}>
-            <h2 style={sectionTitleStyle}>2. Bấm mốc thời gian</h2>
+            <h2 style={sectionTitleStyle}>2. Bấm mốc thời gian theo khách</h2>
             {currentMaKH ? (
               <div style={{ display: "grid", gap: 10 }}>
                 <div style={{ background: palette.card2, border: `1px solid ${palette.line}`, borderRadius: 14, padding: 12 }}>
@@ -1462,11 +1895,7 @@ appendSheet(wb, "Queue_Choice_Analysis", queueChoiceRows);
                   })}
                 </div>
 
-                <button
-                  onClick={addNextEvent}
-                  disabled={isCurrentDone}
-                  style={{ ...primaryButtonStyle, width: "100%", opacity: isCurrentDone ? 0.5 : 1 }}
-                >
+                <button onClick={addNextEvent} disabled={isCurrentDone} style={{ ...primaryButtonStyle, width: "100%", opacity: isCurrentDone ? 0.5 : 1 }}>
                   {isCurrentDone ? "Khách đã đủ bước" : `Bấm: ${nextStep?.shortLabel || "Bước tiếp theo"}`}
                 </button>
                 <button onClick={resetCurrentCustomer} style={{ ...dangerButtonStyle, width: "100%" }}>Reset khách hiện tại</button>
@@ -1501,189 +1930,207 @@ appendSheet(wb, "Queue_Choice_Analysis", queueChoiceRows);
                     <div style={{ fontWeight: 900, wordBreak: "break-all" }}>{c.maKH}</div>
                     <div style={{ color: theme.text, fontWeight: 700, fontSize: 13 }}>{c.loaiLabel}</div>
                     <div style={{ color: palette.sub, fontSize: 12 }}>{c.cuaVao} • {getCounterCode(c.quay)} • {c.stepIndex}/{c.totalSteps}</div>
-                    <div style={{ marginTop: 6, fontSize: 12, color: c.done ? palette.green : palette.amber }}>
-                      {c.done ? "Đã đủ bước" : `Cần bấm: ${c.nextStep?.shortLabel}`}
-                    </div>
+                    <div style={{ marginTop: 6, fontSize: 12, color: c.done ? palette.green : palette.amber }}>{c.done ? "Đã đủ bước" : `Cần bấm: ${c.nextStep?.shortLabel}`}</div>
                   </button>
                 );
               })}
             </div>
           )}
         </section>
+
         <section style={cardStyle}>
-  <h2 style={sectionTitleStyle}>2B. Bấm dữ liệu cho các cục Decide</h2>
+          <h2 style={sectionTitleStyle}>2C. Bấm START/END để lấy phân phối tất cả cục Process</h2>
 
-  {!decisionTableReady && (
-    <div
-      style={{
-        background: palette.redSoft,
-        color: palette.red,
-        border: `1px solid ${palette.red}`,
-        borderRadius: 12,
-        padding: 10,
-        marginBottom: 12,
-        fontWeight: 700,
-      }}
-    >
-      Chưa có bảng decision_log trong Supabase. Hãy tạo bảng decision_log trước.
-    </div>
-  )}
+          {!processTableReady && (
+            <div style={{ background: palette.redSoft, color: palette.red, border: `1px solid ${palette.red}`, borderRadius: 12, padding: 10, marginBottom: 12, fontWeight: 700 }}>
+              Chưa có bảng process_log trong Supabase. Hãy tạo bảng process_log trước.
+            </div>
+          )}
 
-  <div style={gridFormStyle}>
-    <Field label="Tên cục Decide">
-      <select
-        value={selectedDecisionName}
-        onChange={(e) => setSelectedDecisionName(e.target.value as DecisionName)}
-        style={inputStyle}
-      >
-        {DECISION_NAMES.map((name) => (
-          <option key={name} value={name}>
-            {name}
-          </option>
-        ))}
-      </select>
-    </Field>
+          <div style={gridFormStyle}>
+            <Field label="Tên cục Process trong Arena">
+              <select
+                value={selectedProcessName}
+                onChange={(e) => {
+                  setSelectedProcessName(e.target.value as ProcessName);
+                  setActiveProcessRunId("");
+                }}
+                style={inputStyle}
+              >
+                {PROCESS_GROUPS.map((group) => (
+                  <optgroup key={group.label} label={group.label}>
+                    {group.names.map((name) => (
+                      <option key={name} value={name}>{name}</option>
+                    ))}
+                  </optgroup>
+                ))}
+              </select>
+            </Field>
 
-    <Field label="Nhánh khách chọn">
-      <select
-        value={selectedDecisionOption}
-        onChange={(e) => setSelectedDecisionOption(e.target.value)}
-        style={inputStyle}
-      >
-        {selectedDecisionOptions.map((option) => (
-          <option key={option} value={option}>
-            {option}
-          </option>
-        ))}
-      </select>
-    </Field>
+            <Field label="Mã KH liên kết">
+              <input value={currentMaKH || "Không gắn mã KH"} readOnly style={inputStyle} />
+            </Field>
 
-    <Field label="Cửa vào">
-      <select
-        value={cuaVao}
-        onChange={(e) => setCuaVao(e.target.value as RecordableEntrance)}
-        style={inputStyle}
-      >
-        {ENTRANCES.map((x) => (
-          <option key={x} value={x}>
-            {x}
-          </option>
-        ))}
-      </select>
-    </Field>
+            <Field label="Run đang mở">
+              <input value={activeProcessRunId || selectedProcessActiveRun?.runId || "Chưa START"} readOnly style={inputStyle} />
+            </Field>
 
-    <Field label="Loại dữ liệu Arena">
-      <input value={getDecisionMode(selectedDecisionName)} readOnly style={inputStyle} />
-    </Field>
-  </div>
+            <Field label="Trạng thái">
+              <input value={activeProcessRunId || selectedProcessActiveRun ? "Đang chạy - cần bấm END" : "Sẵn sàng START"} readOnly style={inputStyle} />
+            </Field>
+          </div>
 
-  {isCanPayDecision && (
-    <div style={{ ...gridFormStyle, marginTop: 12 }}>
-      <Field label="Q1 đang chờ">
-        <input
-          type="number"
-          min={0}
-          value={q1Length}
-          onChange={(e) => setQ1Length(e.target.value === "" ? "" : Number(e.target.value))}
-          style={inputStyle}
-        />
-      </Field>
+          <Field label="Ghi chú Process" block>
+            <textarea value={processNote} onChange={(e) => setProcessNote(e.target.value)} style={{ ...inputStyle, minHeight: 60, resize: "vertical" }} placeholder="VD: khách lựa đồ lâu, đổi món, nhân viên xử lý nhiều đơn, thanh toán QR..." />
+          </Field>
 
-      <Field label="Q2 đang chờ">
-        <input
-          type="number"
-          min={0}
-          value={q2Length}
-          onChange={(e) => setQ2Length(e.target.value === "" ? "" : Number(e.target.value))}
-          style={inputStyle}
-        />
-      </Field>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 12 }}>
+            <button onClick={() => addProcessEvent("START")} style={primaryButtonStyle}>START Process</button>
+            <button onClick={() => addProcessEvent("END")} style={secondaryButtonStyle}>END Process</button>
+            <button onClick={clearProcessData} style={dangerButtonStyle}>Xóa Process_Log</button>
+          </div>
 
-      <Field label="Q3 đang chờ">
-        <input
-          type="number"
-          min={0}
-          value={q3Length}
-          onChange={(e) => setQ3Length(e.target.value === "" ? "" : Number(e.target.value))}
-          style={inputStyle}
-        />
-      </Field>
+          <div style={{ marginTop: 16, overflowX: "auto" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+              <thead>
+                <tr style={{ background: palette.card2 }}>
+                  {["Process", "Mã KH", "Start", "End", "Duration (s)", "Interarrival (s)", "Status", "Người bấm"].map((h) => <th key={h} style={thStyle}>{h}</th>)}
+                </tr>
+              </thead>
+              <tbody>
+                {processSummaryRows.slice(0, 25).map((r) => (
+                  <tr key={r.runId}>
+                    <td style={tdStyle}>{r.processName}</td>
+                    <td style={tdStyle}>{r.maKH}</td>
+                    <td style={tdStyle}>{r.startTime}</td>
+                    <td style={tdStyle}>{r.endTime}</td>
+                    <td style={tdStyle}>{toNumberOrBlank(r.processDurationS)}</td>
+                    <td style={tdStyle}>{toNumberOrBlank(r.processInterarrivalS)}</td>
+                    <td style={{ ...tdStyle, color: r.status === "OK" ? palette.green : palette.red, fontWeight: 800 }} title={r.errorNote}>{r.status}</td>
+                    <td style={tdStyle}>{r.nguoiBam}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
 
-      <Field label="Quầy ngắn nhất">
-        <input
-          value={getShortestQueueCounter(q1Length, q2Length, q3Length)}
-          readOnly
-          style={inputStyle}
-        />
-      </Field>
-    </div>
-  )}
+          <div style={{ marginTop: 16, overflowX: "auto" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+              <thead>
+                <tr style={{ background: palette.card2 }}>
+                  {["Thời gian", "Process", "Event", "Run", "Mã KH", "Người bấm", "Xóa"].map((h) => <th key={h} style={thStyle}>{h}</th>)}
+                </tr>
+              </thead>
+              <tbody>
+                {processLog.slice(0, 20).map((r) => (
+                  <tr key={r.id}>
+                    <td style={tdStyle}>{formatDateTimeVNms(r.thoiGian)}</td>
+                    <td style={tdStyle}>{r.processName}</td>
+                    <td style={tdStyle}>{r.eventType}</td>
+                    <td style={tdStyle}>{r.runId}</td>
+                    <td style={tdStyle}>{r.maKH}</td>
+                    <td style={tdStyle}>{r.nguoiBam}</td>
+                    <td style={tdStyle}><button onClick={() => deleteProcessRow(r.id)} style={dangerButtonStyle}>Xóa</button></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
 
-  <Field label="Ghi chú Decide" block>
-    <textarea
-      value={decisionNote}
-      onChange={(e) => setDecisionNote(e.target.value)}
-      style={{ ...inputStyle, minHeight: 60, resize: "vertical" }}
-      placeholder="VD: khách chọn quầy gần nhất, khách đi theo nhóm, khách đổi hướng..."
-    />
-  </Field>
+          <p style={{ margin: "10px 0 0", color: palette.sub, fontSize: 13 }}>
+            Sheet cần dùng cho Input Analyzer: IA_All_Process_Wide. Mỗi cột là một Process module trong Arena, mỗi dòng là một lần đo Delay/Process time tính bằng giây.
+          </p>
+        </section>
 
-  <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 12 }}>
-    <button onClick={addDecisionLog} style={primaryButtonStyle}>
-      Bấm Decision
-    </button>
+        <section style={cardStyle}>
+          <h2 style={sectionTitleStyle}>2B. Bấm dữ liệu cho các cục Decide</h2>
 
-    <button onClick={clearDecisionData} style={dangerButtonStyle}>
-      Xóa Decision_Log
-    </button>
-  </div>
+          {!decisionTableReady && (
+            <div style={{ background: palette.redSoft, color: palette.red, border: `1px solid ${palette.red}`, borderRadius: 12, padding: 10, marginBottom: 12, fontWeight: 700 }}>
+              Chưa có bảng decision_log trong Supabase. Hãy tạo bảng decision_log trước.
+            </div>
+          )}
 
-  <div style={{ marginTop: 16, overflowX: "auto" }}>
-    <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
-      <thead>
-        <tr style={{ background: palette.card2 }}>
-          {[
-            "Thời gian",
-            "Mã KH",
-            "Decide",
-            "Nhánh chọn",
-            "Q1",
-            "Q2",
-            "Q3",
-            "Quầy chọn",
-            "Người bấm",
-            "Xóa",
-          ].map((h) => (
-            <th key={h} style={thStyle}>
-              {h}
-            </th>
-          ))}
-        </tr>
-      </thead>
+          <div style={gridFormStyle}>
+            <Field label="Tên cục Decide">
+              <select value={selectedDecisionName} onChange={(e) => setSelectedDecisionName(e.target.value as DecisionName)} style={inputStyle}>
+                {DECISION_NAMES.map((name) => <option key={name} value={name}>{name}</option>)}
+              </select>
+            </Field>
 
-      <tbody>
-        {decisionLog.slice(0, 20).map((r) => (
-          <tr key={r.id}>
-            <td style={tdStyle}>{formatDateTimeVNms(r.thoiGian)}</td>
-            <td style={tdStyle}>{r.maKH}</td>
-            <td style={tdStyle}>{r.decisionName}</td>
-            <td style={tdStyle}>{r.optionSelected}</td>
-            <td style={tdStyle}>{r.q1Length}</td>
-            <td style={tdStyle}>{r.q2Length}</td>
-            <td style={tdStyle}>{r.q3Length}</td>
-            <td style={tdStyle}>{r.chosenCounter}</td>
-            <td style={tdStyle}>{r.nguoiBam}</td>
-            <td style={tdStyle}>
-              <button onClick={() => deleteDecisionRow(r.id)} style={dangerButtonStyle}>
-                Xóa
-              </button>
-            </td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
-  </div>
-</section>
+            <Field label="Nhánh khách chọn">
+              <select value={selectedDecisionOption} onChange={(e) => setSelectedDecisionOption(e.target.value)} style={inputStyle}>
+                {selectedDecisionOptions.map((option) => <option key={option} value={option}>{option}</option>)}
+              </select>
+            </Field>
+
+            <Field label="Cửa vào">
+              <select value={cuaVao} onChange={(e) => setCuaVao(e.target.value as RecordableEntrance)} style={inputStyle}>
+                {ENTRANCES.map((x) => <option key={x} value={x}>{x}</option>)}
+              </select>
+            </Field>
+
+            <Field label="Loại dữ liệu Arena">
+              <input value={getDecisionMode(selectedDecisionName)} readOnly style={inputStyle} />
+            </Field>
+          </div>
+
+          {isCanPayDecision && (
+            <div style={{ ...gridFormStyle, marginTop: 12 }}>
+              <Field label="Q1 đang chờ">
+                <input type="number" min={0} value={q1Length} onChange={(e) => setQ1Length(e.target.value === "" ? "" : Number(e.target.value))} style={inputStyle} />
+              </Field>
+
+              <Field label="Q2 đang chờ">
+                <input type="number" min={0} value={q2Length} onChange={(e) => setQ2Length(e.target.value === "" ? "" : Number(e.target.value))} style={inputStyle} />
+              </Field>
+
+              <Field label="Q3 đang chờ">
+                <input type="number" min={0} value={q3Length} onChange={(e) => setQ3Length(e.target.value === "" ? "" : Number(e.target.value))} style={inputStyle} />
+              </Field>
+
+              <Field label="Quầy ngắn nhất">
+                <input value={getShortestQueueCounter(q1Length, q2Length, q3Length)} readOnly style={inputStyle} />
+              </Field>
+            </div>
+          )}
+
+          <Field label="Ghi chú Decide" block>
+            <textarea value={decisionNote} onChange={(e) => setDecisionNote(e.target.value)} style={{ ...inputStyle, minHeight: 60, resize: "vertical" }} placeholder="VD: khách chọn quầy gần nhất, khách đi theo nhóm, khách đổi hướng..." />
+          </Field>
+
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 12 }}>
+            <button onClick={addDecisionLog} style={primaryButtonStyle}>Bấm Decision</button>
+            <button onClick={clearDecisionData} style={dangerButtonStyle}>Xóa Decision_Log</button>
+          </div>
+
+          <div style={{ marginTop: 16, overflowX: "auto" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+              <thead>
+                <tr style={{ background: palette.card2 }}>
+                  {["Thời gian", "Mã KH", "Decide", "Nhánh chọn", "Q1", "Q2", "Q3", "Quầy chọn", "Người bấm", "Xóa"].map((h) => <th key={h} style={thStyle}>{h}</th>)}
+                </tr>
+              </thead>
+
+              <tbody>
+                {decisionLog.slice(0, 20).map((r) => (
+                  <tr key={r.id}>
+                    <td style={tdStyle}>{formatDateTimeVNms(r.thoiGian)}</td>
+                    <td style={tdStyle}>{r.maKH}</td>
+                    <td style={tdStyle}>{r.decisionName}</td>
+                    <td style={tdStyle}>{r.optionSelected}</td>
+                    <td style={tdStyle}>{r.q1Length}</td>
+                    <td style={tdStyle}>{r.q2Length}</td>
+                    <td style={tdStyle}>{r.q3Length}</td>
+                    <td style={tdStyle}>{r.chosenCounter}</td>
+                    <td style={tdStyle}>{r.nguoiBam}</td>
+                    <td style={tdStyle}><button onClick={() => deleteDecisionRow(r.id)} style={dangerButtonStyle}>Xóa</button></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
 
         <section style={cardStyle}>
           <h2 style={sectionTitleStyle}>4. Bảng kiểm tra nhanh trước khi đưa vào Input Analyzer</h2>
@@ -1691,20 +2138,7 @@ appendSheet(wb, "Queue_Choice_Analysis", queueChoiceRows);
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
               <thead>
                 <tr style={{ background: palette.card2 }}>
-                  {[
-                    "Mã KH",
-                    "Loại",
-                    "Cửa",
-                    "Quầy",
-                    "Trạng thái",
-                    "IA Entrance (s)",
-                    "IA Type (s)",
-                    "Wait (s)",
-                    "Service (s)",
-                    "System (s)",
-                  ].map((h) => (
-                    <th key={h} style={thStyle}>{h}</th>
-                  ))}
+                  {["Mã KH", "Loại", "Cửa", "Quầy", "Trạng thái", "IA Entrance (s)", "IA Type (s)", "Wait (s)", "Service (s)", "System (s)"].map((h) => <th key={h} style={thStyle}>{h}</th>)}
                 </tr>
               </thead>
               <tbody>
@@ -1726,7 +2160,7 @@ appendSheet(wb, "Queue_Choice_Analysis", queueChoiceRows);
             </table>
           </div>
           <p style={{ margin: "10px 0 0", color: palette.sub, fontSize: 13 }}>
-            Khi mở Excel, dùng các sheet bắt đầu bằng IA_. Với Input Analyzer, ưu tiên lấy cột số giây trong sheet Wide hoặc Long theo đúng Create/Process của mô hình Arena.
+            Khi mở Excel, dùng các sheet bắt đầu bằng IA_. Với các Process block cụ thể, ưu tiên sheet IA_All_Process_Wide để fit phân phối từng cột trong Input Analyzer.
           </p>
         </section>
       </section>
