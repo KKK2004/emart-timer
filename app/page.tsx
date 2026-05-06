@@ -1422,10 +1422,6 @@ export default function Page() {
       alert("Thiết bị chưa sẵn sàng, vui lòng thử lại.");
       return;
     }
-    if (!processSummaryRows.some((row) => row.status === "OK")) {
-      alert("Bạn cần hoàn thành Bước 1: bấm START và END cho ít nhất một cục Process trước khi sang Bước 3 phân loại khách.");
-      return;
-    }
 
     const counters = getValidCounters(selectedType);
     const newCode = generateCustomerCode(deviceId);
@@ -1519,6 +1515,57 @@ export default function Page() {
     setGhiChu("");
   }
 
+  async function deleteLastEventOfCurrentCustomer() {
+    if (!currentMaKH) {
+      alert("Chưa chọn khách để sửa.");
+      return;
+    }
+
+    const rows = eventLog
+      .filter((x) => x.maKH === currentMaKH)
+      .sort(sortEventsAsc);
+
+    if (!rows.length) {
+      alert("Khách này chưa có bước nào để xóa/sửa.");
+      return;
+    }
+
+    const lastRow = rows[rows.length - 1];
+    const lastStepLabel = getEventLabel(lastRow.loaiKH, lastRow.suKien);
+    const ok = window.confirm(
+      `Xóa bước vừa bấm của khách ${currentMaKH}: ${lastStepLabel}?\nSau khi xóa, bạn có thể bấm lại bước này để sửa dữ liệu.`,
+    );
+    if (!ok) return;
+
+    const { error } = await supabase
+      .from("event_log")
+      .delete()
+      .eq("id", lastRow.id);
+
+    if (error) {
+      alert(`Xóa bước thất bại: ${error.message}`);
+      return;
+    }
+
+    const remainingRows = rows.filter((x) => x.id !== lastRow.id);
+    setEventLog((prev) => prev.filter((x) => x.id !== lastRow.id));
+
+    if (remainingRows.length) {
+      const newLast = remainingRows[remainingRows.length - 1];
+      setLoaiKH(newLast.loaiKH);
+      setCuaVao(
+        newLast.cuaVao === "Không ghi nhận" ? "Entrance 1" : newLast.cuaVao,
+      );
+      setQuay(newLast.quay);
+      setNhanVien(newLast.nhanVien || "NV1");
+      setGhiChu(newLast.ghiChu || "");
+    } else {
+      setCurrentMaKH("");
+      setLoaiKH("");
+      setGhiChu("");
+    }
+  }
+
   async function addDecisionLog() {
     if (!decisionTableReady) {
       alert(
@@ -1528,10 +1575,6 @@ export default function Page() {
     }
     if (!tenNguoiBam.trim()) {
       alert("Bạn chưa nhập tên người bấm.");
-      return;
-    }
-    if (!processSummaryRows.some((row) => row.status === "OK")) {
-      alert("Bạn cần hoàn thành Bước 1: bấm START và END cho ít nhất một cục Process trước khi sang Bước 2 Decide.");
       return;
     }
 
@@ -1548,12 +1591,12 @@ export default function Page() {
     const { data, error } = await supabase
       .from("decision_log")
       .insert({
-        ma_kh: null,
+        ma_kh: currentMaKH || null,
         thoi_gian: new Date().toISOString(),
         cua_vao: cuaVao,
         decision_name: selectedDecisionName,
         option_selected: selectedDecisionOption,
-        loai_kh: null,
+        loai_kh: loaiKH || null,
         q1_length: isCanPay ? toNullableNumber(q1Length) : null,
         q2_length: isCanPay ? toNullableNumber(q2Length) : null,
         q3_length: isCanPay ? toNullableNumber(q3Length) : null,
@@ -1637,13 +1680,13 @@ export default function Page() {
       .from("process_log")
       .insert({
         run_id: runId,
-        ma_kh: null,
+        ma_kh: currentMaKH || null,
         thoi_gian: new Date().toISOString(),
         process_name: selectedProcessName,
         event_type: eventType,
         cua_vao: cuaVao,
-        loai_kh: null,
-        quay: null,
+        loai_kh: loaiKH || null,
+        quay: quay || null,
         ghi_chu: processNote.trim(),
         nguoi_bam: tenNguoiBam.trim(),
       })
@@ -1935,12 +1978,6 @@ export default function Page() {
   );
   const isCanPayDecision = selectedDecisionName.startsWith("Can I pay now");
   const selectedDecisionOptions = getDecisionOptions(selectedDecisionName);
-  const hasCompletedRequiredProcessStep = processSummaryRows.some(
-    (row) => row.status === "OK",
-  );
-  const canUseDecisionStep = hasCompletedRequiredProcessStep;
-  const canUseCustomerClassificationStep = hasCompletedRequiredProcessStep;
-
 
   function exportExcel() {
     const wb = XLSX.utils.book_new();
@@ -2059,12 +2096,14 @@ export default function Page() {
       decisionLog.map((r, i) => ({
         stt: i + 1,
         id: r.id,
+        maKH: r.maKH,
         thoiGian: formatDateTimeVNms(r.thoiGian),
         cuaVao: r.cuaVao,
         decisionName: r.decisionName,
         arenaMode: getDecisionMode(r.decisionName),
         optionSelected: r.optionSelected,
         arenaBranchNote: getArenaBranchNote(r.decisionName, r.optionSelected),
+        loaiKH: r.loaiKH,
         q1Length: r.q1Length,
         q2Length: r.q2Length,
         q3Length: r.q3Length,
@@ -2108,10 +2147,13 @@ export default function Page() {
         stt: i + 1,
         id: r.id,
         runId: r.runId,
+        maKH: r.maKH,
         processName: r.processName,
         eventType: r.eventType,
         thoiGian: formatDateTimeVNms(r.thoiGian),
         cuaVao: r.cuaVao,
+        loaiKH: r.loaiKH,
+        quay: r.quay,
         ghiChu: r.ghiChu,
         nguoiBam: r.nguoiBam,
       })),
@@ -2123,9 +2165,12 @@ export default function Page() {
       processSummaryRows.map((r, i) => ({
         stt: i + 1,
         runId: r.runId,
+        maKH: r.maKH,
         arenaModule: r.arenaModule,
         processName: r.processName,
         cuaVao: r.cuaVao,
+        loaiKH: r.loaiKH,
+        quay: r.quay,
         startTime: r.startTime,
         endTime: r.endTime,
         processDurationS: toNumberOrBlank(r.processDurationS),
@@ -2297,9 +2342,6 @@ export default function Page() {
           <h2 style={sectionTitleStyle}>
             Bước 1: Bấm START/END để lấy phân phối cho cục Process
           </h2>
-          <p style={{ margin: "-4px 0 12px", color: palette.sub, fontSize: 13 }}>
-            Đây là bước bắt buộc và không gắn với mã khách hàng. Sau khi có ít nhất một dòng Process trạng thái OK, bạn có thể sang Bước 2 hoặc bỏ qua Bước 2 để sang Bước 3.
-          </p>
 
           {!processTableReady && (
             <div
@@ -2340,9 +2382,9 @@ export default function Page() {
               </select>
             </Field>
 
-            <Field label="Liên kết mã khách">
+            <Field label="Mã KH liên kết">
               <input
-                value="Không gắn mã khách ở Bước 1"
+                value={currentMaKH || "Không gắn mã KH"}
                 readOnly
                 style={inputStyle}
               />
@@ -2414,6 +2456,7 @@ export default function Page() {
                 <tr style={{ background: palette.card2 }}>
                   {[
                     "Process",
+                    "Mã KH",
                     "Start",
                     "End",
                     "Duration (s)",
@@ -2431,6 +2474,7 @@ export default function Page() {
                 {processSummaryRows.slice(0, 25).map((r) => (
                   <tr key={r.runId}>
                     <td style={tdStyle}>{r.processName}</td>
+                    <td style={tdStyle}>{r.maKH}</td>
                     <td style={tdStyle}>{r.startTime}</td>
                     <td style={tdStyle}>{r.endTime}</td>
                     <td style={tdStyle}>
@@ -2471,6 +2515,7 @@ export default function Page() {
                     "Process",
                     "Event",
                     "Run",
+                    "Mã KH",
                     "Người bấm",
                     "Xóa",
                   ].map((h) => (
@@ -2487,6 +2532,7 @@ export default function Page() {
                     <td style={tdStyle}>{r.processName}</td>
                     <td style={tdStyle}>{r.eventType}</td>
                     <td style={tdStyle}>{r.runId}</td>
+                    <td style={tdStyle}>{r.maKH}</td>
                     <td style={tdStyle}>{r.nguoiBam}</td>
                     <td style={tdStyle}>
                       <button
@@ -2511,22 +2557,7 @@ export default function Page() {
 
 
         <section style={cardStyle}>
-          <h2 style={sectionTitleStyle}>Bước 2: Bấm dữ liệu cho các cục Decide (có thể bấm hoặc bỏ qua)</h2>
-          {!canUseDecisionStep && (
-            <div
-              style={{
-                background: palette.amberSoft,
-                color: palette.amber,
-                border: `1px solid ${palette.amber}`,
-                borderRadius: 12,
-                padding: 10,
-                marginBottom: 12,
-                fontWeight: 700,
-              }}
-            >
-              Chưa hoàn thành Bước 1. Hãy bấm START và END cho ít nhất một cục Process trước.
-            </div>
-          )}
+          <h2 style={sectionTitleStyle}> Bước 2: Bấm dữ liệu cho các cục Decide (nếu có)</h2>
 
           {!decisionTableReady && (
             <div
@@ -2667,15 +2698,7 @@ export default function Page() {
           <div
             style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 12 }}
           >
-            <button
-              onClick={addDecisionLog}
-              disabled={!canUseDecisionStep}
-              style={{
-                ...primaryButtonStyle,
-                opacity: canUseDecisionStep ? 1 : 0.5,
-                cursor: canUseDecisionStep ? "pointer" : "not-allowed",
-              }}
-            >
+            <button onClick={addDecisionLog} style={primaryButtonStyle}>
               Bấm Decision
             </button>
 
@@ -2696,6 +2719,7 @@ export default function Page() {
                 <tr style={{ background: palette.card2 }}>
                   {[
                     "Thời gian",
+                    "Mã KH",
                     "Decide",
                     "Nhánh chọn",
                     "Q1",
@@ -2716,6 +2740,7 @@ export default function Page() {
                 {decisionLog.slice(0, 20).map((r) => (
                   <tr key={r.id}>
                     <td style={tdStyle}>{formatDateTimeVNms(r.thoiGian)}</td>
+                    <td style={tdStyle}>{r.maKH}</td>
                     <td style={tdStyle}>{r.decisionName}</td>
                     <td style={tdStyle}>{r.optionSelected}</td>
                     <td style={tdStyle}>{r.q1Length}</td>
@@ -2747,22 +2772,7 @@ export default function Page() {
           }}
         >
           <div style={cardStyle}>
-            <h2 style={sectionTitleStyle}>Bước 3: Bấm để phân loại khách theo món ăn</h2>
-            {!canUseCustomerClassificationStep && (
-              <div
-                style={{
-                  background: palette.amberSoft,
-                  color: palette.amber,
-                  border: `1px solid ${palette.amber}`,
-                  borderRadius: 12,
-                  padding: 10,
-                  marginBottom: 12,
-                  fontWeight: 700,
-                }}
-              >
-                Chưa hoàn thành Bước 1. Bước 2 Decide có thể bỏ qua, nhưng phải có ít nhất một Process OK trước khi tạo/phân loại khách.
-              </div>
-            )}
+            <h2 style={sectionTitleStyle}>Bước 3: Bấm phân loại khách theo món khi khách thanh toán</h2>
             <div
               style={{
                 display: "grid",
@@ -2776,7 +2786,6 @@ export default function Page() {
                   <button
                     key={item.code}
                     onClick={() => startNewCustomer(item.code)}
-                    disabled={!canUseCustomerClassificationStep}
                     style={{
                       textAlign: "left",
                       border: `1px solid ${theme.border}`,
@@ -2784,8 +2793,7 @@ export default function Page() {
                         loaiKH === item.code ? theme.bg : palette.card,
                       borderRadius: 14,
                       padding: 12,
-                      cursor: canUseCustomerClassificationStep ? "pointer" : "not-allowed",
-                      opacity: canUseCustomerClassificationStep ? 1 : 0.5,
+                      cursor: "pointer",
                     }}
                   >
                     <div style={{ fontWeight: 800, color: theme.text }}>
@@ -2866,6 +2874,9 @@ export default function Page() {
 
           <div style={cardStyle}>
             <h2 style={sectionTitleStyle}>Thứ tự khách tại quầy thanh toán</h2>
+            <p style={{ color: palette.sub, margin: "-4px 0 12px", fontSize: 13 }}>
+              Có thể bấm qua lại giữa nhiều khách. Ví dụ đang bấm khách 3 vẫn có thể chọn lại khách 1 ở danh sách bên dưới để sửa hoặc bấm tiếp.
+            </p>
             {currentMaKH ? (
               <div style={{ display: "grid", gap: 10 }}>
                 <div
@@ -2935,6 +2946,17 @@ export default function Page() {
                     : `Bấm: ${nextStep?.shortLabel || "Bước tiếp theo"}`}
                 </button>
                 <button
+                  onClick={deleteLastEventOfCurrentCustomer}
+                  disabled={!currentCustomerEvents.length}
+                  style={{
+                    ...secondaryButtonStyle,
+                    width: "100%",
+                    opacity: currentCustomerEvents.length ? 1 : 0.5,
+                  }}
+                >
+                  Xóa bước vừa bấm để sửa
+                </button>
+                <button
                   onClick={resetCurrentCustomer}
                   style={{ ...dangerButtonStyle, width: "100%" }}
                 >
@@ -2952,6 +2974,9 @@ export default function Page() {
 
         <section style={cardStyle}>
           <h2 style={sectionTitleStyle}>Các khách đang được bấm tại quầy thanh toán</h2>
+          <p style={{ color: palette.sub, margin: "-4px 0 12px", fontSize: 13 }}>
+            Bấm vào bất kỳ thẻ khách nào để quay lại khách đó. Khách đã đủ bước vẫn bấm lại được để kiểm tra hoặc xóa bước cuối rồi bấm lại.
+          </p>
           {activeCustomers.length === 0 ? (
             <p style={{ color: palette.sub }}>Chưa có dữ liệu.</p>
           ) : (
@@ -2962,11 +2987,12 @@ export default function Page() {
                 gap: 10,
               }}
             >
-              {activeCustomers.slice(0, 12).map((c) => {
+              {activeCustomers.map((c) => {
                 const theme = getCustomerTypeTheme(c.loaiKH);
                 return (
                   <button
                     key={c.maKH}
+                    title="Bấm để chọn lại khách này và sửa/bấm tiếp"
                     onClick={() => selectCustomerToContinue(c.maKH)}
                     style={{
                       textAlign: "left",
@@ -3001,7 +3027,7 @@ export default function Page() {
                       }}
                     >
                       {c.done
-                        ? "Đã đủ bước"
+                        ? "Đã đủ bước - bấm lại để sửa"
                         : `Cần bấm: ${c.nextStep?.shortLabel}`}
                     </div>
                   </button>
