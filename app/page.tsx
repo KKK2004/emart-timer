@@ -740,16 +740,14 @@ function buildProcessSummaryRows(processLog: ProcessLogRow[]): ProcessSummaryRow
           ? "LOI_THOI_GIAN"
           : "OK";
 
-    const errorNote =
-      status === "OK"
-        ? "Đủ dữ liệu"
-        : status === "DANG_CHAY"
-          ? "Đã bấm START nhưng chưa bấm END"
-          : status === "THIEU_START"
-            ? "Thiếu START"
-            : status === "THIEU_END"
-              ? "Thiếu END"
-              : "Kiểm tra thứ tự thời gian START/END";
+ const errorNote =
+  status === "OK"
+    ? "Đủ dữ liệu"
+    : status === "DANG_CHAY"
+      ? "Đã bấm START nhưng chưa bấm END"
+      : status === "THIEU_START"
+        ? "Thiếu START"
+        : "Kiểm tra thứ tự thời gian START/END";
 
     result.push({
       runId,
