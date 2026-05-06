@@ -544,6 +544,86 @@ function getFlow(loai: CustomerType): FlowStep[] {
   }
 }
 
+
+function isOptionalFlowStep(index: number) {
+  return index === 1;
+}
+
+function buildStepEventMap(flow: FlowStep[], rows: EventRow[]) {
+  const expectedEventCodes = new Set(flow.map((step) => step.code));
+  const map = new Map<EventName, EventRow>();
+
+  for (const row of rows.sort(sortEventsAsc)) {
+    if (!expectedEventCodes.has(row.suKien)) continue;
+    if (!map.has(row.suKien)) map.set(row.suKien, row);
+  }
+
+  return map;
+}
+
+function getRequiredFlowSteps(flow: FlowStep[]) {
+  return flow.filter((_, index) => !isOptionalFlowStep(index));
+}
+
+function canPressFlowStep(flow: FlowStep[], rows: EventRow[], index: number) {
+  const step = flow[index];
+  if (!step) return false;
+
+  const eventMap = buildStepEventMap(flow, rows);
+  if (eventMap.has(step.code)) return false;
+
+  if (index === 0) return true;
+
+  const firstStep = flow[0];
+  if (!firstStep || !eventMap.has(firstStep.code)) return false;
+
+  for (let i = 1; i < index; i++) {
+    if (isOptionalFlowStep(i)) continue;
+    const previousRequiredStep = flow[i];
+    if (previousRequiredStep && !eventMap.has(previousRequiredStep.code)) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+function getNextAllowedStep(flow: FlowStep[], rows: EventRow[]) {
+  for (let i = 0; i < flow.length; i++) {
+    if (canPressFlowStep(flow, rows, i)) {
+      return { step: flow[i], index: i };
+    }
+  }
+  return undefined;
+}
+
+function getOptionalSkipStep(flow: FlowStep[], rows: EventRow[]) {
+  const optionalIndex = 1;
+  const nextRequiredIndex = 2;
+  if (!flow[optionalIndex] || !flow[nextRequiredIndex]) return undefined;
+
+  const eventMap = buildStepEventMap(flow, rows);
+  const optionalStep = flow[optionalIndex];
+  const nextRequiredStep = flow[nextRequiredIndex];
+
+  if (eventMap.has(optionalStep.code)) return undefined;
+  if (eventMap.has(nextRequiredStep.code)) return undefined;
+  if (!canPressFlowStep(flow, rows, nextRequiredIndex)) return undefined;
+
+  return { step: nextRequiredStep, index: nextRequiredIndex };
+}
+
+function isFlowDone(flow: FlowStep[], rows: EventRow[]) {
+  if (!flow.length) return false;
+  const eventMap = buildStepEventMap(flow, rows);
+  return getRequiredFlowSteps(flow).every((step) => eventMap.has(step.code));
+}
+
+function getCompletedFlowStepCount(flow: FlowStep[], rows: EventRow[]) {
+  const eventMap = buildStepEventMap(flow, rows);
+  return flow.filter((step) => eventMap.has(step.code)).length;
+}
+
 function getValidCounters(loai: CustomerType): CounterType[] {
   switch (loai) {
     case "PIZZA":
@@ -1187,16 +1267,22 @@ export default function Page() {
       .sort(sortEventsAsc);
   }, [eventLog, currentMaKH]);
 
-  const currentExpectedEvents = useMemo(() => {
-    if (!loaiKH) return [];
-    const expectedEventCodes = new Set(currentFlow.map((step) => step.code));
-    return currentCustomerEvents.filter((row) => expectedEventCodes.has(row.suKien));
-  }, [currentCustomerEvents, currentFlow, loaiKH]);
+  const currentStepEventMap = useMemo(() => {
+    return buildStepEventMap(currentFlow, currentCustomerEvents);
+  }, [currentCustomerEvents, currentFlow]);
 
-  const nextStepIndex = currentExpectedEvents.length;
-  const nextStep = currentFlow[nextStepIndex];
+  const nextStepInfo = useMemo(() => {
+    return getNextAllowedStep(currentFlow, currentCustomerEvents);
+  }, [currentCustomerEvents, currentFlow]);
+
+  const optionalSkipStepInfo = useMemo(() => {
+    return getOptionalSkipStep(currentFlow, currentCustomerEvents);
+  }, [currentCustomerEvents, currentFlow]);
+
+  const nextStepIndex = nextStepInfo?.index ?? -1;
+  const nextStep = nextStepInfo?.step;
   const isCurrentDone = Boolean(
-    loaiKH && currentFlow.length > 0 && nextStepIndex >= currentFlow.length,
+    loaiKH && currentFlow.length > 0 && isFlowDone(currentFlow, currentCustomerEvents),
   );
 
   function upsertEventRow(newRow: EventRow) {
@@ -1445,13 +1531,21 @@ export default function Page() {
     setGhiChu(lastRow.ghiChu || "");
   }
 
-  async function addNextEvent() {
+  async function addFlowEvent(step: FlowStep, stepIndex: number) {
     if (!currentMaKH || !loaiKH) {
       alert("Bạn phải chọn loại khách trước.");
       return;
     }
-    if (!nextStep) {
-      alert("Khách này đã đủ bước, không cần bấm thêm.");
+    if (!step) {
+      alert("Không tìm thấy bước cần bấm.");
+      return;
+    }
+    if (!canPressFlowStep(currentFlow, currentCustomerEvents, stepIndex)) {
+      if (stepIndex === 0) {
+        alert("Bước này đã được bấm rồi.");
+      } else {
+        alert("Bạn phải bấm bước 1 trước. Bước 2 có thể bấm hoặc bỏ qua, nhưng không được bấm lộn thứ tự các bước bắt buộc.");
+      }
       return;
     }
     if (!tenNguoiBam.trim()) {
@@ -1473,7 +1567,7 @@ export default function Page() {
         ma_kh: currentMaKH,
         loai_kh: loaiKH,
         quy_trinh: quyTrinh,
-        su_kien: nextStep.code,
+        su_kien: step.code,
         thoi_gian: now.toISOString(),
         nhan_vien: nhanVien.trim() || "NV1",
         quay,
@@ -1489,6 +1583,14 @@ export default function Page() {
 
     const inserted = data?.[0] as DbRow | undefined;
     if (inserted) upsertEventRow(mapDbRowToEventRow(inserted));
+  }
+
+  async function addNextEvent() {
+    if (!nextStepInfo) {
+      alert("Khách này đã đủ bước bắt buộc, không cần bấm thêm.");
+      return;
+    }
+    await addFlowEvent(nextStepInfo.step, nextStepInfo.index);
   }
 
   async function resetCurrentCustomer() {
@@ -1742,15 +1844,18 @@ export default function Page() {
         serviceEnd?.thoiGian || "",
       );
 
-      const missingSteps = flow
+      const missingSteps = getRequiredFlowSteps(flow)
         .filter((step) => !ordered.some((r) => r.suKien === step.code))
         .map((step) => step.shortLabel);
 
+      const hasServiceStart = Boolean(serviceStart);
       const timeError =
-        waitingTimeS === "" ||
-        serviceTimeS === "" ||
         systemTimeS === "" ||
-        Number(serviceTimeS) <= 0;
+        Number(systemTimeS) <= 0 ||
+        (hasServiceStart &&
+          (waitingTimeS === "" ||
+            serviceTimeS === "" ||
+            Number(serviceTimeS) <= 0));
 
       const dataStatus: SummaryRow["dataStatus"] = missingSteps.length
         ? "THIEU_BUOC"
@@ -1759,10 +1864,10 @@ export default function Page() {
           : "OK";
 
       const errorNote = missingSteps.length
-        ? `Thiếu bước: ${missingSteps.join(", ")}`
+        ? `Thiếu bước bắt buộc: ${missingSteps.join(", ")}. Bước 2 được phép bỏ qua.`
         : timeError
-          ? "Kiểm tra lại mốc thời gian: service/system time rỗng hoặc service time <= 0"
-          : "Đủ dữ liệu";
+          ? "Kiểm tra lại mốc thời gian: system time rỗng/sai hoặc service time sai nếu có bấm bước 2"
+          : "Đủ dữ liệu bắt buộc. Bước 2 có thể có hoặc không.";
 
       result.push({
         stt: stt++,
@@ -1781,7 +1886,7 @@ export default function Page() {
         queueName: getArenaQueue(lastRow.quay),
         resourceName: getArenaResource(lastRow.quay),
         expectedSteps: flow.length,
-        actualSteps: flow.filter((step) => ordered.some((r) => r.suKien === step.code)).length,
+        actualSteps: getCompletedFlowStepCount(flow, ordered),
         dataStatus,
         errorNote,
         buoc1Label: flow[0]?.label || "",
@@ -1851,7 +1956,8 @@ export default function Page() {
       const ordered = rows.sort(sortEventsAsc);
       const last = ordered[ordered.length - 1];
       const flow = getFlow(last.loaiKH);
-      const stepIndex = flow.filter((step) => ordered.some((r) => r.suKien === step.code)).length;
+      const stepIndex = getCompletedFlowStepCount(flow, ordered);
+      const nextInfo = getNextAllowedStep(flow, ordered);
       result.push({
         maKH,
         loaiKH: last.loaiKH,
@@ -1863,8 +1969,8 @@ export default function Page() {
         nguoiBam: last.nguoiBam,
         stepIndex,
         totalSteps: flow.length,
-        nextStep: flow[stepIndex],
-        done: stepIndex >= flow.length,
+        nextStep: nextInfo?.step,
+        done: isFlowDone(flow, ordered),
         rows: ordered,
       });
     });
@@ -2289,7 +2395,7 @@ export default function Page() {
 
         <section style={cardStyle}>
           <h2 style={sectionTitleStyle}>
-            Bước 1: Bấm START/END để lấy phân phối cho cục Process
+            Bấm START/END để lấy phân phối cho cục Process
           </h2>
 
           {!processTableReady && (
@@ -2506,7 +2612,7 @@ export default function Page() {
 
 
         <section style={cardStyle}>
-          <h2 style={sectionTitleStyle}> Bước 2: Bấm dữ liệu cho các cục Decide (nếu có)</h2>
+          <h2 style={sectionTitleStyle}> Bấm dữ liệu cho các cục Decide</h2>
 
           {!decisionTableReady && (
             <div
@@ -2721,7 +2827,7 @@ export default function Page() {
           }}
         >
           <div style={cardStyle}>
-            <h2 style={sectionTitleStyle}>Bước 3: Bấm phân loại khách theo món khi khách thanh toán</h2>
+            <h2 style={sectionTitleStyle}>Bấm để phân loại khách theo món ăn</h2>
             <div
               style={{
                 display: "grid",
@@ -2847,10 +2953,10 @@ export default function Page() {
 
                 <div style={{ display: "grid", gap: 6 }}>
                   {currentFlow.map((step, idx) => {
-                    const event = currentCustomerEvents.find(
-                      (r) => r.suKien === step.code,
-                    );
-                    const active = idx === nextStepIndex;
+                    const event = currentStepEventMap.get(step.code);
+                    const canPress = canPressFlowStep(currentFlow, currentCustomerEvents, idx);
+                    const active = canPress || idx === nextStepIndex;
+                    const optional = isOptionalFlowStep(idx);
                     return (
                       <div
                         key={step.code}
@@ -2869,9 +2975,13 @@ export default function Page() {
                         <div style={{ color: palette.sub, fontSize: 12 }}>
                           {event
                             ? formatDateTimeVNms(event.thoiGian)
-                            : active
-                              ? "Đang chờ bấm"
-                              : "Chưa đến bước"}
+                            : canPress
+                              ? optional
+                                ? "Bước 2 không bắt buộc: có thể bấm hoặc bỏ qua"
+                                : "Đang chờ bấm"
+                              : optional
+                                ? "Bước 2 không bắt buộc"
+                                : "Chưa đến bước"}
                         </div>
                       </div>
                     );
@@ -2880,17 +2990,25 @@ export default function Page() {
 
                 <button
                   onClick={addNextEvent}
-                  disabled={isCurrentDone}
+                  disabled={isCurrentDone || !nextStepInfo}
                   style={{
                     ...primaryButtonStyle,
                     width: "100%",
-                    opacity: isCurrentDone ? 0.5 : 1,
+                    opacity: isCurrentDone || !nextStepInfo ? 0.5 : 1,
                   }}
                 >
                   {isCurrentDone
-                    ? "Khách đã đủ bước"
+                    ? "Khách đã đủ bước bắt buộc"
                     : `Bấm: ${nextStep?.shortLabel || "Bước tiếp theo"}`}
                 </button>
+                {optionalSkipStepInfo && (
+                  <button
+                    onClick={() => addFlowEvent(optionalSkipStepInfo.step, optionalSkipStepInfo.index)}
+                    style={{ ...secondaryButtonStyle, width: "100%" }}
+                  >
+                    Bỏ qua bước 2 → Bấm: {optionalSkipStepInfo.step.shortLabel}
+                  </button>
+                )}
                 <button
                   onClick={resetCurrentCustomer}
                   style={{ ...dangerButtonStyle, width: "100%" }}
