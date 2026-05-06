@@ -544,86 +544,6 @@ function getFlow(loai: CustomerType): FlowStep[] {
   }
 }
 
-
-function isOptionalFlowStep(index: number) {
-  return index === 1;
-}
-
-function buildStepEventMap(flow: FlowStep[], rows: EventRow[]) {
-  const expectedEventCodes = new Set(flow.map((step) => step.code));
-  const map = new Map<EventName, EventRow>();
-
-  for (const row of rows.sort(sortEventsAsc)) {
-    if (!expectedEventCodes.has(row.suKien)) continue;
-    if (!map.has(row.suKien)) map.set(row.suKien, row);
-  }
-
-  return map;
-}
-
-function getRequiredFlowSteps(flow: FlowStep[]) {
-  return flow.filter((_, index) => !isOptionalFlowStep(index));
-}
-
-function canPressFlowStep(flow: FlowStep[], rows: EventRow[], index: number) {
-  const step = flow[index];
-  if (!step) return false;
-
-  const eventMap = buildStepEventMap(flow, rows);
-  if (eventMap.has(step.code)) return false;
-
-  if (index === 0) return true;
-
-  const firstStep = flow[0];
-  if (!firstStep || !eventMap.has(firstStep.code)) return false;
-
-  for (let i = 1; i < index; i++) {
-    if (isOptionalFlowStep(i)) continue;
-    const previousRequiredStep = flow[i];
-    if (previousRequiredStep && !eventMap.has(previousRequiredStep.code)) {
-      return false;
-    }
-  }
-
-  return true;
-}
-
-function getNextAllowedStep(flow: FlowStep[], rows: EventRow[]) {
-  for (let i = 0; i < flow.length; i++) {
-    if (canPressFlowStep(flow, rows, i)) {
-      return { step: flow[i], index: i };
-    }
-  }
-  return undefined;
-}
-
-function getOptionalSkipStep(flow: FlowStep[], rows: EventRow[]) {
-  const optionalIndex = 1;
-  const nextRequiredIndex = 2;
-  if (!flow[optionalIndex] || !flow[nextRequiredIndex]) return undefined;
-
-  const eventMap = buildStepEventMap(flow, rows);
-  const optionalStep = flow[optionalIndex];
-  const nextRequiredStep = flow[nextRequiredIndex];
-
-  if (eventMap.has(optionalStep.code)) return undefined;
-  if (eventMap.has(nextRequiredStep.code)) return undefined;
-  if (!canPressFlowStep(flow, rows, nextRequiredIndex)) return undefined;
-
-  return { step: nextRequiredStep, index: nextRequiredIndex };
-}
-
-function isFlowDone(flow: FlowStep[], rows: EventRow[]) {
-  if (!flow.length) return false;
-  const eventMap = buildStepEventMap(flow, rows);
-  return getRequiredFlowSteps(flow).every((step) => eventMap.has(step.code));
-}
-
-function getCompletedFlowStepCount(flow: FlowStep[], rows: EventRow[]) {
-  const eventMap = buildStepEventMap(flow, rows);
-  return flow.filter((step) => eventMap.has(step.code)).length;
-}
-
 function getValidCounters(loai: CustomerType): CounterType[] {
   switch (loai) {
     case "PIZZA":
@@ -1267,22 +1187,16 @@ export default function Page() {
       .sort(sortEventsAsc);
   }, [eventLog, currentMaKH]);
 
-  const currentStepEventMap = useMemo(() => {
-    return buildStepEventMap(currentFlow, currentCustomerEvents);
-  }, [currentCustomerEvents, currentFlow]);
+  const currentExpectedEvents = useMemo(() => {
+    if (!loaiKH) return [];
+    const expectedEventCodes = new Set(currentFlow.map((step) => step.code));
+    return currentCustomerEvents.filter((row) => expectedEventCodes.has(row.suKien));
+  }, [currentCustomerEvents, currentFlow, loaiKH]);
 
-  const nextStepInfo = useMemo(() => {
-    return getNextAllowedStep(currentFlow, currentCustomerEvents);
-  }, [currentCustomerEvents, currentFlow]);
-
-  const optionalSkipStepInfo = useMemo(() => {
-    return getOptionalSkipStep(currentFlow, currentCustomerEvents);
-  }, [currentCustomerEvents, currentFlow]);
-
-  const nextStepIndex = nextStepInfo?.index ?? -1;
-  const nextStep = nextStepInfo?.step;
+  const nextStepIndex = currentExpectedEvents.length;
+  const nextStep = currentFlow[nextStepIndex];
   const isCurrentDone = Boolean(
-    loaiKH && currentFlow.length > 0 && isFlowDone(currentFlow, currentCustomerEvents),
+    loaiKH && currentFlow.length > 0 && nextStepIndex >= currentFlow.length,
   );
 
   function upsertEventRow(newRow: EventRow) {
@@ -1508,6 +1422,10 @@ export default function Page() {
       alert("Thiết bị chưa sẵn sàng, vui lòng thử lại.");
       return;
     }
+    if (!processSummaryRows.some((row) => row.status === "OK")) {
+      alert("Bạn cần hoàn thành Bước 1: bấm START và END cho ít nhất một cục Process trước khi sang Bước 3 phân loại khách.");
+      return;
+    }
 
     const counters = getValidCounters(selectedType);
     const newCode = generateCustomerCode(deviceId);
@@ -1531,21 +1449,13 @@ export default function Page() {
     setGhiChu(lastRow.ghiChu || "");
   }
 
-  async function addFlowEvent(step: FlowStep, stepIndex: number) {
+  async function addNextEvent() {
     if (!currentMaKH || !loaiKH) {
       alert("Bạn phải chọn loại khách trước.");
       return;
     }
-    if (!step) {
-      alert("Không tìm thấy bước cần bấm.");
-      return;
-    }
-    if (!canPressFlowStep(currentFlow, currentCustomerEvents, stepIndex)) {
-      if (stepIndex === 0) {
-        alert("Bước này đã được bấm rồi.");
-      } else {
-        alert("Bạn phải bấm bước 1 trước. Bước 2 có thể bấm hoặc bỏ qua, nhưng không được bấm lộn thứ tự các bước bắt buộc.");
-      }
+    if (!nextStep) {
+      alert("Khách này đã đủ bước, không cần bấm thêm.");
       return;
     }
     if (!tenNguoiBam.trim()) {
@@ -1567,7 +1477,7 @@ export default function Page() {
         ma_kh: currentMaKH,
         loai_kh: loaiKH,
         quy_trinh: quyTrinh,
-        su_kien: step.code,
+        su_kien: nextStep.code,
         thoi_gian: now.toISOString(),
         nhan_vien: nhanVien.trim() || "NV1",
         quay,
@@ -1583,14 +1493,6 @@ export default function Page() {
 
     const inserted = data?.[0] as DbRow | undefined;
     if (inserted) upsertEventRow(mapDbRowToEventRow(inserted));
-  }
-
-  async function addNextEvent() {
-    if (!nextStepInfo) {
-      alert("Khách này đã đủ bước bắt buộc, không cần bấm thêm.");
-      return;
-    }
-    await addFlowEvent(nextStepInfo.step, nextStepInfo.index);
   }
 
   async function resetCurrentCustomer() {
@@ -1626,6 +1528,10 @@ export default function Page() {
     }
     if (!tenNguoiBam.trim()) {
       alert("Bạn chưa nhập tên người bấm.");
+      return;
+    }
+    if (!processSummaryRows.some((row) => row.status === "OK")) {
+      alert("Bạn cần hoàn thành Bước 1: bấm START và END cho ít nhất một cục Process trước khi sang Bước 2 Decide.");
       return;
     }
 
@@ -1844,18 +1750,15 @@ export default function Page() {
         serviceEnd?.thoiGian || "",
       );
 
-      const missingSteps = getRequiredFlowSteps(flow)
+      const missingSteps = flow
         .filter((step) => !ordered.some((r) => r.suKien === step.code))
         .map((step) => step.shortLabel);
 
-      const hasServiceStart = Boolean(serviceStart);
       const timeError =
+        waitingTimeS === "" ||
+        serviceTimeS === "" ||
         systemTimeS === "" ||
-        Number(systemTimeS) <= 0 ||
-        (hasServiceStart &&
-          (waitingTimeS === "" ||
-            serviceTimeS === "" ||
-            Number(serviceTimeS) <= 0));
+        Number(serviceTimeS) <= 0;
 
       const dataStatus: SummaryRow["dataStatus"] = missingSteps.length
         ? "THIEU_BUOC"
@@ -1864,10 +1767,10 @@ export default function Page() {
           : "OK";
 
       const errorNote = missingSteps.length
-        ? `Thiếu bước bắt buộc: ${missingSteps.join(", ")}. Bước 2 được phép bỏ qua.`
+        ? `Thiếu bước: ${missingSteps.join(", ")}`
         : timeError
-          ? "Kiểm tra lại mốc thời gian: system time rỗng/sai hoặc service time sai nếu có bấm bước 2"
-          : "Đủ dữ liệu bắt buộc. Bước 2 có thể có hoặc không.";
+          ? "Kiểm tra lại mốc thời gian: service/system time rỗng hoặc service time <= 0"
+          : "Đủ dữ liệu";
 
       result.push({
         stt: stt++,
@@ -1886,7 +1789,7 @@ export default function Page() {
         queueName: getArenaQueue(lastRow.quay),
         resourceName: getArenaResource(lastRow.quay),
         expectedSteps: flow.length,
-        actualSteps: getCompletedFlowStepCount(flow, ordered),
+        actualSteps: flow.filter((step) => ordered.some((r) => r.suKien === step.code)).length,
         dataStatus,
         errorNote,
         buoc1Label: flow[0]?.label || "",
@@ -1956,8 +1859,7 @@ export default function Page() {
       const ordered = rows.sort(sortEventsAsc);
       const last = ordered[ordered.length - 1];
       const flow = getFlow(last.loaiKH);
-      const stepIndex = getCompletedFlowStepCount(flow, ordered);
-      const nextInfo = getNextAllowedStep(flow, ordered);
+      const stepIndex = flow.filter((step) => ordered.some((r) => r.suKien === step.code)).length;
       result.push({
         maKH,
         loaiKH: last.loaiKH,
@@ -1969,8 +1871,8 @@ export default function Page() {
         nguoiBam: last.nguoiBam,
         stepIndex,
         totalSteps: flow.length,
-        nextStep: nextInfo?.step,
-        done: isFlowDone(flow, ordered),
+        nextStep: flow[stepIndex],
+        done: stepIndex >= flow.length,
         rows: ordered,
       });
     });
@@ -2033,6 +1935,12 @@ export default function Page() {
   );
   const isCanPayDecision = selectedDecisionName.startsWith("Can I pay now");
   const selectedDecisionOptions = getDecisionOptions(selectedDecisionName);
+  const hasCompletedRequiredProcessStep = processSummaryRows.some(
+    (row) => row.status === "OK",
+  );
+  const canUseDecisionStep = hasCompletedRequiredProcessStep;
+  const canUseCustomerClassificationStep = hasCompletedRequiredProcessStep;
+
 
   function exportExcel() {
     const wb = XLSX.utils.book_new();
@@ -2395,8 +2303,11 @@ export default function Page() {
 
         <section style={cardStyle}>
           <h2 style={sectionTitleStyle}>
-            Bấm START/END để lấy phân phối cho cục Process
+            Bước 1: Bấm START/END để lấy phân phối cho cục Process
           </h2>
+          <p style={{ margin: "-4px 0 12px", color: palette.sub, fontSize: 13 }}>
+            Đây là bước bắt buộc. Sau khi có ít nhất một dòng Process trạng thái OK, bạn có thể sang Bước 2 hoặc bỏ qua Bước 2 để sang Bước 3.
+          </p>
 
           {!processTableReady && (
             <div
@@ -2612,7 +2523,22 @@ export default function Page() {
 
 
         <section style={cardStyle}>
-          <h2 style={sectionTitleStyle}> Bấm dữ liệu cho các cục Decide</h2>
+          <h2 style={sectionTitleStyle}>Bước 2: Bấm dữ liệu cho các cục Decide (không bắt buộc)</h2>
+          {!canUseDecisionStep && (
+            <div
+              style={{
+                background: palette.amberSoft,
+                color: palette.amber,
+                border: `1px solid ${palette.amber}`,
+                borderRadius: 12,
+                padding: 10,
+                marginBottom: 12,
+                fontWeight: 700,
+              }}
+            >
+              Chưa hoàn thành Bước 1. Hãy bấm START và END cho ít nhất một cục Process trước.
+            </div>
+          )}
 
           {!decisionTableReady && (
             <div
@@ -2753,7 +2679,15 @@ export default function Page() {
           <div
             style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 12 }}
           >
-            <button onClick={addDecisionLog} style={primaryButtonStyle}>
+            <button
+              onClick={addDecisionLog}
+              disabled={!canUseDecisionStep}
+              style={{
+                ...primaryButtonStyle,
+                opacity: canUseDecisionStep ? 1 : 0.5,
+                cursor: canUseDecisionStep ? "pointer" : "not-allowed",
+              }}
+            >
               Bấm Decision
             </button>
 
@@ -2827,7 +2761,22 @@ export default function Page() {
           }}
         >
           <div style={cardStyle}>
-            <h2 style={sectionTitleStyle}>Bấm để phân loại khách theo món ăn</h2>
+            <h2 style={sectionTitleStyle}>Bước 3: Bấm để phân loại khách theo món ăn</h2>
+            {!canUseCustomerClassificationStep && (
+              <div
+                style={{
+                  background: palette.amberSoft,
+                  color: palette.amber,
+                  border: `1px solid ${palette.amber}`,
+                  borderRadius: 12,
+                  padding: 10,
+                  marginBottom: 12,
+                  fontWeight: 700,
+                }}
+              >
+                Chưa hoàn thành Bước 1. Bước 2 Decide có thể bỏ qua, nhưng phải có ít nhất một Process OK trước khi tạo/phân loại khách.
+              </div>
+            )}
             <div
               style={{
                 display: "grid",
@@ -2841,6 +2790,7 @@ export default function Page() {
                   <button
                     key={item.code}
                     onClick={() => startNewCustomer(item.code)}
+                    disabled={!canUseCustomerClassificationStep}
                     style={{
                       textAlign: "left",
                       border: `1px solid ${theme.border}`,
@@ -2848,7 +2798,8 @@ export default function Page() {
                         loaiKH === item.code ? theme.bg : palette.card,
                       borderRadius: 14,
                       padding: 12,
-                      cursor: "pointer",
+                      cursor: canUseCustomerClassificationStep ? "pointer" : "not-allowed",
+                      opacity: canUseCustomerClassificationStep ? 1 : 0.5,
                     }}
                   >
                     <div style={{ fontWeight: 800, color: theme.text }}>
@@ -2953,10 +2904,10 @@ export default function Page() {
 
                 <div style={{ display: "grid", gap: 6 }}>
                   {currentFlow.map((step, idx) => {
-                    const event = currentStepEventMap.get(step.code);
-                    const canPress = canPressFlowStep(currentFlow, currentCustomerEvents, idx);
-                    const active = canPress || idx === nextStepIndex;
-                    const optional = isOptionalFlowStep(idx);
+                    const event = currentCustomerEvents.find(
+                      (r) => r.suKien === step.code,
+                    );
+                    const active = idx === nextStepIndex;
                     return (
                       <div
                         key={step.code}
@@ -2975,13 +2926,9 @@ export default function Page() {
                         <div style={{ color: palette.sub, fontSize: 12 }}>
                           {event
                             ? formatDateTimeVNms(event.thoiGian)
-                            : canPress
-                              ? optional
-                                ? "Bước 2 không bắt buộc: có thể bấm hoặc bỏ qua"
-                                : "Đang chờ bấm"
-                              : optional
-                                ? "Bước 2 không bắt buộc"
-                                : "Chưa đến bước"}
+                            : active
+                              ? "Đang chờ bấm"
+                              : "Chưa đến bước"}
                         </div>
                       </div>
                     );
@@ -2990,25 +2937,17 @@ export default function Page() {
 
                 <button
                   onClick={addNextEvent}
-                  disabled={isCurrentDone || !nextStepInfo}
+                  disabled={isCurrentDone}
                   style={{
                     ...primaryButtonStyle,
                     width: "100%",
-                    opacity: isCurrentDone || !nextStepInfo ? 0.5 : 1,
+                    opacity: isCurrentDone ? 0.5 : 1,
                   }}
                 >
                   {isCurrentDone
-                    ? "Khách đã đủ bước bắt buộc"
+                    ? "Khách đã đủ bước"
                     : `Bấm: ${nextStep?.shortLabel || "Bước tiếp theo"}`}
                 </button>
-                {optionalSkipStepInfo && (
-                  <button
-                    onClick={() => addFlowEvent(optionalSkipStepInfo.step, optionalSkipStepInfo.index)}
-                    style={{ ...secondaryButtonStyle, width: "100%" }}
-                  >
-                    Bỏ qua bước 2 → Bấm: {optionalSkipStepInfo.step.shortLabel}
-                  </button>
-                )}
                 <button
                   onClick={resetCurrentCustomer}
                   style={{ ...dangerButtonStyle, width: "100%" }}
