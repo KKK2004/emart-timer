@@ -1548,12 +1548,12 @@ export default function Page() {
     const { data, error } = await supabase
       .from("decision_log")
       .insert({
-        ma_kh: currentMaKH || null,
+        ma_kh: null,
         thoi_gian: new Date().toISOString(),
         cua_vao: cuaVao,
         decision_name: selectedDecisionName,
         option_selected: selectedDecisionOption,
-        loai_kh: loaiKH || null,
+        loai_kh: null,
         q1_length: isCanPay ? toNullableNumber(q1Length) : null,
         q2_length: isCanPay ? toNullableNumber(q2Length) : null,
         q3_length: isCanPay ? toNullableNumber(q3Length) : null,
@@ -1637,13 +1637,13 @@ export default function Page() {
       .from("process_log")
       .insert({
         run_id: runId,
-        ma_kh: currentMaKH || null,
+        ma_kh: null,
         thoi_gian: new Date().toISOString(),
         process_name: selectedProcessName,
         event_type: eventType,
         cua_vao: cuaVao,
-        loai_kh: loaiKH || null,
-        quay: quay || null,
+        loai_kh: null,
+        quay: null,
         ghi_chu: processNote.trim(),
         nguoi_bam: tenNguoiBam.trim(),
       })
@@ -2059,14 +2059,12 @@ export default function Page() {
       decisionLog.map((r, i) => ({
         stt: i + 1,
         id: r.id,
-        maKH: r.maKH,
         thoiGian: formatDateTimeVNms(r.thoiGian),
         cuaVao: r.cuaVao,
         decisionName: r.decisionName,
         arenaMode: getDecisionMode(r.decisionName),
         optionSelected: r.optionSelected,
         arenaBranchNote: getArenaBranchNote(r.decisionName, r.optionSelected),
-        loaiKH: r.loaiKH,
         q1Length: r.q1Length,
         q2Length: r.q2Length,
         q3Length: r.q3Length,
@@ -2110,13 +2108,10 @@ export default function Page() {
         stt: i + 1,
         id: r.id,
         runId: r.runId,
-        maKH: r.maKH,
         processName: r.processName,
         eventType: r.eventType,
         thoiGian: formatDateTimeVNms(r.thoiGian),
         cuaVao: r.cuaVao,
-        loaiKH: r.loaiKH,
-        quay: r.quay,
         ghiChu: r.ghiChu,
         nguoiBam: r.nguoiBam,
       })),
@@ -2128,12 +2123,9 @@ export default function Page() {
       processSummaryRows.map((r, i) => ({
         stt: i + 1,
         runId: r.runId,
-        maKH: r.maKH,
         arenaModule: r.arenaModule,
         processName: r.processName,
         cuaVao: r.cuaVao,
-        loaiKH: r.loaiKH,
-        quay: r.quay,
         startTime: r.startTime,
         endTime: r.endTime,
         processDurationS: toNumberOrBlank(r.processDurationS),
@@ -2306,7 +2298,7 @@ export default function Page() {
             Bước 1: Bấm START/END để lấy phân phối cho cục Process
           </h2>
           <p style={{ margin: "-4px 0 12px", color: palette.sub, fontSize: 13 }}>
-            Đây là bước bắt buộc. Sau khi có ít nhất một dòng Process trạng thái OK, bạn có thể sang Bước 2 hoặc bỏ qua Bước 2 để sang Bước 3.
+            Đây là bước bắt buộc và không gắn với mã khách hàng. Sau khi có ít nhất một dòng Process trạng thái OK, bạn có thể sang Bước 2 hoặc bỏ qua Bước 2 để sang Bước 3.
           </p>
 
           {!processTableReady && (
@@ -2348,9 +2340,9 @@ export default function Page() {
               </select>
             </Field>
 
-            <Field label="Mã KH liên kết">
+            <Field label="Liên kết mã khách">
               <input
-                value={currentMaKH || "Không gắn mã KH"}
+                value="Không gắn mã khách ở Bước 1"
                 readOnly
                 style={inputStyle}
               />
@@ -2422,7 +2414,6 @@ export default function Page() {
                 <tr style={{ background: palette.card2 }}>
                   {[
                     "Process",
-                    "Mã KH",
                     "Start",
                     "End",
                     "Duration (s)",
@@ -2440,7 +2431,6 @@ export default function Page() {
                 {processSummaryRows.slice(0, 25).map((r) => (
                   <tr key={r.runId}>
                     <td style={tdStyle}>{r.processName}</td>
-                    <td style={tdStyle}>{r.maKH}</td>
                     <td style={tdStyle}>{r.startTime}</td>
                     <td style={tdStyle}>{r.endTime}</td>
                     <td style={tdStyle}>
@@ -2481,7 +2471,6 @@ export default function Page() {
                     "Process",
                     "Event",
                     "Run",
-                    "Mã KH",
                     "Người bấm",
                     "Xóa",
                   ].map((h) => (
@@ -2498,7 +2487,6 @@ export default function Page() {
                     <td style={tdStyle}>{r.processName}</td>
                     <td style={tdStyle}>{r.eventType}</td>
                     <td style={tdStyle}>{r.runId}</td>
-                    <td style={tdStyle}>{r.maKH}</td>
                     <td style={tdStyle}>{r.nguoiBam}</td>
                     <td style={tdStyle}>
                       <button
@@ -2523,7 +2511,7 @@ export default function Page() {
 
 
         <section style={cardStyle}>
-          <h2 style={sectionTitleStyle}>Bước 2: Bấm dữ liệu cho các cục Decide (không bắt buộc)</h2>
+          <h2 style={sectionTitleStyle}>Bước 2: Bấm dữ liệu cho các cục Decide (có thể bấm hoặc bỏ qua)</h2>
           {!canUseDecisionStep && (
             <div
               style={{
@@ -2708,7 +2696,6 @@ export default function Page() {
                 <tr style={{ background: palette.card2 }}>
                   {[
                     "Thời gian",
-                    "Mã KH",
                     "Decide",
                     "Nhánh chọn",
                     "Q1",
@@ -2729,7 +2716,6 @@ export default function Page() {
                 {decisionLog.slice(0, 20).map((r) => (
                   <tr key={r.id}>
                     <td style={tdStyle}>{formatDateTimeVNms(r.thoiGian)}</td>
-                    <td style={tdStyle}>{r.maKH}</td>
                     <td style={tdStyle}>{r.decisionName}</td>
                     <td style={tdStyle}>{r.optionSelected}</td>
                     <td style={tdStyle}>{r.q1Length}</td>
