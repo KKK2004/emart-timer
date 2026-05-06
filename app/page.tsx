@@ -2292,7 +2292,7 @@ export default function Page() {
 
         <section style={cardStyle}>
           <h2 style={sectionTitleStyle}>
-            2C. Bấm START/END để lấy phân phối tất cả cục Process
+            Bấm START/END để lấy phân phối cho cục Process
           </h2>
 
           {!processTableReady && (
@@ -2509,7 +2509,7 @@ export default function Page() {
 
 
         <section style={cardStyle}>
-          <h2 style={sectionTitleStyle}>2B. Bấm dữ liệu cho các cục Decide</h2>
+          <h2 style={sectionTitleStyle}> Bấm dữ liệu cho các cục Decide</h2>
 
           {!decisionTableReady && (
             <div
@@ -2724,7 +2724,7 @@ export default function Page() {
           }}
         >
           <div style={cardStyle}>
-            <h2 style={sectionTitleStyle}>1. Tạo khách mới</h2>
+            <h2 style={sectionTitleStyle}>Bấm để phân loại khách theo món ăn</h2>
             <div
               style={{
                 display: "grid",
@@ -2825,7 +2825,7 @@ export default function Page() {
           </div>
 
           <div style={cardStyle}>
-            <h2 style={sectionTitleStyle}>2. Bấm mốc thời gian</h2>
+            <h2 style={sectionTitleStyle}>Thứ tự khách tại quầy thanh toán</h2>
             {currentMaKH ? (
               <div style={{ display: "grid", gap: 10 }}>
                 <div
@@ -2911,7 +2911,7 @@ export default function Page() {
 
 
         <section style={cardStyle}>
-          <h2 style={sectionTitleStyle}>3. Khách đang theo dõi</h2>
+          <h2 style={sectionTitleStyle}>Các khách đang được bấm tại quầy thanh toán</h2>
           {activeCustomers.length === 0 ? (
             <p style={{ color: palette.sub }}>Chưa có dữ liệu.</p>
           ) : (
@@ -2973,7 +2973,7 @@ export default function Page() {
 
         <section style={cardStyle}>
           <h2 style={sectionTitleStyle}>
-            4. Bảng kiểm tra nhanh trước khi đưa vào Input Analyzer
+            Bảng kiểm tra khách đang ở quầy thanh toán
           </h2>
           <div style={{ overflowX: "auto" }}>
             <table
