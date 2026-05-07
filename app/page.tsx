@@ -1422,8 +1422,13 @@ export default function Page() {
       alert("Thiết bị chưa sẵn sàng, vui lòng thử lại.");
       return;
     }
-    if (!processSummaryRows.some((row) => row.status === "OK")) {
-      alert("Bạn cần hoàn thành Bước 1: bấm START và END cho ít nhất một cục Process trước khi sang Bước 3 phân loại khách.");
+    if (
+      !processSummaryRows.some((row) => row.status === "OK") &&
+      decisionLog.length === 0
+    ) {
+      alert(
+        "Bạn cần bấm ít nhất Bước 1 Process hoặc Bước 2 Decide trước khi sang Bước 3 phân loại khách.",
+      );
       return;
     }
 
@@ -1530,11 +1535,6 @@ export default function Page() {
       alert("Bạn chưa nhập tên người bấm.");
       return;
     }
-    if (!processSummaryRows.some((row) => row.status === "OK")) {
-      alert("Bạn cần hoàn thành Bước 1: bấm START và END cho ít nhất một cục Process trước khi sang Bước 2 Decide.");
-      return;
-    }
-
     const isCanPay = selectedDecisionName.startsWith("Can I pay now");
     const finalChosenCounter = getChosenCounterFromOption(
       selectedDecisionOption,
@@ -1935,11 +1935,13 @@ export default function Page() {
   );
   const isCanPayDecision = selectedDecisionName.startsWith("Can I pay now");
   const selectedDecisionOptions = getDecisionOptions(selectedDecisionName);
-  const hasCompletedRequiredProcessStep = processSummaryRows.some(
+  const hasCompletedProcessStep = processSummaryRows.some(
     (row) => row.status === "OK",
   );
-  const canUseDecisionStep = hasCompletedRequiredProcessStep;
-  const canUseCustomerClassificationStep = hasCompletedRequiredProcessStep;
+  const hasCompletedDecisionStep = decisionLog.length > 0;
+  const hasCompletedStep1OrStep2 = hasCompletedProcessStep || hasCompletedDecisionStep;
+  const canUseDecisionStep = true;
+  const canUseCustomerClassificationStep = hasCompletedStep1OrStep2;
 
 
   function exportExcel() {
@@ -2298,7 +2300,7 @@ export default function Page() {
             Bước 1: Bấm START/END để lấy phân phối cho cục Process
           </h2>
           <p style={{ margin: "-4px 0 12px", color: palette.sub, fontSize: 13 }}>
-            Đây là bước bắt buộc và không gắn với mã khách hàng. Sau khi có ít nhất một dòng Process trạng thái OK, bạn có thể sang Bước 2 hoặc bỏ qua Bước 2 để sang Bước 3.
+            Có thể bấm Bước 1 hoặc Bước 2 trước. Sau khi có dữ liệu ở ít nhất một trong hai bước này, bạn mới được sang Bước 3 để phân loại khách theo món ăn.
           </p>
 
           {!processTableReady && (
@@ -2511,7 +2513,7 @@ export default function Page() {
 
 
         <section style={cardStyle}>
-          <h2 style={sectionTitleStyle}>Bước 2: Bấm dữ liệu cho các cục Decide (có thể bấm hoặc bỏ qua)</h2>
+          <h2 style={sectionTitleStyle}>Bước 2: Bấm dữ liệu cho các cục Decide (có thể bấm trước hoặc bỏ qua)</h2>
           {!canUseDecisionStep && (
             <div
               style={{
@@ -2524,7 +2526,7 @@ export default function Page() {
                 fontWeight: 700,
               }}
             >
-              Chưa hoàn thành Bước 1. Hãy bấm START và END cho ít nhất một cục Process trước.
+              Bước 2 có thể bấm trước hoặc sau Bước 1.
             </div>
           )}
 
@@ -2760,7 +2762,7 @@ export default function Page() {
                   fontWeight: 700,
                 }}
               >
-                Chưa hoàn thành Bước 1. Bước 2 Decide có thể bỏ qua, nhưng phải có ít nhất một Process OK trước khi tạo/phân loại khách.
+                Chưa có dữ liệu ở Bước 1 hoặc Bước 2. Hãy bấm ít nhất một trong hai bước này trước khi tạo/phân loại khách.
               </div>
             )}
             <div
