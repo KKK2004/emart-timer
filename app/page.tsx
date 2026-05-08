@@ -1417,6 +1417,34 @@ export default function Page() {
     setSelectedDecisionOption(getDefaultDecisionOption(selectedDecisionName));
   }, [selectedDecisionName]);
 
+  function getSharedWorkflowNote() {
+    return processNote.trim() || decisionNote.trim() || ghiChu.trim();
+  }
+
+  function updateSharedWorkflowNote(value: string) {
+    setProcessNote(value);
+    setDecisionNote(value);
+    setGhiChu(value);
+  }
+
+  function hasCustomerPaymentEvents(maKH: string) {
+    return eventLog.some((row) => row.maKH === maKH);
+  }
+
+  function ensureWorkflowCustomerCode(forceNewIfAlreadyClassified = false) {
+    if (!deviceId) return "";
+    if (
+      currentMaKH &&
+      !(forceNewIfAlreadyClassified && hasCustomerPaymentEvents(currentMaKH))
+    ) {
+      return currentMaKH;
+    }
+
+    const newCode = generateCustomerCode(deviceId);
+    setCurrentMaKH(newCode);
+    return newCode;
+  }
+
   function startNewCustomer(selectedType: CustomerType) {
     if (!deviceId) {
       alert("Thiết bị chưa sẵn sàng, vui lòng thử lại.");
@@ -1433,11 +1461,12 @@ export default function Page() {
     }
 
     const counters = getValidCounters(selectedType);
-    const newCode = generateCustomerCode(deviceId);
-    setCurrentMaKH(newCode);
+    const workflowCode = ensureWorkflowCustomerCode(true);
+    const sharedNote = getSharedWorkflowNote();
+    setCurrentMaKH(workflowCode);
     setLoaiKH(selectedType);
     setQuay(counters.includes(quay) ? quay : counters[0]);
-    setGhiChu("");
+    updateSharedWorkflowNote(sharedNote);
   }
 
   function selectCustomerToContinue(maKH: string) {
@@ -1474,7 +1503,8 @@ export default function Page() {
 
     const now = new Date();
     const quyTrinh = buildQuyTrinh(loaiKH, quay, cuaVao);
-    const savedNote = buildGhiChu(ghiChu, cuaVao);
+    const savedNote = getSharedWorkflowNote();
+    updateSharedWorkflowNote(savedNote);
 
     const { data, error } = await supabase
       .from("event_log")
@@ -1521,7 +1551,7 @@ export default function Page() {
     setEventLog((prev) => prev.filter((x) => x.maKH !== deletingMaKH));
     setCurrentMaKH("");
     setLoaiKH("");
-    setGhiChu("");
+    updateSharedWorkflowNote("");
   }
 
   async function addDecisionLog() {
@@ -1545,20 +1575,28 @@ export default function Page() {
       return;
     }
 
+    const workflowCode = ensureWorkflowCustomerCode();
+    if (!workflowCode) {
+      alert("Thiết bị chưa sẵn sàng, vui lòng thử lại.");
+      return;
+    }
+    const sharedNote = getSharedWorkflowNote();
+    updateSharedWorkflowNote(sharedNote);
+
     const { data, error } = await supabase
       .from("decision_log")
       .insert({
-        ma_kh: null,
+        ma_kh: workflowCode,
         thoi_gian: new Date().toISOString(),
         cua_vao: cuaVao,
         decision_name: selectedDecisionName,
         option_selected: selectedDecisionOption,
-        loai_kh: null,
+        loai_kh: loaiKH || null,
         q1_length: isCanPay ? toNullableNumber(q1Length) : null,
         q2_length: isCanPay ? toNullableNumber(q2Length) : null,
         q3_length: isCanPay ? toNullableNumber(q3Length) : null,
         chosen_counter: isCanPay ? finalChosenCounter : null,
-        ghi_chu: decisionNote.trim(),
+        ghi_chu: sharedNote,
         nguoi_bam: tenNguoiBam.trim(),
       })
       .select("*");
@@ -1570,7 +1608,6 @@ export default function Page() {
 
     const inserted = data?.[0] as DecisionDbRow | undefined;
     if (inserted) upsertDecisionRow(mapDbRowToDecisionRow(inserted));
-    setDecisionNote("");
   }
 
   async function deleteDecisionRow(id: number) {
@@ -1607,6 +1644,14 @@ export default function Page() {
       return;
     }
 
+    const workflowCode = ensureWorkflowCustomerCode(eventType === "START");
+    if (!workflowCode) {
+      alert("Thiết bị chưa sẵn sàng, vui lòng thử lại.");
+      return;
+    }
+    const sharedNote = getSharedWorkflowNote();
+    updateSharedWorkflowNote(sharedNote);
+
     let runId = activeProcessRunId;
     if (eventType === "START") {
       runId = generateProcessRunId(selectedProcessName, deviceId);
@@ -1637,14 +1682,14 @@ export default function Page() {
       .from("process_log")
       .insert({
         run_id: runId,
-        ma_kh: null,
+        ma_kh: workflowCode,
         thoi_gian: new Date().toISOString(),
         process_name: selectedProcessName,
         event_type: eventType,
         cua_vao: cuaVao,
-        loai_kh: null,
-        quay: null,
-        ghi_chu: processNote.trim(),
+        loai_kh: loaiKH || null,
+        quay: loaiKH ? quay : null,
+        ghi_chu: sharedNote,
         nguoi_bam: tenNguoiBam.trim(),
       })
       .select("*");
@@ -1658,7 +1703,6 @@ export default function Page() {
     if (inserted) upsertProcessRow(mapDbRowToProcessLogRow(inserted));
     if (eventType === "END") {
       setActiveProcessRunId("");
-      setProcessNote("");
     }
   }
 
@@ -2061,12 +2105,14 @@ export default function Page() {
       decisionLog.map((r, i) => ({
         stt: i + 1,
         id: r.id,
+        maKH: r.maKH,
         thoiGian: formatDateTimeVNms(r.thoiGian),
         cuaVao: r.cuaVao,
         decisionName: r.decisionName,
         arenaMode: getDecisionMode(r.decisionName),
         optionSelected: r.optionSelected,
         arenaBranchNote: getArenaBranchNote(r.decisionName, r.optionSelected),
+        loaiKH: r.loaiKH,
         q1Length: r.q1Length,
         q2Length: r.q2Length,
         q3Length: r.q3Length,
@@ -2110,10 +2156,13 @@ export default function Page() {
         stt: i + 1,
         id: r.id,
         runId: r.runId,
+        maKH: r.maKH,
         processName: r.processName,
         eventType: r.eventType,
         thoiGian: formatDateTimeVNms(r.thoiGian),
         cuaVao: r.cuaVao,
+        loaiKH: r.loaiKH,
+        quay: r.quay,
         ghiChu: r.ghiChu,
         nguoiBam: r.nguoiBam,
       })),
@@ -2125,9 +2174,12 @@ export default function Page() {
       processSummaryRows.map((r, i) => ({
         stt: i + 1,
         runId: r.runId,
+        maKH: r.maKH,
         arenaModule: r.arenaModule,
         processName: r.processName,
         cuaVao: r.cuaVao,
+        loaiKH: r.loaiKH,
+        quay: r.quay,
         startTime: r.startTime,
         endTime: r.endTime,
         processDurationS: toNumberOrBlank(r.processDurationS),
@@ -2300,7 +2352,7 @@ export default function Page() {
             Bước 1: Bấm START/END để lấy phân phối cho cục Process
           </h2>
           <p style={{ margin: "-4px 0 12px", color: palette.sub, fontSize: 13 }}>
-            Có thể bấm Bước 1 hoặc Bước 2 trước. Sau khi có dữ liệu ở ít nhất một trong hai bước này, bạn mới được sang Bước 3 để phân loại khách theo món ăn.
+            Có thể bấm Bước 1 hoặc Bước 2 trước. App sẽ tự tạo một mã khách dùng chung; mã và ghi chú này được giữ xuyên suốt Bước 1, Bước 2 và Bước 3.
           </p>
 
           {!processTableReady && (
@@ -2342,9 +2394,9 @@ export default function Page() {
               </select>
             </Field>
 
-            <Field label="Liên kết mã khách">
+            <Field label="Mã khách dùng chung">
               <input
-                value="Không gắn mã khách ở Bước 1"
+                value={currentMaKH || "Chưa có mã - sẽ tự tạo khi bấm START"}
                 readOnly
                 style={inputStyle}
               />
@@ -2378,7 +2430,7 @@ export default function Page() {
           <Field label="Ghi chú Process" block>
             <textarea
               value={processNote}
-              onChange={(e) => setProcessNote(e.target.value)}
+              onChange={(e) => updateSharedWorkflowNote(e.target.value)}
               style={{ ...inputStyle, minHeight: 60, resize: "vertical" }}
               placeholder="VD: khách lựa đồ lâu, đổi món, nhân viên xử lý nhiều đơn, thanh toán QR..."
             />
@@ -2399,6 +2451,18 @@ export default function Page() {
             >
               END Process
             </button>
+            <button
+              onClick={() => {
+                const newCode = generateCustomerCode(deviceId);
+                setCurrentMaKH(newCode);
+                setLoaiKH("");
+                updateSharedWorkflowNote("");
+                setActiveProcessRunId("");
+              }}
+              style={secondaryButtonStyle}
+            >
+              Tạo mã khách mới
+            </button>
             <button onClick={clearProcessData} style={dangerButtonStyle}>
               Xóa Process_Log
             </button>
@@ -2415,6 +2479,7 @@ export default function Page() {
               <thead>
                 <tr style={{ background: palette.card2 }}>
                   {[
+                    "Mã KH",
                     "Process",
                     "Start",
                     "End",
@@ -2432,6 +2497,7 @@ export default function Page() {
               <tbody>
                 {processSummaryRows.slice(0, 25).map((r) => (
                   <tr key={r.runId}>
+                    <td style={tdStyle}>{r.maKH}</td>
                     <td style={tdStyle}>{r.processName}</td>
                     <td style={tdStyle}>{r.startTime}</td>
                     <td style={tdStyle}>{r.endTime}</td>
@@ -2470,9 +2536,11 @@ export default function Page() {
                 <tr style={{ background: palette.card2 }}>
                   {[
                     "Thời gian",
+                    "Mã KH",
                     "Process",
                     "Event",
                     "Run",
+                    "Ghi chú",
                     "Người bấm",
                     "Xóa",
                   ].map((h) => (
@@ -2486,9 +2554,11 @@ export default function Page() {
                 {processLog.slice(0, 20).map((r) => (
                   <tr key={r.id}>
                     <td style={tdStyle}>{formatDateTimeVNms(r.thoiGian)}</td>
+                    <td style={tdStyle}>{r.maKH}</td>
                     <td style={tdStyle}>{r.processName}</td>
                     <td style={tdStyle}>{r.eventType}</td>
                     <td style={tdStyle}>{r.runId}</td>
+                    <td style={tdStyle}>{r.ghiChu}</td>
                     <td style={tdStyle}>{r.nguoiBam}</td>
                     <td style={tdStyle}>
                       <button
@@ -2514,6 +2584,9 @@ export default function Page() {
 
         <section style={cardStyle}>
           <h2 style={sectionTitleStyle}>Bước 2: Bấm dữ liệu cho các cục Decide (có thể bấm trước hoặc bỏ qua)</h2>
+          <p style={{ margin: "-4px 0 12px", color: palette.sub, fontSize: 13 }}>
+            Decision_Log sẽ dùng chung mã khách và ghi chú với Process_Log hiện tại.
+          </p>
           {!canUseDecisionStep && (
             <div
               style={{
@@ -2660,7 +2733,7 @@ export default function Page() {
           <Field label="Ghi chú Decide" block>
             <textarea
               value={decisionNote}
-              onChange={(e) => setDecisionNote(e.target.value)}
+              onChange={(e) => updateSharedWorkflowNote(e.target.value)}
               style={{ ...inputStyle, minHeight: 60, resize: "vertical" }}
               placeholder="VD: khách chọn quầy gần nhất, khách đi theo nhóm, khách đổi hướng..."
             />
@@ -2698,12 +2771,14 @@ export default function Page() {
                 <tr style={{ background: palette.card2 }}>
                   {[
                     "Thời gian",
+                    "Mã KH",
                     "Decide",
                     "Nhánh chọn",
                     "Q1",
                     "Q2",
                     "Q3",
                     "Quầy chọn",
+                    "Ghi chú",
                     "Người bấm",
                     "Xóa",
                   ].map((h) => (
@@ -2718,12 +2793,14 @@ export default function Page() {
                 {decisionLog.slice(0, 20).map((r) => (
                   <tr key={r.id}>
                     <td style={tdStyle}>{formatDateTimeVNms(r.thoiGian)}</td>
+                    <td style={tdStyle}>{r.maKH}</td>
                     <td style={tdStyle}>{r.decisionName}</td>
                     <td style={tdStyle}>{r.optionSelected}</td>
                     <td style={tdStyle}>{r.q1Length}</td>
                     <td style={tdStyle}>{r.q2Length}</td>
                     <td style={tdStyle}>{r.q3Length}</td>
                     <td style={tdStyle}>{r.chosenCounter}</td>
+                    <td style={tdStyle}>{r.ghiChu}</td>
                     <td style={tdStyle}>{r.nguoiBam}</td>
                     <td style={tdStyle}>
                       <button
@@ -2859,7 +2936,7 @@ export default function Page() {
             <Field label="Ghi chú quan sát" block>
               <textarea
                 value={ghiChu}
-                onChange={(e) => setGhiChu(e.target.value)}
+                onChange={(e) => updateSharedWorkflowNote(e.target.value)}
                 style={{ ...inputStyle, minHeight: 70, resize: "vertical" }}
                 placeholder="VD: khách mua combo, đổi quầy, thanh toán nhiều món..."
               />
