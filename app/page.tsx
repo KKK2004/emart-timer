@@ -1455,6 +1455,9 @@ export default function Page() {
               {!currentMaKH && <Notice tone="blue">Bấm “+ Tạo khách mới” ở mục 1 trước. Decide sẽ dùng đúng mã khách đang hiển thị ở mục 1.</Notice>}
 
               <div style={gridFormStyle}>
+                <Field label="Mã khách hàng áp dụng">
+                  <input value={currentMaKH || "Chưa tạo mã khách"} readOnly style={inputStyle} />
+                </Field>
                 <Field label="Tên cục Decide">
                   <select value={selectedDecisionName} onChange={(e) => setSelectedDecisionName(e.target.value as DecisionName)} style={inputStyle}>
                     {DECISION_NAMES.map((name) => <option key={name} value={name}>{name}</option>)}
@@ -1471,15 +1474,15 @@ export default function Page() {
               </div>
 
               {selectedDecisionName.startsWith("Can I pay now") && <Notice tone="blue">Chọn trực tiếp quầy khách thực tế đi vào ở ô “Nhánh khách chọn”. Không cần nhập Q1/Q2/Q3 đang chờ.</Notice>}
-              <button onClick={addDecisionLog} disabled={!currentMaKH} style={currentMaKH ? primaryButtonStyle : disabledButtonStyle}>Lưu Decide cho mã khách hiện tại</button>
+              <button onClick={addDecisionLog} disabled={!currentMaKH} style={currentMaKH ? primaryButtonStyle : disabledButtonStyle}>Lưu Decide cho mã khách đang hiển thị</button>
             </div>
           </div>
         </section>
 
         <section style={cardStyle}>
-          <h2 style={sectionTitleStyle}>3. Chọn loại khách / món chính sau END Process</h2>
+          <h2 style={sectionTitleStyle}>3. Chọn loại khách / món chính cho mã khách hiện tại sau END Process</h2>
           {!completedSelectProcess && <Notice tone="amber">Chưa chọn được loại khách. Hãy bấm START và END Process lựa món trước.</Notice>}
-          {loaiKH && <Notice tone="green">Khách này đã chọn loại: {getLoaiKhachLabel(loaiKH)}. Hai mốc đầu đã được lấy từ START/END Process.</Notice>}
+          {loaiKH && <Notice tone="green">Mã {currentMaKH} đã chọn loại: {getLoaiKhachLabel(loaiKH)}. Hai mốc đầu đã được lấy từ START/END Process.</Notice>}
 
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))", gap: 10 }}>
             {CUSTOMER_TYPES.map((item) => {
@@ -1505,6 +1508,9 @@ export default function Page() {
           </div>
 
           <div style={gridFormStyle}>
+            <Field label="Mã khách hàng phân loại">
+              <input value={currentMaKH || "Chưa tạo mã khách"} readOnly style={inputStyle} />
+            </Field>
             <Field label="Quầy áp dụng">
               <select value={quay} onChange={(e) => setQuay(e.target.value as CounterType)} style={inputStyle}>
                 {validCounters.map((q) => <option key={q} value={q}>{q}</option>)}
