@@ -51,6 +51,7 @@ type ProcessName =
   | "Payment_3";
 
 type EventName =
+  | "KHACH_VAO_KHU_AN_UONG"
   | "CAM_DO_AN"
   | "NV_DUA_THE_ORDER"
   | "LAY_NUOC"
@@ -63,7 +64,7 @@ type FlowStep = {
   code: EventName;
   label: string;
   shortLabel: string;
-  role: "SYSTEM_START" | "QUEUE_ARRIVAL" | "SERVICE_START" | "SERVICE_END";
+  role: "SYSTEM_START" | "PRE_QUEUE_ACTION" | "QUEUE_ARRIVAL" | "SERVICE_START" | "SERVICE_END";
 };
 
 type EventRow = {
@@ -187,6 +188,7 @@ type SummaryRow = {
   queueArrivalTime: string;
   serviceStartTime: string;
   serviceEndTime: string;
+  selectProductTimeS: number | "";
   waitingTimeS: number | "";
   serviceTimeS: number | "";
   systemTimeS: number | "";
@@ -422,37 +424,22 @@ function getLoaiKhachLabel(loai: CustomerType) {
   }
 }
 
+function makeSystemStartStep(): FlowStep {
+  return {
+    code: "KHACH_VAO_KHU_AN_UONG",
+    label: "1. Khách vào khu ăn uống/cửa vào",
+    shortLabel: "Khách vào khu ăn uống",
+    role: "SYSTEM_START",
+  };
+}
+
 function getFlow(loai: CustomerType): FlowStep[] {
+  const systemStart = makeSystemStartStep();
+
   switch (loai) {
     case "SAN":
       return [
-        {
-          code: "VAO_HANG_THANH_TOAN",
-          label: "1. Khách vào hàng đợi thanh toán",
-          shortLabel: "Vào hàng thanh toán",
-          role: "QUEUE_ARRIVAL",
-        },
-        {
-          code: "NV_BAT_DAU_PHUC_VU",
-          label: "2. Nhân viên bắt đầu tính tiền",
-          shortLabel: "Bắt đầu phục vụ",
-          role: "SERVICE_START",
-        },
-        {
-          code: "NHAN_HANG_ROI_QUAY",
-          label: "3. Khách nhận hàng và rời quầy",
-          shortLabel: "Rời quầy",
-          role: "SERVICE_END",
-        },
-      ];
-    case "CHUAN":
-      return [
-        {
-          code: "NV_DUA_THE_ORDER",
-          label: "1. Nhân viên đưa phiếu/thẻ order",
-          shortLabel: "Nhận phiếu order",
-          role: "SYSTEM_START",
-        },
+        systemStart,
         {
           code: "VAO_HANG_THANH_TOAN",
           label: "2. Khách vào hàng đợi thanh toán",
@@ -467,76 +454,107 @@ function getFlow(loai: CustomerType): FlowStep[] {
         },
         {
           code: "NHAN_HANG_ROI_QUAY",
-          label: "4. Khách nhận món và rời quầy",
+          label: "4. Khách nhận hàng và rời quầy",
+          shortLabel: "Rời quầy",
+          role: "SERVICE_END",
+        },
+      ];
+    case "CHUAN":
+      return [
+        systemStart,
+        {
+          code: "NV_DUA_THE_ORDER",
+          label: "2. Nhân viên đưa phiếu/thẻ order",
+          shortLabel: "Nhận phiếu order",
+          role: "PRE_QUEUE_ACTION",
+        },
+        {
+          code: "VAO_HANG_THANH_TOAN",
+          label: "3. Khách vào hàng đợi thanh toán",
+          shortLabel: "Vào hàng thanh toán",
+          role: "QUEUE_ARRIVAL",
+        },
+        {
+          code: "NV_BAT_DAU_PHUC_VU",
+          label: "4. Nhân viên bắt đầu tính tiền",
+          shortLabel: "Bắt đầu phục vụ",
+          role: "SERVICE_START",
+        },
+        {
+          code: "NHAN_HANG_ROI_QUAY",
+          label: "5. Khách nhận món và rời quầy",
           shortLabel: "Rời quầy",
           role: "SERVICE_END",
         },
       ];
     case "PIZZA":
       return [
+        systemStart,
         {
           code: "VAO_HANG_ORDER_PIZZA",
-          label: "1. Khách vào hàng đợi order pizza",
+          label: "2. Khách vào hàng đợi order pizza",
           shortLabel: "Vào hàng pizza",
           role: "QUEUE_ARRIVAL",
         },
         {
           code: "NV_BAT_DAU_PHUC_VU",
-          label: "2. Nhân viên bắt đầu nhận order/tính tiền",
+          label: "3. Nhân viên bắt đầu nhận order/tính tiền",
           shortLabel: "Bắt đầu phục vụ",
           role: "SERVICE_START",
         },
         {
           code: "NHAN_HANG_ROI_QUAY",
-          label: "3. Khách nhận pizza và rời quầy",
+          label: "4. Khách nhận pizza và rời quầy",
           shortLabel: "Rời quầy",
           role: "SERVICE_END",
         },
       ];
     case "PIZZA_COMBO":
       return [
+        systemStart,
         {
           code: "CAM_DO_AN",
-          label: "1. Khách cầm món khác và qua quầy pizza",
+          label: "2. Khách cầm món khác và qua quầy pizza",
           shortLabel: "Cầm món khác",
-          role: "SYSTEM_START",
+          role: "PRE_QUEUE_ACTION",
         },
         {
           code: "VAO_HANG_ORDER_PIZZA",
-          label: "2. Khách vào hàng order pizza/thanh toán",
+          label: "3. Khách vào hàng order pizza/thanh toán",
           shortLabel: "Vào hàng pizza",
           role: "QUEUE_ARRIVAL",
         },
         {
           code: "NV_BAT_DAU_PHUC_VU",
-          label: "3. Nhân viên bắt đầu xử lý toàn bộ đơn",
+          label: "4. Nhân viên bắt đầu xử lý toàn bộ đơn",
           shortLabel: "Bắt đầu phục vụ",
           role: "SERVICE_START",
         },
         {
           code: "NHAN_HANG_ROI_QUAY",
-          label: "4. Khách nhận đủ món và rời quầy",
+          label: "5. Khách nhận đủ món và rời quầy",
           shortLabel: "Rời quầy",
           role: "SERVICE_END",
         },
       ];
     case "NUOC":
       return [
+        systemStart,
         {
           code: "VAO_HANG_THANH_TOAN",
-          label: "1. Khách vào hàng đợi thanh toán",
+          label: "2. Khách vào hàng đợi thanh toán",
           shortLabel: "Vào hàng thanh toán",
           role: "QUEUE_ARRIVAL",
         },
         {
           code: "NV_BAT_DAU_PHUC_VU",
-          label: "2. Nhân viên bắt đầu tính tiền",
+          label: "3. Nhân viên bắt đầu tính tiền",
           shortLabel: "Bắt đầu phục vụ",
           role: "SERVICE_START",
         },
         {
           code: "NHAN_HANG_ROI_QUAY",
-          label: "3. Khách thanh toán xong và rời quầy",
+          label: "4. Khách thanh toán xong và rời quầy",
           shortLabel: "Rời quầy",
           role: "SERVICE_END",
         },
@@ -1445,7 +1463,66 @@ export default function Page() {
     return newCode;
   }
 
-  function startNewCustomer(selectedType: CustomerType) {
+  function getWorkflowSystemStartTime(maKH: string) {
+    const candidates = [
+      ...processLog
+        .filter((row) => row.maKH === maKH && row.eventType === "START")
+        .map((row) => row.thoiGian),
+      ...decisionLog
+        .filter((row) => row.maKH === maKH)
+        .map((row) => row.thoiGian),
+    ]
+      .map((value) => ({ value, time: parseDateTime(value)?.getTime() || 0 }))
+      .filter((item) => item.time > 0)
+      .sort((a, b) => a.time - b.time);
+
+    return candidates[0]?.value || new Date().toISOString();
+  }
+
+  function hasSystemArrivalEvent(maKH: string) {
+    return eventLog.some(
+      (row) => row.maKH === maKH && row.suKien === "KHACH_VAO_KHU_AN_UONG",
+    );
+  }
+
+  async function insertSystemArrivalIfMissing(
+    maKH: string,
+    selectedType: CustomerType,
+    selectedCounter: CounterType,
+    note: string,
+  ) {
+    if (hasSystemArrivalEvent(maKH)) return;
+    if (!tenNguoiBam.trim()) {
+      alert("Bạn chưa nhập tên người bấm.");
+      return;
+    }
+
+    const quyTrinh = buildQuyTrinh(selectedType, selectedCounter, cuaVao);
+    const { data, error } = await supabase
+      .from("event_log")
+      .insert({
+        ma_kh: maKH,
+        loai_kh: selectedType,
+        quy_trinh: quyTrinh,
+        su_kien: "KHACH_VAO_KHU_AN_UONG",
+        thoi_gian: getWorkflowSystemStartTime(maKH),
+        nhan_vien: nhanVien.trim() || "NV1",
+        quay: selectedCounter,
+        ghi_chu: note,
+        nguoi_bam: tenNguoiBam.trim(),
+      })
+      .select("*");
+
+    if (error) {
+      alert(`Không lưu được mốc khách vào khu ăn uống: ${error.message}`);
+      return;
+    }
+
+    const inserted = data?.[0] as DbRow | undefined;
+    if (inserted) upsertEventRow(mapDbRowToEventRow(inserted));
+  }
+
+  async function startNewCustomer(selectedType: CustomerType) {
     if (!deviceId) {
       alert("Thiết bị chưa sẵn sàng, vui lòng thử lại.");
       return;
@@ -1462,11 +1539,18 @@ export default function Page() {
 
     const counters = getValidCounters(selectedType);
     const workflowCode = ensureWorkflowCustomerCode(true);
+    const selectedCounter = counters.includes(quay) ? quay : counters[0];
     const sharedNote = getSharedWorkflowNote();
     setCurrentMaKH(workflowCode);
     setLoaiKH(selectedType);
-    setQuay(counters.includes(quay) ? quay : counters[0]);
+    setQuay(selectedCounter);
     updateSharedWorkflowNote(sharedNote);
+    await insertSystemArrivalIfMissing(
+      workflowCode,
+      selectedType,
+      selectedCounter,
+      sharedNote,
+    );
   }
 
   function selectCustomerToContinue(maKH: string) {
@@ -1776,11 +1860,15 @@ export default function Page() {
         return ordered.find((r) => r.suKien === step.code);
       };
 
-      const systemStart = findRow("SYSTEM_START") || findRow("QUEUE_ARRIVAL");
-      const queueArrival = findRow("QUEUE_ARRIVAL") || systemStart;
+      const systemStart = findRow("SYSTEM_START");
+      const queueArrival = findRow("QUEUE_ARRIVAL");
       const serviceStart = findRow("SERVICE_START");
       const serviceEnd = findRow("SERVICE_END");
 
+      const selectProductTimeS = diffSecondsPrecise(
+        systemStart?.thoiGian || "",
+        queueArrival?.thoiGian || "",
+      );
       const waitingTimeS = diffSecondsPrecise(
         queueArrival?.thoiGian || "",
         serviceStart?.thoiGian || "",
@@ -1799,9 +1887,12 @@ export default function Page() {
         .map((step) => step.shortLabel);
 
       const timeError =
+        selectProductTimeS === "" ||
         waitingTimeS === "" ||
         serviceTimeS === "" ||
         systemTimeS === "" ||
+        Number(selectProductTimeS) < 0 ||
+        Number(waitingTimeS) < 0 ||
         Number(serviceTimeS) <= 0;
 
       const dataStatus: SummaryRow["dataStatus"] = missingSteps.length
@@ -1813,7 +1904,7 @@ export default function Page() {
       const errorNote = missingSteps.length
         ? `Thiếu bước: ${missingSteps.join(", ")}`
         : timeError
-          ? "Kiểm tra lại mốc thời gian: service/system time rỗng hoặc service time <= 0"
+          ? "Kiểm tra lại mốc thời gian: select/wait/service/system time rỗng hoặc sai thứ tự"
           : "Đủ dữ liệu";
 
       result.push({
@@ -1848,6 +1939,7 @@ export default function Page() {
         queueArrivalTime: formatDateTimeVNms(queueArrival?.thoiGian || ""),
         serviceStartTime: formatDateTimeVNms(serviceStart?.thoiGian || ""),
         serviceEndTime: formatDateTimeVNms(serviceEnd?.thoiGian || ""),
+        selectProductTimeS,
         waitingTimeS,
         serviceTimeS,
         systemTimeS,
@@ -2033,6 +2125,7 @@ export default function Page() {
         queueArrivalTime: r.queueArrivalTime,
         serviceStartTime: r.serviceStartTime,
         serviceEndTime: r.serviceEndTime,
+        selectProductTimeS: toNumberOrBlank(r.selectProductTimeS),
         waitingTimeS: toNumberOrBlank(r.waitingTimeS),
         serviceTimeS: toNumberOrBlank(r.serviceTimeS),
         systemTimeS: toNumberOrBlank(r.systemTimeS),
@@ -2079,6 +2172,7 @@ export default function Page() {
           queueInterarrivalByProcessS: toNumberOrBlank(
             r.queueInterarrivalByProcessS,
           ),
+          selectProductTimeS: toNumberOrBlank(r.selectProductTimeS),
           waitingTimeS: toNumberOrBlank(r.waitingTimeS),
           serviceTimeS: toNumberOrBlank(r.serviceTimeS),
           systemTimeS: toNumberOrBlank(r.systemTimeS),
@@ -2228,6 +2322,28 @@ export default function Page() {
     );
     appendSheet(
       wb,
+      "IA_Select_Long",
+      makeLongIA(
+        summaryRows,
+        "selectProductTimeS",
+        "createByType",
+        "Select product time: khách vào khu ăn uống đến lúc vào hàng",
+      ),
+    );
+
+    appendSheet(
+      wb,
+      "IA_Waiting_Long",
+      makeLongIA(
+        summaryRows,
+        "waitingTimeS",
+        "queueName",
+        "Waiting time: vào hàng đến bắt đầu phục vụ",
+      ),
+    );
+
+    appendSheet(
+      wb,
       "IA_Service_Long",
       makeLongIA(
         summaryRows,
@@ -2244,6 +2360,15 @@ export default function Page() {
         summaryRows,
         (r) => r.createByEntrance,
         (r) => r.systemInterarrivalByEntranceS,
+      ),
+    );
+    appendSheet(
+      wb,
+      "IA_Select_Type_Wide",
+      makeWideIA(
+        summaryRows,
+        (r) => r.createByType,
+        (r) => r.selectProductTimeS,
       ),
     );
     appendSheet(
@@ -2575,9 +2700,7 @@ export default function Page() {
           </div>
 
           <p style={{ margin: "10px 0 0", color: palette.sub, fontSize: 13 }}>
-            Sheet cần dùng cho Input Analyzer: IA_All_Process_Wide. Mỗi cột là
-            một Process module trong Arena, mỗi dòng là một lần đo Delay/Process
-            time tính bằng giây.
+            Sheet cần dùng cho Input Analyzer: IA_All_Process_Wide cho Process START/END; IA_Select_Long/Wide cho thời gian khách vào khu ăn uống đến lúc vào hàng; IA_Service_Long cho thời gian phục vụ.
           </p>
         </section>
 
@@ -3112,6 +3235,7 @@ export default function Page() {
                     "Trạng thái",
                     "IA Entrance (s)",
                     "IA Type (s)",
+                    "Select (s)",
                     "Wait (s)",
                     "Service (s)",
                     "System (s)",
@@ -3146,6 +3270,7 @@ export default function Page() {
                     <td style={tdStyle}>
                       {toNumberOrBlank(r.systemInterarrivalByTypeS)}
                     </td>
+                    <td style={tdStyle}>{toNumberOrBlank(r.selectProductTimeS)}</td>
                     <td style={tdStyle}>{toNumberOrBlank(r.waitingTimeS)}</td>
                     <td style={tdStyle}>{toNumberOrBlank(r.serviceTimeS)}</td>
                     <td style={tdStyle}>{toNumberOrBlank(r.systemTimeS)}</td>
