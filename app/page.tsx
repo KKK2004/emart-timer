@@ -805,52 +805,53 @@ export default function Page() {
         </section>
 
         <section style={cardStyle}>
-          <h2 style={sectionTitleStyle}>2. Bấm START/END Process trước khi biết loại khách</h2>
-          <Notice tone="amber">Dùng START là lúc khách vào khu ăn uống/bắt đầu lựa. Dùng END là lúc khách kết thúc lựa và chuẩn bị vào hàng. Sau END mới chọn loại khách/món chính.</Notice>
-          {!processTableReady && <Notice tone="red">Chưa có bảng process_log trong Supabase.</Notice>}
-          <div style={gridFormStyle}>
-            <Field label="Process module"><select value={selectedProcessName} onChange={(e) => { setSelectedProcessName(e.target.value as ProcessName); setActiveProcessRunId(""); }} style={inputStyle}>{ARENA_PROCESS_NAMES.map((name) => <option key={name} value={name}>{name}</option>)}</select></Field>
-            <Field label="Run đang chạy"><input value={activeProcessRunId || selectedProcessActiveRun?.runId || "Chưa có START"} readOnly style={inputStyle} /></Field>
-          </div>
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}><button onClick={() => addProcessEvent("START")} style={primaryButtonStyle}>START Process / tạo mã khách</button><button onClick={() => addProcessEvent("END")} disabled={!currentMaKH} style={currentMaKH ? secondaryButtonStyle : disabledButtonStyle}>END Process</button></div>
-          <p style={{ color: palette.sub, margin: "10px 0 0", fontSize: 13 }}>Process lựa món hoàn tất: <b>{completedSelectProcess ? `${completedSelectProcess.processName} (${completedSelectProcess.processDurationS}s)` : "Chưa có"}</b></p>
-        </section>
-
-        <section style={cardStyle}>
-          <h2 style={sectionTitleStyle}>3. Chọn loại khách / món chính và Decide sau END Process</h2>
-          {!completedSelectProcess && <Notice tone="amber">Chưa chọn được loại khách. Hãy bấm START và END Process lựa món trước.</Notice>}
-          {loaiKH && <Notice tone="amber">Khách này đã chọn loại: {getLoaiKhachLabel(loaiKH)}. Hai mốc đầu đã được lấy từ START/END Process.</Notice>}
-          <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) minmax(360px, 0.9fr)", gap: 16, alignItems: "start" }}>
-            <div style={{ display: "grid", gap: 12 }}>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))", gap: 10 }}>
-                {CUSTOMER_TYPES.map((item) => {
-                  const selected = loaiKH === item.code;
-                  return <button key={item.code} onClick={() => classifyCustomer(item.code)} disabled={!canClassify} style={{ ...typeButtonStyle, background: selected ? palette.blueSoft : palette.card, borderColor: selected ? palette.blue : palette.line, cursor: canClassify ? "pointer" : "not-allowed", opacity: canClassify || selected ? 1 : 0.55 }}><b>{item.label}</b><span style={{ color: palette.sub, fontSize: 12 }}>{item.hint}</span></button>;
-                })}
-              </div>
+          <h2 style={sectionTitleStyle}>2. Bấm START/END Process và Decide trước khi biết loại khách</h2>
+          <Notice tone="amber">Dùng START là lúc khách vào khu ăn uống/bắt đầu lựa. Trong lúc khách đang lựa/đi qua các điểm rẽ, có thể bấm Decide ngay trong khối này. Dùng END là lúc khách kết thúc lựa và chuẩn bị vào hàng. Sau END mới chọn loại khách/món chính.</Notice>
+          <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)", gap: 16 }}>
+            <div style={{ border: `1px solid ${palette.line}`, borderRadius: 14, padding: 12, background: palette.card2 }}>
+              <h3 style={subSectionTitleStyle}>2.1. START/END Process lựa món</h3>
+              {!processTableReady && <Notice tone="red">Chưa có bảng process_log trong Supabase.</Notice>}
               <div style={gridFormStyle}>
-                <Field label="Quầy áp dụng"><select value={quay} onChange={(e) => setQuay(e.target.value as CounterType)} style={inputStyle}>{validCounters.map((c) => <option key={c} value={c}>{c}</option>)}</select></Field>
-                <Field label="Loại đang chọn"><input value={getLoaiKhachLabel(loaiKH)} readOnly style={inputStyle} /></Field>
+                <Field label="Process module"><select value={selectedProcessName} onChange={(e) => { setSelectedProcessName(e.target.value as ProcessName); setActiveProcessRunId(""); }} style={inputStyle}>{ARENA_PROCESS_NAMES.map((name) => <option key={name} value={name}>{name}</option>)}</select></Field>
+                <Field label="Run đang chạy"><input value={activeProcessRunId || selectedProcessActiveRun?.runId || "Chưa có START"} readOnly style={inputStyle} /></Field>
               </div>
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}><button onClick={() => addProcessEvent("START")} style={primaryButtonStyle}>START Process / tạo mã khách</button><button onClick={() => addProcessEvent("END")} disabled={!currentMaKH} style={currentMaKH ? secondaryButtonStyle : disabledButtonStyle}>END Process</button></div>
+              <p style={{ color: palette.sub, margin: "10px 0 0", fontSize: 13 }}>Process lựa món hoàn tất: <b>{completedSelectProcess ? `${completedSelectProcess.processName} (${completedSelectProcess.processDurationS}s)` : "Chưa có"}</b></p>
             </div>
 
             <div style={{ border: `1px solid ${palette.line}`, borderRadius: 14, padding: 12, background: palette.card2 }}>
-              <h3 style={subSectionTitleStyle}>3.2. Decide cho khách hiện tại</h3>
-              <p style={{ color: palette.sub, margin: "0 0 8px", fontSize: 13 }}>Bấm ngay tại đây nếu khách vừa phân loại xong và đi qua điểm rẽ/chọn quầy.</p>
+              <h3 style={subSectionTitleStyle}>2.2. Decide nếu khách đi qua điểm rẽ / chọn quầy</h3>
               {!decisionTableReady && <Notice tone="red">Chưa có bảng decision_log trong Supabase.</Notice>}
+              {!currentMaKH && <Notice tone="blue">Bấm START Process trước để tạo mã khách, sau đó có thể lưu Decide cho đúng khách này.</Notice>}
               <div style={gridFormStyle}>
                 <Field label="Tên cục Decide"><select value={selectedDecisionName} onChange={(e) => setSelectedDecisionName(e.target.value as DecisionName)} style={inputStyle}>{DECISION_NAMES.map((name) => <option key={name} value={name}>{name}</option>)}</select></Field>
                 <Field label="Nhánh khách chọn"><select value={selectedDecisionOption} onChange={(e) => setSelectedDecisionOption(e.target.value)} style={inputStyle}>{getDecisionOptions(selectedDecisionName).map((op) => <option key={op} value={op}>{op}</option>)}</select></Field>
                 <Field label="Loại dữ liệu Arena"><input value={getDecisionMode(selectedDecisionName)} readOnly style={inputStyle} /></Field>
               </div>
               {selectedDecisionName.startsWith("Can I pay now") && <Notice tone="blue">Chọn trực tiếp quầy khách thực tế đi vào ở ô “Nhánh khách chọn”. Không cần nhập Q1/Q2/Q3 đang chờ.</Notice>}
-              <button onClick={addDecisionLog} disabled={!currentMaKH || !completedSelectProcess} style={currentMaKH && completedSelectProcess ? primaryButtonStyle : disabledButtonStyle}>Lưu Decide cho mã khách này</button>
+              <button onClick={addDecisionLog} disabled={!currentMaKH} style={currentMaKH ? primaryButtonStyle : disabledButtonStyle}>Lưu Decide cho mã khách hiện tại</button>
             </div>
           </div>
         </section>
 
         <section style={cardStyle}>
-          <h2 style={sectionTitleStyle}>4. Bấm mốc thời gian chính và Process phụ</h2>
+          <h2 style={sectionTitleStyle}>3. Chọn loại khách / món chính sau END Process</h2>
+          {!completedSelectProcess && <Notice tone="amber">Chưa chọn được loại khách. Hãy bấm START và END Process lựa món trước.</Notice>}
+          {loaiKH && <Notice tone="amber">Khách này đã chọn loại: {getLoaiKhachLabel(loaiKH)}. Hai mốc đầu đã được lấy từ START/END Process.</Notice>}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))", gap: 10 }}>
+            {CUSTOMER_TYPES.map((item) => {
+              const selected = loaiKH === item.code;
+              return <button key={item.code} onClick={() => classifyCustomer(item.code)} disabled={!canClassify} style={{ ...typeButtonStyle, background: selected ? palette.blueSoft : palette.card, borderColor: selected ? palette.blue : palette.line, cursor: canClassify ? "pointer" : "not-allowed", opacity: canClassify || selected ? 1 : 0.55 }}><b>{item.label}</b><span style={{ color: palette.sub, fontSize: 12 }}>{item.hint}</span></button>;
+            })}
+          </div>
+          <div style={gridFormStyle}>
+            <Field label="Quầy áp dụng"><select value={quay} onChange={(e) => setQuay(e.target.value as CounterType)} style={inputStyle}>{validCounters.map((c) => <option key={c} value={c}>{c}</option>)}</select></Field>
+            <Field label="Loại đang chọn"><input value={getLoaiKhachLabel(loaiKH)} readOnly style={inputStyle} /></Field>
+          </div>
+        </section>
+
+        <section style={cardStyle}>
+          <h2 style={sectionTitleStyle}>4. Bấm mốc phục vụ sau khi đã biết loại khách</h2>
           <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1.25fr) minmax(330px, 0.75fr)", gap: 16 }}>
             <div style={{ display: "grid", gap: 12 }}>
               <div style={{ border: `1px solid ${palette.line}`, borderRadius: 14, padding: 12, background: palette.card2 }}>
@@ -864,8 +865,6 @@ export default function Page() {
                 })}
                 <button onClick={addNextMainEvent} disabled={!canPressService} style={canPressService ? primaryButtonStyle : disabledButtonStyle}>Bấm: {nextStep?.shortLabel || "Đã đủ mốc"}</button>
               </div>
-
-
               <div style={{ border: `1px solid ${palette.line}`, borderRadius: 14, padding: 12, background: palette.card2 }}>
                 <h3 style={subSectionTitleStyle}>4.2. Process phụ sau khi đã phân loại nếu cần</h3>
                 <p style={{ color: palette.sub, margin: "0 0 8px", fontSize: 13 }}>Dùng cho Payment_1/2/3 hoặc các cục Process khác nếu muốn đo riêng ngoài mốc chính.</p>
