@@ -1082,61 +1082,149 @@ export default function Page() {
         </section>
 
         <section style={cardStyle}>
-          <h2 style={sectionTitleStyle}>3. Bấm mốc thời gian chính của khách</h2>
-          {!loaiKH && <Notice tone="amber">Hãy chọn loại khách trước khi bấm các mốc chính.</Notice>}
-          {loaiKH && <div style={{ display: "grid", gap: 10 }}>
-            {currentFlow.map((step, idx) => {
-              const done = currentCustomerEvents.some((r) => r.suKien === step.code);
-              const isNext = nextStep?.code === step.code;
-              return <div key={step.code} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, border: `1px solid ${done ? palette.green : isNext ? palette.blue : palette.line}`, background: done ? palette.greenSoft : isNext ? palette.blueSoft : palette.card2, borderRadius: 12, padding: 12 }}>
-                <div><b>{step.label}</b><div style={{ color: palette.sub, fontSize: 13 }}>{step.code}</div></div>
-                <span style={{ fontWeight: 800 }}>{done ? "Đã bấm" : isNext ? "Đang chờ bấm" : `Sau bước ${idx}`}</span>
-              </div>;
-            })}
-            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-              <button onClick={addNextEvent} disabled={!nextStep || isCurrentDone} style={nextStep ? primaryButtonStyle : disabledButtonStyle}>{nextStep ? `Bấm: ${nextStep.shortLabel}` : "Đã đủ mốc"}</button>
-            </div>
-          </div>}
-        </section>
+          <h2 style={sectionTitleStyle}>3. Bấm dữ liệu cho khách hiện tại</h2>
+          <p style={{ margin: "-4px 0 12px", color: palette.sub, fontSize: 13 }}>
+            Gộp mốc thời gian chính, Decide và START/END Process phụ trong cùng một mã khách. Dùng phần này khi quan sát một khách thực tế đi qua khu ăn uống.
+          </p>
 
-        <section style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(360px, 1fr))", gap: 16 }}>
-          <div style={cardStyle}>
-            <h2 style={sectionTitleStyle}>4. Bấm Decide cho khách hiện tại</h2>
-            {!decisionTableReady && <Notice tone="red">Chưa có bảng decision_log trong Supabase.</Notice>}
-            {!currentMaKH && <Notice tone="amber">Hãy tạo/chọn mã khách trước khi bấm Decide.</Notice>}
-            <div style={gridFormStyle}>
-              <Field label="Tên cục Decide"><select value={selectedDecisionName} onChange={(e) => setSelectedDecisionName(e.target.value as DecisionName)} style={inputStyle}>{DECISION_NAMES.map((name) => <option key={name} value={name}>{name}</option>)}</select></Field>
-              <Field label="Nhánh khách chọn"><select value={selectedDecisionOption} onChange={(e) => setSelectedDecisionOption(e.target.value)} style={inputStyle}>{selectedDecisionOptions.map((option) => <option key={option} value={option}>{option}</option>)}</select></Field>
-              <Field label="Loại dữ liệu Arena"><input value={getDecisionMode(selectedDecisionName)} readOnly style={inputStyle} /></Field>
-            </div>
-            {isCanPayDecision && <div style={gridFormStyle}>
-              <Field label="Q1 đang chờ"><input type="number" value={q1Length} onChange={(e) => setQ1Length(e.target.value === "" ? "" : Number(e.target.value))} style={inputStyle} /></Field>
-              <Field label="Q2 đang chờ"><input type="number" value={q2Length} onChange={(e) => setQ2Length(e.target.value === "" ? "" : Number(e.target.value))} style={inputStyle} /></Field>
-              <Field label="Q3 đang chờ"><input type="number" value={q3Length} onChange={(e) => setQ3Length(e.target.value === "" ? "" : Number(e.target.value))} style={inputStyle} /></Field>
-              <Field label="Quầy ngắn nhất"><input value={getShortestQueueCounter(q1Length, q2Length, q3Length) || "Chưa đủ dữ liệu"} readOnly style={inputStyle} /></Field>
-            </div>}
-            <button onClick={addDecisionLog} style={primaryButtonStyle}>Lưu Decide cho mã khách này</button>
-            <SimpleTable rows={currentCustomerDecisions} columns={["thoiGian", "decisionName", "optionSelected", "chosenCounter"]} formatTime />
-          </div>
+          {!currentMaKH && <Notice tone="amber">Hãy bấm “+ Tạo khách mới” ở mục 1 trước khi ghi dữ liệu.</Notice>}
+          {!loaiKH && <Notice tone="amber">Hãy chọn loại khách ở mục 2 trước khi bấm các mốc chính. Decide và Process phụ vẫn có thể bấm sau khi đã có mã khách.</Notice>}
 
-          <div style={cardStyle}>
-            <h2 style={sectionTitleStyle}>5. Bấm START/END Process phụ</h2>
-            {!processTableReady && <Notice tone="red">Chưa có bảng process_log trong Supabase.</Notice>}
-            {!currentMaKH && <Notice tone="amber">Hãy tạo/chọn mã khách trước khi bấm Process.</Notice>}
-            <div style={gridFormStyle}>
-              <Field label="Process module"><select value={selectedProcessName} onChange={(e) => { setSelectedProcessName(e.target.value as ProcessName); setActiveProcessRunId(""); }} style={inputStyle}>{ARENA_PROCESS_NAMES.map((name) => <option key={name} value={name}>{name}</option>)}</select></Field>
-              <Field label="Run đang chạy"><input value={activeProcessRunId || selectedProcessActiveRun?.runId || "Chưa có START"} readOnly style={inputStyle} /></Field>
+          <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1.2fr) minmax(320px, 0.8fr)", gap: 16, alignItems: "start" }}>
+            <div style={{ display: "grid", gap: 12 }}>
+              <div style={{ border: `1px solid ${palette.line}`, borderRadius: 14, padding: 12, background: palette.card2 }}>
+                <h3 style={subSectionTitleStyle}>3.1. Mốc thời gian chính</h3>
+                {loaiKH ? (
+                  <div style={{ display: "grid", gap: 10 }}>
+                    {currentFlow.map((step, idx) => {
+                      const done = currentCustomerEvents.some((r) => r.suKien === step.code);
+                      const isNext = nextStep?.code === step.code;
+                      return (
+                        <div
+                          key={step.code}
+                          style={{
+                            display: "flex",
+                            justifyContent: "space-between",
+                            alignItems: "center",
+                            gap: 10,
+                            border: `1px solid ${done ? palette.green : isNext ? palette.blue : palette.line}`,
+                            background: done ? palette.greenSoft : isNext ? palette.blueSoft : palette.card,
+                            borderRadius: 12,
+                            padding: 12,
+                          }}
+                        >
+                          <div>
+                            <b>{step.label}</b>
+                            <div style={{ color: palette.sub, fontSize: 13 }}>{step.code}</div>
+                          </div>
+                          <span style={{ fontWeight: 800 }}>{done ? "Đã bấm" : isNext ? "Đang chờ bấm" : `Sau bước ${idx}`}</span>
+                        </div>
+                      );
+                    })}
+                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                      <button
+                        onClick={addNextEvent}
+                        disabled={!nextStep || isCurrentDone || !currentMaKH}
+                        style={nextStep && currentMaKH ? primaryButtonStyle : disabledButtonStyle}
+                      >
+                        {nextStep ? `Bấm: ${nextStep.shortLabel}` : "Đã đủ mốc chính"}
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <p style={{ margin: 0, color: palette.sub }}>Chưa chọn loại khách nên chưa hiển thị flow mốc chính.</p>
+                )}
+              </div>
+
+              <div style={{ border: `1px solid ${palette.line}`, borderRadius: 14, padding: 12, background: palette.card2 }}>
+                <h3 style={subSectionTitleStyle}>3.2. Decide nếu khách đi qua điểm rẽ / chọn quầy</h3>
+                {!decisionTableReady && <Notice tone="red">Chưa có bảng decision_log trong Supabase.</Notice>}
+                <div style={gridFormStyle}>
+                  <Field label="Tên cục Decide">
+                    <select value={selectedDecisionName} onChange={(e) => setSelectedDecisionName(e.target.value as DecisionName)} style={inputStyle}>
+                      {DECISION_NAMES.map((name) => <option key={name} value={name}>{name}</option>)}
+                    </select>
+                  </Field>
+                  <Field label="Nhánh khách chọn">
+                    <select value={selectedDecisionOption} onChange={(e) => setSelectedDecisionOption(e.target.value)} style={inputStyle}>
+                      {selectedDecisionOptions.map((option) => <option key={option} value={option}>{option}</option>)}
+                    </select>
+                  </Field>
+                  <Field label="Loại dữ liệu Arena">
+                    <input value={getDecisionMode(selectedDecisionName)} readOnly style={inputStyle} />
+                  </Field>
+                </div>
+
+                {isCanPayDecision && (
+                  <div style={gridFormStyle}>
+                    <Field label="Q1 đang chờ">
+                      <input type="number" min={0} value={q1Length} onChange={(e) => setQ1Length(e.target.value === "" ? "" : Number(e.target.value))} style={inputStyle} />
+                    </Field>
+                    <Field label="Q2 đang chờ">
+                      <input type="number" min={0} value={q2Length} onChange={(e) => setQ2Length(e.target.value === "" ? "" : Number(e.target.value))} style={inputStyle} />
+                    </Field>
+                    <Field label="Q3 đang chờ">
+                      <input type="number" min={0} value={q3Length} onChange={(e) => setQ3Length(e.target.value === "" ? "" : Number(e.target.value))} style={inputStyle} />
+                    </Field>
+                    <Field label="Quầy ngắn nhất">
+                      <input value={getShortestQueueCounter(q1Length, q2Length, q3Length) || "Chưa đủ dữ liệu"} readOnly style={inputStyle} />
+                    </Field>
+                  </div>
+                )}
+
+                <button onClick={addDecisionLog} disabled={!currentMaKH} style={currentMaKH ? primaryButtonStyle : disabledButtonStyle}>
+                  Lưu Decide cho mã khách này
+                </button>
+              </div>
+
+              <div style={{ border: `1px solid ${palette.line}`, borderRadius: 14, padding: 12, background: palette.card2 }}>
+                <h3 style={subSectionTitleStyle}>3.3. START/END Process phụ</h3>
+                {!processTableReady && <Notice tone="red">Chưa có bảng process_log trong Supabase.</Notice>}
+                <div style={gridFormStyle}>
+                  <Field label="Process module">
+                    <select value={selectedProcessName} onChange={(e) => { setSelectedProcessName(e.target.value as ProcessName); setActiveProcessRunId(""); }} style={inputStyle}>
+                      {ARENA_PROCESS_NAMES.map((name) => <option key={name} value={name}>{name}</option>)}
+                    </select>
+                  </Field>
+                  <Field label="Run đang chạy">
+                    <input value={activeProcessRunId || selectedProcessActiveRun?.runId || "Chưa có START"} readOnly style={inputStyle} />
+                  </Field>
+                </div>
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                  <button onClick={() => addProcessEvent("START")} disabled={!currentMaKH} style={currentMaKH ? primaryButtonStyle : disabledButtonStyle}>
+                    START Process
+                  </button>
+                  <button onClick={() => addProcessEvent("END")} disabled={!currentMaKH} style={currentMaKH ? secondaryButtonStyle : disabledButtonStyle}>
+                    END Process
+                  </button>
+                </div>
+              </div>
             </div>
-            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-              <button onClick={() => addProcessEvent("START")} style={primaryButtonStyle}>START Process</button>
-              <button onClick={() => addProcessEvent("END")} style={secondaryButtonStyle}>END Process</button>
-            </div>
-            <SimpleTable rows={currentCustomerProcesses} columns={["thoiGian", "processName", "eventType", "runId"]} formatTime />
+
+            <aside style={{ display: "grid", gap: 12 }}>
+              <div style={{ border: `1px solid ${palette.line}`, borderRadius: 14, padding: 12, background: palette.card2 }}>
+                <h3 style={subSectionTitleStyle}>Dữ liệu của khách hiện tại</h3>
+                <p style={{ margin: "0 0 8px", color: palette.sub, fontSize: 13 }}>
+                  Mã khách: <b style={{ color: palette.text }}>{currentMaKH || "Chưa tạo"}</b>
+                </p>
+                <SimpleTable rows={currentCustomerEvents} columns={["thoiGian", "suKien", "loaiKH"]} formatTime />
+              </div>
+
+              <div style={{ border: `1px solid ${palette.line}`, borderRadius: 14, padding: 12, background: palette.card2 }}>
+                <h3 style={subSectionTitleStyle}>Decision đã bấm</h3>
+                <SimpleTable rows={currentCustomerDecisions} columns={["thoiGian", "decisionName", "optionSelected", "chosenCounter"]} formatTime />
+              </div>
+
+              <div style={{ border: `1px solid ${palette.line}`, borderRadius: 14, padding: 12, background: palette.card2 }}>
+                <h3 style={subSectionTitleStyle}>Process phụ đã bấm</h3>
+                <SimpleTable rows={currentCustomerProcesses} columns={["thoiGian", "processName", "eventType", "runId"]} formatTime />
+              </div>
+            </aside>
           </div>
         </section>
 
         <section style={cardStyle}>
-          <h2 style={sectionTitleStyle}>6. Summary khách</h2>
+          <h2 style={sectionTitleStyle}>4. Summary khách</h2>
           <div style={{ overflowX: "auto" }}>
             <table style={tableStyle}><thead><tr style={{ background: palette.card2 }}>{["Mã KH", "Loại", "Cửa", "Quầy", "Select(s)", "Wait(s)", "Service(s)", "System(s)", "Status", "Xóa"].map((h) => <th key={h} style={thStyle}>{h}</th>)}</tr></thead>
               <tbody>{summaryRows.slice(0, 80).map((r) => <tr key={r.maKH}>
@@ -1150,7 +1238,7 @@ export default function Page() {
         </section>
 
         <section style={cardStyle}>
-          <h2 style={sectionTitleStyle}>7. Log gần nhất</h2>
+          <h2 style={sectionTitleStyle}>5. Log gần nhất</h2>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(330px, 1fr))", gap: 16 }}>
             <LogTable title="Event_Log" rows={eventLog.slice(0, 20)} columns={["thoiGian", "maKH", "suKien", "loaiKH"]} onDelete={(id) => deleteEventRow(id)} />
             <LogTable title="Decision_Log" rows={decisionLog.slice(0, 20)} columns={["thoiGian", "maKH", "decisionName", "optionSelected"]} onDelete={(id) => deleteDecisionRow(id)} />
@@ -1185,6 +1273,7 @@ function LogTable({ title, rows, columns, onDelete }: { title: string; rows: Rec
 
 const cardStyle: React.CSSProperties = { background: palette.card, border: `1px solid ${palette.line}`, borderRadius: 16, padding: 16, boxShadow: "0 1px 2px rgba(0,0,0,0.04)" };
 const sectionTitleStyle: React.CSSProperties = { margin: "0 0 12px", fontSize: 18 };
+const subSectionTitleStyle: React.CSSProperties = { margin: "0 0 10px", fontSize: 16 };
 const gridFormStyle: React.CSSProperties = { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))", gap: 12, marginTop: 12, marginBottom: 12 };
 const inputStyle: React.CSSProperties = { width: "100%", boxSizing: "border-box", border: `1px solid ${palette.line}`, borderRadius: 10, padding: "10px 12px", fontSize: 14, background: "white" };
 const primaryButtonStyle: React.CSSProperties = { border: "none", background: palette.blue, color: "white", borderRadius: 10, padding: "10px 14px", fontWeight: 800, cursor: "pointer" };
