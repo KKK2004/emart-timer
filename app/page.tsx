@@ -263,14 +263,16 @@ function diffSecondsPrecise(start: string, end: string): number | "" {
 }
 function toNumberOrBlank(value: number | "") { return value === "" ? "" : Number(value.toFixed(3)); }
 function generateDeviceId() { return `DV-${Math.random().toString(36).slice(2, 8).toUpperCase()}`; }
-function generateCustomerCode(deviceId: string) {
-  const now = new Date();
-  const datePart = `${now.getFullYear()}${pad2(now.getMonth() + 1)}${pad2(now.getDate())}`;
-  const timePart = `${pad2(now.getHours())}${pad2(now.getMinutes())}${pad2(now.getSeconds())}${pad3(now.getMilliseconds())}`;
-  const devicePart = deviceId.replace("DV-", "").slice(-4) || "NODE";
-  const randomPart = Math.random().toString(36).slice(2, 5).toUpperCase();
-  return `KH-${datePart}-${timePart}-${devicePart}-${randomPart}`;
+function getNextCustomerNo() {
+  const key = "emart_customer_no";
+  const current = Number(localStorage.getItem(key) || "0") + 1;
+  localStorage.setItem(key, String(current));
+  return current;
 }
+
+function generateCustomerCode(deviceId: string) {
+  const devicePart = deviceId.replace("DV-", "").slice(-2).toUpperCase() || "DV";
+  const customerNo = String(getNextCustomerNo()).padStart(
 function generateProcessRunId(processName: ProcessName, deviceId: string) {
   const now = new Date();
   const stamp = `${now.getFullYear()}${pad2(now.getMonth() + 1)}${pad2(now.getDate())}${pad2(now.getHours())}${pad2(now.getMinutes())}${pad2(now.getSeconds())}${pad3(now.getMilliseconds())}`;
