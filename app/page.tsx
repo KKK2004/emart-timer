@@ -899,11 +899,10 @@ export default function Page() {
     setActiveProcessRunId("");
     setSelectedProcessName("customer selects items");
   }
-  function ensureCustomerCode() {
+  function requireCurrentCustomerCode() {
     if (currentMaKH) return currentMaKH;
-    const code = generateCustomerCode();
-    setCurrentMaKH(code);
-    return code;
+    alert("Bạn cần bấm '+ Tạo khách mới' ở mục 1. Khách hiện tại trước. Mã khách ở mục 1 sẽ được áp dụng cho tất cả các bước bên dưới.");
+    return "";
   }
   function selectCustomerToContinue(maKH: string) {
     setCurrentMaKH(maKH);
@@ -936,7 +935,8 @@ export default function Page() {
       return;
     }
 
-    const maKH = ensureCustomerCode();
+    const maKH = requireCurrentCustomerCode();
+    if (!maKH) return;
     let runId = activeProcessRunId;
 
     if (eventType === "START") {
@@ -1024,7 +1024,7 @@ export default function Page() {
 
   async function classifyCustomer(selectedType: CustomerType) {
     if (!currentMaKH) {
-      alert("Bạn cần bấm START Process trước để tạo mã khách.");
+      alert("Bạn cần bấm '+ Tạo khách mới' ở mục 1 trước, sau đó bấm START/END Process.");
       return;
     }
     if (!completedSelectProcess) {
@@ -1044,7 +1044,8 @@ export default function Page() {
 
   async function addDecisionLogInline(decisionName: DecisionName, option: string, forcedType?: CustomerType, forcedCounter?: CounterType) {
     if (!decisionTableReady) return;
-    const maKH = ensureCustomerCode();
+    const maKH = requireCurrentCustomerCode();
+    if (!maKH) return;
     const isCanPay = decisionName.startsWith("Can I pay now");
     const finalChosenCounter = getChosenCounterFromOption(option);
     const manuallyChosenCounter = isCanPay ? getCounterFromCode(finalChosenCounter) : "";
@@ -1097,7 +1098,7 @@ export default function Page() {
       return;
     }
     if (!currentMaKH) {
-      alert("Bạn cần bấm START Process trước để có mã khách.");
+      alert("Bạn cần bấm '+ Tạo khách mới' ở mục 1 trước để có mã khách áp dụng cho Decide.");
       return;
     }
     await addDecisionLogInline(selectedDecisionName, selectedDecisionOption);
@@ -1359,7 +1360,7 @@ export default function Page() {
         <header style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
           <div>
             <h1 style={{ margin: 0, fontSize: 26 }}>Emart Timer - mã khách ngắn</h1>
-            <p style={{ margin: "6px 0 0", color: palette.sub }}>START/END Process lựa món trước → chọn loại khách/món chính → bấm phục vụ. Mã khách dạng KH001, KH002...</p>
+            <p style={{ margin: "6px 0 0", color: palette.sub }}>Tạo mã khách ở mục 1 trước. Mã KH001, KH002... sẽ được dùng chung cho START/END Process, Decide, phân loại và phục vụ.</p>
           </div>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
             <button onClick={refreshAllData} style={secondaryButtonStyle}>{loading ? "Đang tải..." : "Tải lại"}</button>
@@ -1372,7 +1373,7 @@ export default function Page() {
           <h2 style={sectionTitleStyle}>1. Khách hiện tại</h2>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))", gap: 12 }}>
             <InfoBox label="Mã khách" value={currentMaKH || "Chưa tạo"} />
-            <InfoBox label="Trạng thái" value={!currentMaKH ? "Chưa START" : !completedSelectProcess ? "Đang lựa/chưa END" : !loaiKH ? "Chờ phân loại" : "Đang phục vụ"} tone={loaiKH ? "green" : completedSelectProcess ? "amber" : undefined} />
+            <InfoBox label="Trạng thái" value={!currentMaKH ? "Chưa tạo mã KH" : !completedSelectProcess ? "Đang lựa/chưa END" : !loaiKH ? "Chờ phân loại" : "Đang phục vụ"} tone={loaiKH ? "green" : completedSelectProcess ? "amber" : undefined} />
             <InfoBox label="Summary OK" value={String(okCount)} tone="green" />
             <InfoBox label="Thiếu/Lỗi" value={String(errorCount)} tone={errorCount ? "red" : undefined} />
           </div>
@@ -1398,6 +1399,9 @@ export default function Page() {
             <button onClick={createNewCustomer} style={primaryButtonStyle}>+ Tạo khách mới</button>
             <button onClick={resetCurrentCustomer} disabled={!currentMaKH} style={currentMaKH ? dangerButtonStyle : disabledButtonStyle}>Reset khách hiện tại</button>
           </div>
+          <p style={{ margin: "10px 0 0", color: palette.sub, fontSize: 13 }}>
+            Mã khách đang hiển thị ở mục này sẽ được áp dụng cho tất cả thao tác bên dưới: START/END Process, Decide, chọn loại khách và bấm phục vụ.
+          </p>
 
           {pendingCustomers.length > 0 && (
             <div style={{ marginTop: 14 }}>
@@ -1414,9 +1418,9 @@ export default function Page() {
         </section>
 
         <section style={cardStyle}>
-          <h2 style={sectionTitleStyle}>2. Bấm START/END Process và Decide trước khi biết loại khách</h2>
+          <h2 style={sectionTitleStyle}>2. Bấm START/END Process và Decide theo mã khách hiện tại</h2>
           <Notice tone="amber">
-            START = khách vào khu ăn uống/bắt đầu lựa. END = khách kết thúc lựa và chuẩn bị vào hàng. Trong lúc khách đi qua điểm rẽ hoặc chọn quầy, bấm Decide ngay trong khối này.
+            Bấm “+ Tạo khách mới” ở mục 1 trước. Sau đó START = khách vào khu ăn uống/bắt đầu lựa, END = khách kết thúc lựa và chuẩn bị vào hàng. Decide cũng sẽ lưu theo đúng mã khách đang hiển thị ở mục 1.
           </Notice>
 
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(360px, 1fr))", gap: 16 }}>
@@ -1436,8 +1440,8 @@ export default function Page() {
               </div>
 
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                <button onClick={() => addProcessEvent("START")} style={primaryButtonStyle}>START Process / tạo mã khách</button>
-                <button onClick={() => addProcessEvent("END")} disabled={!currentMaKH} style={currentMaKH ? secondaryButtonStyle : disabledButtonStyle}>END Process</button>
+                <button onClick={() => addProcessEvent("START")} disabled={!currentMaKH} style={currentMaKH ? primaryButtonStyle : disabledButtonStyle}>START Process cho mã hiện tại</button>
+                <button onClick={() => addProcessEvent("END")} disabled={!currentMaKH} style={currentMaKH ? secondaryButtonStyle : disabledButtonStyle}>END Process cho mã hiện tại</button>
               </div>
 
               <p style={{ color: palette.sub, margin: "10px 0 0", fontSize: 13 }}>
@@ -1448,7 +1452,7 @@ export default function Page() {
             <div style={innerPanelStyle}>
               <h3 style={subSectionTitleStyle}>2.2. Decide nếu khách đi qua điểm rẽ / chọn quầy</h3>
               {!decisionTableReady && <Notice tone="red">Chưa có bảng decision_log trong Supabase.</Notice>}
-              {!currentMaKH && <Notice tone="blue">Bấm START Process trước để tạo mã khách, sau đó lưu Decide cho đúng khách này.</Notice>}
+              {!currentMaKH && <Notice tone="blue">Bấm “+ Tạo khách mới” ở mục 1 trước. Decide sẽ dùng đúng mã khách đang hiển thị ở mục 1.</Notice>}
 
               <div style={gridFormStyle}>
                 <Field label="Tên cục Decide">
