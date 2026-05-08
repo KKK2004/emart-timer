@@ -1434,8 +1434,8 @@ export default function Page() {
                     {ARENA_PROCESS_NAMES.map((name) => <option key={name} value={name}>{name}</option>)}
                   </select>
                 </Field>
-                <Field label="Run đang chạy">
-                  <input value={activeProcessRunId || selectedProcessActiveRun?.runId || "Chưa có START"} readOnly style={inputStyle} />
+                <Field label="Mã khách hàng đang chạy">
+                  <input value={currentMaKH || "Chưa tạo mã khách"} readOnly style={inputStyle} />
                 </Field>
               </div>
 
