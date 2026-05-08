@@ -316,6 +316,12 @@ function getCounterCode(quay: CounterType | "") {
   if (quay === "Quầy thanh toán 3 - Khu đồ ăn sẵn/chế biến") return "Q3";
   return "";
 }
+function getCounterFromCode(code: ChosenCounter): CounterType | "" {
+  if (code === "Q1") return "Quầy thanh toán 1 - Khu bánh/pizza";
+  if (code === "Q2") return "Quầy thanh toán 2 - Khu nước";
+  if (code === "Q3") return "Quầy thanh toán 3 - Khu đồ ăn sẵn/chế biến";
+  return "";
+}
 function getArenaQueue(quay: CounterType) { return `Q_ThanhToan_${getCounterCode(quay)}`; }
 function getArenaResource(quay: CounterType) { return `Cashier_${getCounterCode(quay)}`; }
 function getProcessKey(loai: CustomerType, quay: CounterType) { return `${loai}_${getCounterCode(quay)}`; }
@@ -353,14 +359,14 @@ function getDecisionOptions(decisionName: DecisionName) {
   if (decisionName === "Turn or not 7") return TURN_OPTIONS;
   if (decisionName.startsWith("Turn or not")) return TURN_OPTIONS;
   if (decisionName.startsWith("continue or not")) return CONTINUE_OPTIONS;
-  if (decisionName.startsWith("Can I pay now")) return ["Choose Q1", "Choose Q2", "Choose Q3"];
+  if (decisionName.startsWith("Can I pay now")) return ["Khách vào Q1", "Khách vào Q2", "Khách vào Q3"];
   return CUSTOMER_DECISION_OPTIONS;
 }
 function getDefaultDecisionOption(decisionName: DecisionName) { return getDecisionOptions(decisionName)[0] || ""; }
 function getDecisionMode(decisionName: DecisionName) {
   if (decisionName === "Turn or not 1" || decisionName === "Turn or not 2") return "N-way by Chance";
   if (decisionName.startsWith("Turn or not") || decisionName.startsWith("continue or not")) return "2-way by Chance";
-  if (decisionName.startsWith("Can I pay now")) return "By Condition / kiểm tra NQ()";
+  if (decisionName.startsWith("Can I pay now")) return "Chọn quầy thực tế / By Chance";
   return "N-way by Chance";
 }
 function getChosenCounterFromOption(option: string): ChosenCounter { if (option.includes("Q1")) return "Q1"; if (option.includes("Q2")) return "Q2"; if (option.includes("Q3")) return "Q3"; return ""; }
@@ -501,9 +507,6 @@ export default function Page() {
   const [processTableReady, setProcessTableReady] = useState(true);
   const [selectedDecisionName, setSelectedDecisionName] = useState<DecisionName>("Turn or not 1");
   const [selectedDecisionOption, setSelectedDecisionOption] = useState("Rẽ");
-  const [q1Length, setQ1Length] = useState<number | "">("");
-  const [q2Length, setQ2Length] = useState<number | "">("");
-  const [q3Length, setQ3Length] = useState<number | "">("");
   const [selectedProcessName, setSelectedProcessName] = useState<ProcessName>("customer selects items");
   const [activeProcessRunId, setActiveProcessRunId] = useState("");
   const [loading, setLoading] = useState(false);
@@ -647,16 +650,41 @@ export default function Page() {
     const maKH = ensureCustomerCode(); if (!maKH) return;
     const isCanPay = decisionName.startsWith("Can I pay now");
     const finalChosenCounter = getChosenCounterFromOption(option);
-    const { data, error } = await supabase.from("decision_log").insert({ ma_kh: maKH, thoi_gian: new Date().toISOString(), cua_vao: cuaVao, decision_name: decisionName, option_selected: option, loai_kh: forcedType || loaiKH || null, q1_length: isCanPay ? toNullableNumber(q1Length) : null, q2_length: isCanPay ? toNullableNumber(q2Length) : null, q3_length: isCanPay ? toNullableNumber(q3Length) : null, chosen_counter: isCanPay ? finalChosenCounter : null, ghi_chu: buildGhiChu(ghiChu, cuaVao), nguoi_bam: tenNguoiBam.trim() }).select("*");
-    if (!error) { const inserted = data?.[0] as DecisionDbRow | undefined; if (inserted) upsertDecisionRow(mapDbRowToDecisionRow(inserted)); }
-    if (forcedCounter) setQuay(forcedCounter);
+    const manuallyChosenCounter = isCanPay ? getCounterFromCode(finalChosenCounter) : "";
+    const counterToApply = forcedCounter || (manuallyChosenCounter || undefined);
+
+    const { data, error } = await supabase.from("decision_log").insert({
+      ma_kh: maKH,
+      thoi_gian: new Date().toISOString(),
+      cua_vao: cuaVao,
+      decision_name: decisionName,
+      option_selected: option,
+      loai_kh: forcedType || loaiKH || null,
+      q1_length: null,
+      q2_length: null,
+      q3_length: null,
+      chosen_counter: isCanPay ? finalChosenCounter : null,
+      ghi_chu: buildGhiChu(ghiChu, cuaVao),
+      nguoi_bam: tenNguoiBam.trim(),
+    }).select("*");
+
+    if (!error) {
+      const inserted = data?.[0] as DecisionDbRow | undefined;
+      if (inserted) upsertDecisionRow(mapDbRowToDecisionRow(inserted));
+    }
+
+    if (counterToApply) {
+      setQuay(counterToApply);
+      if (loaiKH) {
+        await supabase.from("process_log").update({ quay: counterToApply }).eq("ma_kh", maKH);
+        setProcessLog((prev) => prev.map((row) => row.maKH === maKH ? { ...row, quay: counterToApply } : row));
+      }
+    }
   }
   async function addDecisionLog() {
     if (!decisionTableReady) { alert("Chưa có bảng decision_log trong Supabase."); return; }
     if (!tenNguoiBam.trim()) { alert("Bạn chưa nhập tên người bấm."); return; }
     if (!currentMaKH) { alert("Bạn cần bấm START Process trước để có mã khách."); return; }
-    const isCanPay = selectedDecisionName.startsWith("Can I pay now");
-    if (isCanPay && (q1Length === "" || q2Length === "" || q3Length === "")) { alert("Với Can I pay now, cần nhập đủ số người chờ Q1, Q2, Q3."); return; }
     await addDecisionLogInline(selectedDecisionName, selectedDecisionOption);
   }
   async function addNextMainEvent() {
@@ -748,7 +776,6 @@ export default function Page() {
 
   const okCount = summaryRows.filter((r) => r.dataStatus === "OK").length;
   const errorCount = summaryRows.length - okCount;
-  const shortestCounter = getShortestQueueCounter(q1Length, q2Length, q3Length);
   const canClassify = Boolean(currentMaKH && completedSelectProcess && !loaiKH);
   const canPressService = Boolean(currentMaKH && loaiKH && nextStep && nextStep.role !== "SYSTEM_START" && nextStep.role !== "QUEUE_ARRIVAL");
 
@@ -790,23 +817,40 @@ export default function Page() {
         </section>
 
         <section style={cardStyle}>
-          <h2 style={sectionTitleStyle}>3. Chọn loại khách / món chính sau END Process</h2>
+          <h2 style={sectionTitleStyle}>3. Chọn loại khách / món chính và Decide sau END Process</h2>
           {!completedSelectProcess && <Notice tone="amber">Chưa chọn được loại khách. Hãy bấm START và END Process lựa món trước.</Notice>}
           {loaiKH && <Notice tone="amber">Khách này đã chọn loại: {getLoaiKhachLabel(loaiKH)}. Hai mốc đầu đã được lấy từ START/END Process.</Notice>}
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))", gap: 10 }}>
-            {CUSTOMER_TYPES.map((item) => {
-              const selected = loaiKH === item.code;
-              return <button key={item.code} onClick={() => classifyCustomer(item.code)} disabled={!canClassify} style={{ ...typeButtonStyle, background: selected ? palette.blueSoft : palette.card, borderColor: selected ? palette.blue : palette.line, cursor: canClassify ? "pointer" : "not-allowed", opacity: canClassify || selected ? 1 : 0.55 }}><b>{item.label}</b><span style={{ color: palette.sub, fontSize: 12 }}>{item.hint}</span></button>;
-            })}
-          </div>
-          <div style={gridFormStyle}>
-            <Field label="Quầy áp dụng"><select value={quay} onChange={(e) => setQuay(e.target.value as CounterType)} style={inputStyle}>{validCounters.map((c) => <option key={c} value={c}>{c}</option>)}</select></Field>
-            <Field label="Loại đang chọn"><input value={getLoaiKhachLabel(loaiKH)} readOnly style={inputStyle} /></Field>
+          <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) minmax(360px, 0.9fr)", gap: 16, alignItems: "start" }}>
+            <div style={{ display: "grid", gap: 12 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))", gap: 10 }}>
+                {CUSTOMER_TYPES.map((item) => {
+                  const selected = loaiKH === item.code;
+                  return <button key={item.code} onClick={() => classifyCustomer(item.code)} disabled={!canClassify} style={{ ...typeButtonStyle, background: selected ? palette.blueSoft : palette.card, borderColor: selected ? palette.blue : palette.line, cursor: canClassify ? "pointer" : "not-allowed", opacity: canClassify || selected ? 1 : 0.55 }}><b>{item.label}</b><span style={{ color: palette.sub, fontSize: 12 }}>{item.hint}</span></button>;
+                })}
+              </div>
+              <div style={gridFormStyle}>
+                <Field label="Quầy áp dụng"><select value={quay} onChange={(e) => setQuay(e.target.value as CounterType)} style={inputStyle}>{validCounters.map((c) => <option key={c} value={c}>{c}</option>)}</select></Field>
+                <Field label="Loại đang chọn"><input value={getLoaiKhachLabel(loaiKH)} readOnly style={inputStyle} /></Field>
+              </div>
+            </div>
+
+            <div style={{ border: `1px solid ${palette.line}`, borderRadius: 14, padding: 12, background: palette.card2 }}>
+              <h3 style={subSectionTitleStyle}>3.2. Decide cho khách hiện tại</h3>
+              <p style={{ color: palette.sub, margin: "0 0 8px", fontSize: 13 }}>Bấm ngay tại đây nếu khách vừa phân loại xong và đi qua điểm rẽ/chọn quầy.</p>
+              {!decisionTableReady && <Notice tone="red">Chưa có bảng decision_log trong Supabase.</Notice>}
+              <div style={gridFormStyle}>
+                <Field label="Tên cục Decide"><select value={selectedDecisionName} onChange={(e) => setSelectedDecisionName(e.target.value as DecisionName)} style={inputStyle}>{DECISION_NAMES.map((name) => <option key={name} value={name}>{name}</option>)}</select></Field>
+                <Field label="Nhánh khách chọn"><select value={selectedDecisionOption} onChange={(e) => setSelectedDecisionOption(e.target.value)} style={inputStyle}>{getDecisionOptions(selectedDecisionName).map((op) => <option key={op} value={op}>{op}</option>)}</select></Field>
+                <Field label="Loại dữ liệu Arena"><input value={getDecisionMode(selectedDecisionName)} readOnly style={inputStyle} /></Field>
+              </div>
+              {selectedDecisionName.startsWith("Can I pay now") && <Notice tone="blue">Chọn trực tiếp quầy khách thực tế đi vào ở ô “Nhánh khách chọn”. Không cần nhập Q1/Q2/Q3 đang chờ.</Notice>}
+              <button onClick={addDecisionLog} disabled={!currentMaKH || !completedSelectProcess} style={currentMaKH && completedSelectProcess ? primaryButtonStyle : disabledButtonStyle}>Lưu Decide cho mã khách này</button>
+            </div>
           </div>
         </section>
 
         <section style={cardStyle}>
-          <h2 style={sectionTitleStyle}>4. Bấm dữ liệu cho khách hiện tại</h2>
+          <h2 style={sectionTitleStyle}>4. Bấm mốc thời gian chính và Process phụ</h2>
           <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1.25fr) minmax(330px, 0.75fr)", gap: 16 }}>
             <div style={{ display: "grid", gap: 12 }}>
               <div style={{ border: `1px solid ${palette.line}`, borderRadius: 14, padding: 12, background: palette.card2 }}>
@@ -821,20 +865,9 @@ export default function Page() {
                 <button onClick={addNextMainEvent} disabled={!canPressService} style={canPressService ? primaryButtonStyle : disabledButtonStyle}>Bấm: {nextStep?.shortLabel || "Đã đủ mốc"}</button>
               </div>
 
-              <div style={{ border: `1px solid ${palette.line}`, borderRadius: 14, padding: 12, background: palette.card2 }}>
-                <h3 style={subSectionTitleStyle}>4.2. Decide cho khách hiện tại</h3>
-                {!decisionTableReady && <Notice tone="red">Chưa có bảng decision_log trong Supabase.</Notice>}
-                <div style={gridFormStyle}>
-                  <Field label="Tên cục Decide"><select value={selectedDecisionName} onChange={(e) => setSelectedDecisionName(e.target.value as DecisionName)} style={inputStyle}>{DECISION_NAMES.map((name) => <option key={name} value={name}>{name}</option>)}</select></Field>
-                  <Field label="Nhánh khách chọn"><select value={selectedDecisionOption} onChange={(e) => setSelectedDecisionOption(e.target.value)} style={inputStyle}>{getDecisionOptions(selectedDecisionName).map((op) => <option key={op} value={op}>{op}</option>)}</select></Field>
-                  <Field label="Loại dữ liệu Arena"><input value={getDecisionMode(selectedDecisionName)} readOnly style={inputStyle} /></Field>
-                </div>
-                {selectedDecisionName.startsWith("Can I pay now") && <div style={gridFormStyle}><Field label="Q1 đang chờ"><input type="number" value={q1Length} onChange={(e) => setQ1Length(e.target.value === "" ? "" : Number(e.target.value))} style={inputStyle} /></Field><Field label="Q2 đang chờ"><input type="number" value={q2Length} onChange={(e) => setQ2Length(e.target.value === "" ? "" : Number(e.target.value))} style={inputStyle} /></Field><Field label="Q3 đang chờ"><input type="number" value={q3Length} onChange={(e) => setQ3Length(e.target.value === "" ? "" : Number(e.target.value))} style={inputStyle} /></Field><Field label="Quầy ngắn nhất"><input value={shortestCounter || "Chưa đủ dữ liệu"} readOnly style={inputStyle} /></Field></div>}
-                <button onClick={addDecisionLog} disabled={!currentMaKH} style={currentMaKH ? primaryButtonStyle : disabledButtonStyle}>Lưu Decide cho mã khách này</button>
-              </div>
 
               <div style={{ border: `1px solid ${palette.line}`, borderRadius: 14, padding: 12, background: palette.card2 }}>
-                <h3 style={subSectionTitleStyle}>4.3. Process phụ sau khi đã phân loại nếu cần</h3>
+                <h3 style={subSectionTitleStyle}>4.2. Process phụ sau khi đã phân loại nếu cần</h3>
                 <p style={{ color: palette.sub, margin: "0 0 8px", fontSize: 13 }}>Dùng cho Payment_1/2/3 hoặc các cục Process khác nếu muốn đo riêng ngoài mốc chính.</p>
                 <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}><button onClick={() => addProcessEvent("START")} disabled={!currentMaKH} style={currentMaKH ? secondaryButtonStyle : disabledButtonStyle}>START Process phụ</button><button onClick={() => addProcessEvent("END")} disabled={!currentMaKH} style={currentMaKH ? secondaryButtonStyle : disabledButtonStyle}>END Process phụ</button></div>
               </div>
@@ -875,7 +908,11 @@ function InfoBox({ label, value, tone }: { label: string; value: string; tone?: 
   const bg = tone === "green" ? palette.greenSoft : tone === "red" ? palette.redSoft : tone === "amber" ? palette.amberSoft : palette.blueSoft;
   return <div style={{ background: bg, border: `1px solid ${color}`, borderRadius: 12, padding: 10 }}><div style={{ color: palette.sub, fontSize: 12, fontWeight: 700 }}>{label}</div><div style={{ color, fontSize: 20, fontWeight: 900, wordBreak: "break-word" }}>{value}</div></div>;
 }
-function Notice({ tone, children }: { tone: "amber" | "red"; children: ReactNode }) { const color = tone === "red" ? palette.red : palette.amber; const bg = tone === "red" ? palette.redSoft : palette.amberSoft; return <div style={{ background: bg, color, border: `1px solid ${color}`, borderRadius: 12, padding: 10, marginBottom: 12, fontWeight: 800 }}>{children}</div>; }
+function Notice({ tone, children }: { tone: "amber" | "red" | "blue"; children: ReactNode }) {
+  const color = tone === "red" ? palette.red : tone === "amber" ? palette.amber : palette.blue;
+  const bg = tone === "red" ? palette.redSoft : tone === "amber" ? palette.amberSoft : palette.blueSoft;
+  return <div style={{ background: bg, color, border: `1px solid ${color}`, borderRadius: 12, padding: 10, marginBottom: 12, fontWeight: 800 }}>{children}</div>;
+}
 function DataCard({ title, children }: { title: string; children: ReactNode }) { return <div style={{ border: `1px solid ${palette.line}`, borderRadius: 14, padding: 12, background: palette.card2 }}><h3 style={subSectionTitleStyle}>{title}</h3>{children}</div>; }
 function SimpleTable({ rows, columns, formatTime }: { rows: Record<string, unknown>[]; columns: string[]; formatTime?: boolean }) {
   if (!rows.length) return <p style={{ color: palette.sub, fontSize: 13 }}>Chưa có dữ liệu.</p>;
