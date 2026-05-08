@@ -11,6 +11,7 @@ type CounterType =
   | "Quầy thanh toán 3 - Khu đồ ăn sẵn/chế biến";
 type EntranceType = "Entrance 1" | "Entrance 2" | "Entrance 3" | "Không ghi nhận";
 type RecordableEntrance = Exclude<EntranceType, "Không ghi nhận">;
+
 type DecisionName =
   | "Turn or not 1"
   | "Turn or not 2"
@@ -29,6 +30,7 @@ type DecisionName =
   | "Can I pay now 5"
   | "Can I pay now 6"
   | "Chọn loại khách";
+
 type ChosenCounter = "Q1" | "Q2" | "Q3" | "";
 type ProcessEventType = "START" | "END";
 type ProcessName =
@@ -48,9 +50,6 @@ type ProcessName =
 
 type EventName =
   | "KHACH_VAO_KHU_AN_UONG"
-  | "CAM_DO_AN"
-  | "NV_DUA_THE_ORDER"
-  | "LAY_NUOC"
   | "VAO_HANG_THANH_TOAN"
   | "VAO_HANG_ORDER_PIZZA"
   | "NV_BAT_DAU_PHUC_VU"
@@ -161,7 +160,9 @@ type ProcessSummaryRow = {
   loaiKH: CustomerType | "";
   quay: CounterType | "";
   startTime: string;
+  rawStartTime: string;
   endTime: string;
+  rawEndTime: string;
   processDurationS: number | "";
   processInterarrivalS: number | "";
   status: "OK" | "DANG_CHAY" | "THIEU_START" | "LOI_THOI_GIAN";
@@ -201,11 +202,11 @@ type SummaryRow = {
 };
 
 const CUSTOMER_TYPES: { code: CustomerType; label: string; hint: string }[] = [
-  { code: "SAN", label: "Đồ ăn làm sẵn", hint: "START lựa hàng → END lựa hàng → chọn đồ ăn làm sẵn → thanh toán" },
-  { code: "CHUAN", label: "Món cần đầu bếp làm", hint: "START lựa món → END lựa món → chọn món cần bếp làm → thanh toán/nhận món" },
-  { code: "PIZZA", label: "Pizza", hint: "START lựa món → END lựa món → chọn pizza → hàng pizza" },
-  { code: "PIZZA_COMBO", label: "Pizza + món khác", hint: "START lựa món → END lựa món → chọn pizza combo → hàng pizza" },
-  { code: "NUOC", label: "Nước", hint: "START lựa hàng → END lựa hàng → chọn nước → thanh toán" },
+  { code: "SAN", label: "Đồ ăn làm sẵn", hint: "END lựa hàng → vào hàng thanh toán" },
+  { code: "CHUAN", label: "Món cần đầu bếp làm", hint: "END lựa món → vào hàng thanh toán" },
+  { code: "PIZZA", label: "Pizza", hint: "END lựa món → vào hàng pizza" },
+  { code: "PIZZA_COMBO", label: "Pizza + món khác", hint: "END lựa món → vào hàng pizza" },
+  { code: "NUOC", label: "Nước", hint: "END lựa hàng → vào hàng thanh toán" },
 ];
 
 const ALL_COUNTERS: CounterType[] = [
@@ -213,33 +214,76 @@ const ALL_COUNTERS: CounterType[] = [
   "Quầy thanh toán 2 - Khu nước",
   "Quầy thanh toán 3 - Khu đồ ăn sẵn/chế biến",
 ];
+
 const ENTRANCES: RecordableEntrance[] = ["Entrance 1", "Entrance 2", "Entrance 3"];
+
 const DECISION_NAMES: DecisionName[] = [
-  "Turn or not 1", "Turn or not 2", "Turn or not 3", "Turn or not 4", "Turn or not 5", "Turn or not 6", "Turn or not 7",
-  "continue or not 1", "continue or not 2", "continue or not 3",
-  "Can I pay now 1", "Can I pay now 2", "Can I pay now 3", "Can I pay now 4", "Can I pay now 5", "Can I pay now 6",
+  "Turn or not 1",
+  "Turn or not 2",
+  "Turn or not 3",
+  "Turn or not 4",
+  "Turn or not 5",
+  "Turn or not 6",
+  "Turn or not 7",
+  "continue or not 1",
+  "continue or not 2",
+  "continue or not 3",
+  "Can I pay now 1",
+  "Can I pay now 2",
+  "Can I pay now 3",
+  "Can I pay now 4",
+  "Can I pay now 5",
+  "Can I pay now 6",
   "Chọn loại khách",
 ];
+
 const TURN_OPTIONS = ["Rẽ", "Không rẽ"];
 const TURN_OR_NOT_1_OPTIONS = ["Rẽ", "Không rẽ", "Ra về Exit 1"];
 const TURN_OR_NOT_2_OPTIONS = ["Rẽ", "Không rẽ", "Ra về Exit 3"];
 const CONTINUE_OPTIONS = ["Continue", "Not continue"];
 const CUSTOMER_DECISION_OPTIONS: CustomerType[] = ["NUOC", "SAN", "CHUAN", "PIZZA", "PIZZA_COMBO"];
+
 const ARENA_PROCESS_NAMES: ProcessName[] = [
-  "customer selects items", "customer selects items 1", "customer selects items 2", "customer selects items 3", "customer selects items 4",
-  "customer selects items 5", "customer selects items 6", "customer selects items 7", "customer selects items 8", "customer selects items 9",
-  "Payment_1", "Payment_2", "Payment_3",
+  "customer selects items",
+  "customer selects items 1",
+  "customer selects items 2",
+  "customer selects items 3",
+  "customer selects items 4",
+  "customer selects items 5",
+  "customer selects items 6",
+  "customer selects items 7",
+  "customer selects items 8",
+  "customer selects items 9",
+  "Payment_1",
+  "Payment_2",
+  "Payment_3",
 ];
 
 const SELECT_PROCESS_NAMES = ARENA_PROCESS_NAMES.filter((name) => name.startsWith("customer selects items"));
 
 const palette = {
-  bg: "#f6f8fb", card: "#ffffff", card2: "#f9fafb", line: "#e5e7eb", text: "#111827", sub: "#6b7280",
-  blue: "#2563eb", blueSoft: "#dbeafe", green: "#059669", greenSoft: "#dcfce7", amber: "#d97706", amberSoft: "#fffbeb", red: "#dc2626", redSoft: "#fef2f2",
+  bg: "#f6f8fb",
+  card: "#ffffff",
+  card2: "#f9fafb",
+  line: "#e5e7eb",
+  text: "#111827",
+  sub: "#6b7280",
+  blue: "#2563eb",
+  blueSoft: "#dbeafe",
+  green: "#059669",
+  greenSoft: "#dcfce7",
+  amber: "#d97706",
+  amberSoft: "#fffbeb",
+  red: "#dc2626",
+  redSoft: "#fef2f2",
 };
 
-function pad2(n: number) { return String(n).padStart(2, "0"); }
-function pad3(n: number) { return String(n).padStart(3, "0"); }
+function pad2(n: number) {
+  return String(n).padStart(2, "0");
+}
+function pad3(n: number) {
+  return String(n).padStart(3, "0");
+}
 function parseDateTime(value: string): Date | null {
   if (!value) return null;
   const iso = new Date(value);
@@ -255,40 +299,53 @@ function formatDateTimeVNms(value: string | Date) {
   return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())} ${pad2(d.getHours())}:${pad2(d.getMinutes())}:${pad2(d.getSeconds())}.${pad3(d.getMilliseconds())}`;
 }
 function diffSecondsPrecise(start: string, end: string): number | "" {
-  const s = parseDateTime(start); const e = parseDateTime(end);
+  const s = parseDateTime(start);
+  const e = parseDateTime(end);
   if (!s || !e) return "";
   const diff = e.getTime() - s.getTime();
   if (diff < 0) return "";
   return Number((diff / 1000).toFixed(3));
 }
-function toNumberOrBlank(value: number | "") { return value === "" ? "" : Number(value.toFixed(3)); }
-function generateDeviceId() { return `DV-${Math.random().toString(36).slice(2, 8).toUpperCase()}`; }
+function toNumberOrBlank(value: number | "") {
+  return value === "" ? "" : Number(value.toFixed(3));
+}
+function generateDeviceId() {
+  return `DV-${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
+}
+function getTodayKey() {
+  const d = new Date();
+  return `${d.getFullYear()}${pad2(d.getMonth() + 1)}${pad2(d.getDate())}`;
+}
 function getNextCustomerNo() {
-  const key = "emart_customer_no";
+  const key = `emart_customer_seq_${getTodayKey()}`;
   const current = Number(localStorage.getItem(key) || "0") + 1;
   localStorage.setItem(key, String(current));
   return current;
 }
-
-function generateCustomerCode(deviceId: string) {
-  const devicePart = deviceId.replace("DV-", "").slice(-2).toUpperCase() || "DV";
-  const customerNo = String(getNextCustomerNo()).padStart(
-function generateProcessRunId(processName: ProcessName, deviceId: string) {
+function generateCustomerCode() {
+  return `KH${String(getNextCustomerNo()).padStart(3, "0")}`;
+}
+function generateProcessRunId(processName: ProcessName) {
   const now = new Date();
-  const stamp = `${now.getFullYear()}${pad2(now.getMonth() + 1)}${pad2(now.getDate())}${pad2(now.getHours())}${pad2(now.getMinutes())}${pad2(now.getSeconds())}${pad3(now.getMilliseconds())}`;
-  const cleanProcess = processName.replaceAll(" ", "_").replaceAll("/", "_");
-  const devicePart = deviceId.replace("DV-", "").slice(-4) || "NODE";
-  const randomPart = Math.random().toString(36).slice(2, 5).toUpperCase();
-  return `RUN-${cleanProcess}-${stamp}-${devicePart}-${randomPart}`;
+  const stamp = `${pad2(now.getHours())}${pad2(now.getMinutes())}${pad2(now.getSeconds())}${pad3(now.getMilliseconds())}`;
+  const processShort = processName.replaceAll("customer selects items", "CSI").replaceAll("Payment_", "P").replaceAll(" ", "_");
+  const randomPart = Math.random().toString(36).slice(2, 4).toUpperCase();
+  return `RUN-${processShort}-${stamp}-${randomPart}`;
 }
 function getLoaiKhachLabel(loai: CustomerType | "") {
   switch (loai) {
-    case "SAN": return "ĐỒ ĂN LÀM SẴN";
-    case "CHUAN": return "MÓN CẦN ĐẦU BẾP LÀM";
-    case "PIZZA": return "PIZZA";
-    case "PIZZA_COMBO": return "PIZZA KẾT HỢP MÓN KHÁC";
-    case "NUOC": return "NƯỚC";
-    default: return "CHƯA PHÂN LOẠI";
+    case "SAN":
+      return "ĐỒ ĂN LÀM SẴN";
+    case "CHUAN":
+      return "MÓN CẦN ĐẦU BẾP LÀM";
+    case "PIZZA":
+      return "PIZZA";
+    case "PIZZA_COMBO":
+      return "PIZZA KẾT HỢP MÓN KHÁC";
+    case "NUOC":
+      return "NƯỚC";
+    default:
+      return "CHƯA PHÂN LOẠI";
   }
 }
 function getQueueEventForType(loai: CustomerType): EventName {
@@ -297,22 +354,46 @@ function getQueueEventForType(loai: CustomerType): EventName {
 function getFlow(loai: CustomerType): FlowStep[] {
   const queueCode = getQueueEventForType(loai);
   return [
-    { code: "KHACH_VAO_KHU_AN_UONG", label: "1. START Process: Khách vào khu ăn uống / bắt đầu lựa", shortLabel: "Khách vào khu ăn uống", role: "SYSTEM_START" },
-    { code: queueCode, label: queueCode === "VAO_HANG_ORDER_PIZZA" ? "2. END Process: Khách vào hàng order pizza" : "2. END Process: Khách vào hàng thanh toán", shortLabel: queueCode === "VAO_HANG_ORDER_PIZZA" ? "Vào hàng pizza" : "Vào hàng thanh toán", role: "QUEUE_ARRIVAL" },
-    { code: "NV_BAT_DAU_PHUC_VU", label: "3. Nhân viên bắt đầu phục vụ/tính tiền", shortLabel: "Bắt đầu phục vụ", role: "SERVICE_START" },
-    { code: "NHAN_HANG_ROI_QUAY", label: "4. Khách nhận hàng và rời quầy", shortLabel: "Rời quầy", role: "SERVICE_END" },
+    {
+      code: "KHACH_VAO_KHU_AN_UONG",
+      label: "1. START Process: Khách vào khu ăn uống / bắt đầu lựa",
+      shortLabel: "Khách vào khu ăn uống",
+      role: "SYSTEM_START",
+    },
+    {
+      code: queueCode,
+      label: queueCode === "VAO_HANG_ORDER_PIZZA" ? "2. END Process: Khách vào hàng order pizza" : "2. END Process: Khách vào hàng thanh toán",
+      shortLabel: queueCode === "VAO_HANG_ORDER_PIZZA" ? "Vào hàng pizza" : "Vào hàng thanh toán",
+      role: "QUEUE_ARRIVAL",
+    },
+    {
+      code: "NV_BAT_DAU_PHUC_VU",
+      label: "3. Nhân viên bắt đầu phục vụ/tính tiền",
+      shortLabel: "Bắt đầu phục vụ",
+      role: "SERVICE_START",
+    },
+    {
+      code: "NHAN_HANG_ROI_QUAY",
+      label: "4. Khách nhận hàng và rời quầy",
+      shortLabel: "Rời quầy",
+      role: "SERVICE_END",
+    },
   ];
 }
 function getValidCounters(loai: CustomerType): CounterType[] {
   switch (loai) {
     case "PIZZA":
-    case "PIZZA_COMBO": return ["Quầy thanh toán 1 - Khu bánh/pizza"];
-    case "SAN": return ["Quầy thanh toán 3 - Khu đồ ăn sẵn/chế biến", "Quầy thanh toán 2 - Khu nước", "Quầy thanh toán 1 - Khu bánh/pizza"];
-    case "CHUAN": return ["Quầy thanh toán 3 - Khu đồ ăn sẵn/chế biến", "Quầy thanh toán 2 - Khu nước"];
-    case "NUOC": return ["Quầy thanh toán 2 - Khu nước", "Quầy thanh toán 1 - Khu bánh/pizza", "Quầy thanh toán 3 - Khu đồ ăn sẵn/chế biến"];
+    case "PIZZA_COMBO":
+      return ["Quầy thanh toán 1 - Khu bánh/pizza"];
+    case "SAN":
+      return ["Quầy thanh toán 3 - Khu đồ ăn sẵn/chế biến", "Quầy thanh toán 2 - Khu nước", "Quầy thanh toán 1 - Khu bánh/pizza"];
+    case "CHUAN":
+      return ["Quầy thanh toán 3 - Khu đồ ăn sẵn/chế biến", "Quầy thanh toán 2 - Khu nước"];
+    case "NUOC":
+      return ["Quầy thanh toán 2 - Khu nước", "Quầy thanh toán 1 - Khu bánh/pizza", "Quầy thanh toán 3 - Khu đồ ăn sẵn/chế biến"];
   }
 }
-function getCounterCode(quay: CounterType | "") {
+function getCounterCode(quay: CounterType | ""): ChosenCounter {
   if (quay === "Quầy thanh toán 1 - Khu bánh/pizza") return "Q1";
   if (quay === "Quầy thanh toán 2 - Khu nước") return "Q2";
   if (quay === "Quầy thanh toán 3 - Khu đồ ăn sẵn/chế biến") return "Q3";
@@ -324,12 +405,24 @@ function getCounterFromCode(code: ChosenCounter): CounterType | "" {
   if (code === "Q3") return "Quầy thanh toán 3 - Khu đồ ăn sẵn/chế biến";
   return "";
 }
-function getArenaQueue(quay: CounterType) { return `Q_ThanhToan_${getCounterCode(quay)}`; }
-function getArenaResource(quay: CounterType) { return `Cashier_${getCounterCode(quay)}`; }
-function getProcessKey(loai: CustomerType, quay: CounterType) { return `${loai}_${getCounterCode(quay)}`; }
-function getCreateByEntrance(cuaVao: EntranceType) { return cuaVao === "Không ghi nhận" ? "Create_Khong_Ghi_Nhan" : `Create_${cuaVao.replaceAll(" ", "_")}`; }
-function getCreateByType(loai: CustomerType) { return `Create_${loai}`; }
-function getEventLabel(loai: CustomerType, eventName: EventName) { return getFlow(loai).find((x) => x.code === eventName)?.shortLabel || eventName; }
+function getArenaQueue(quay: CounterType) {
+  return `Q_ThanhToan_${getCounterCode(quay)}`;
+}
+function getArenaResource(quay: CounterType) {
+  return `Cashier_${getCounterCode(quay)}`;
+}
+function getProcessKey(loai: CustomerType, quay: CounterType) {
+  return `${loai}_${getCounterCode(quay)}`;
+}
+function getCreateByEntrance(cuaVao: EntranceType) {
+  return cuaVao === "Không ghi nhận" ? "Create_Khong_Ghi_Nhan" : `Create_${cuaVao.replaceAll(" ", "_")}`;
+}
+function getCreateByType(loai: CustomerType) {
+  return `Create_${loai}`;
+}
+function getEventLabel(loai: CustomerType, eventName: EventName) {
+  return getFlow(loai).find((x) => x.code === eventName)?.shortLabel || eventName;
+}
 function parseEntrance(text: string | null | undefined): EntranceType {
   const raw = text || "";
   if (raw.includes("Entrance 1")) return "Entrance 1";
@@ -337,47 +430,106 @@ function parseEntrance(text: string | null | undefined): EntranceType {
   if (raw.includes("Entrance 3")) return "Entrance 3";
   return "Không ghi nhận";
 }
-function cleanNote(text: string | null | undefined) { return (text || "").replace(/Cửa vào:\s*Entrance [123]\s*\|\s*/i, "").trim(); }
-function buildQuyTrinh(loai: CustomerType, quay: CounterType, cuaVao: RecordableEntrance) { return `${cuaVao} | ${getLoaiKhachLabel(loai)} | ${quay}`; }
-function buildGhiChu(note: string, cuaVao: RecordableEntrance) { const clean = note.trim(); return clean ? `Cửa vào: ${cuaVao} | ${clean}` : `Cửa vào: ${cuaVao}`; }
+function cleanNote(text: string | null | undefined) {
+  return (text || "").replace(/Cửa vào:\s*Entrance [123]\s*\|\s*/i, "").trim();
+}
+function buildQuyTrinh(loai: CustomerType, quay: CounterType, cuaVao: RecordableEntrance) {
+  return `${cuaVao} | ${getLoaiKhachLabel(loai)} | ${quay}`;
+}
+function buildGhiChu(note: string, cuaVao: RecordableEntrance) {
+  const clean = note.trim();
+  return clean ? `Cửa vào: ${cuaVao} | ${clean}` : `Cửa vào: ${cuaVao}`;
+}
 function mapDbRowToEventRow(row: DbRow): EventRow {
   const cuaVao = parseEntrance(row.quy_trinh || row.ghi_chu || "");
-  return { id: row.id, maKH: row.ma_kh, loaiKH: row.loai_kh, loaiLabel: getLoaiKhachLabel(row.loai_kh), quyTrinh: row.quy_trinh || "", suKien: row.su_kien, suKienLabel: getEventLabel(row.loai_kh, row.su_kien), thoiGian: row.thoi_gian, nhanVien: row.nhan_vien, quay: row.quay, cuaVao, ghiChu: cleanNote(row.ghi_chu), nguoiBam: row.nguoi_bam || "" };
+  return {
+    id: row.id,
+    maKH: row.ma_kh,
+    loaiKH: row.loai_kh,
+    loaiLabel: getLoaiKhachLabel(row.loai_kh),
+    quyTrinh: row.quy_trinh || "",
+    suKien: row.su_kien,
+    suKienLabel: getEventLabel(row.loai_kh, row.su_kien),
+    thoiGian: row.thoi_gian,
+    nhanVien: row.nhan_vien,
+    quay: row.quay,
+    cuaVao,
+    ghiChu: cleanNote(row.ghi_chu),
+    nguoiBam: row.nguoi_bam || "",
+  };
 }
 function mapDbRowToDecisionRow(row: DecisionDbRow): DecisionRow {
-  return { id: row.id, maKH: row.ma_kh || "", thoiGian: row.thoi_gian, cuaVao: row.cua_vao || "Không ghi nhận", decisionName: row.decision_name, optionSelected: row.option_selected, loaiKH: row.loai_kh || "", q1Length: row.q1_length ?? "", q2Length: row.q2_length ?? "", q3Length: row.q3_length ?? "", chosenCounter: row.chosen_counter || "", ghiChu: row.ghi_chu || "", nguoiBam: row.nguoi_bam || "" };
+  return {
+    id: row.id,
+    maKH: row.ma_kh || "",
+    thoiGian: row.thoi_gian,
+    cuaVao: row.cua_vao || "Không ghi nhận",
+    decisionName: row.decision_name,
+    optionSelected: row.option_selected,
+    loaiKH: row.loai_kh || "",
+    q1Length: row.q1_length ?? "",
+    q2Length: row.q2_length ?? "",
+    q3Length: row.q3_length ?? "",
+    chosenCounter: row.chosen_counter || "",
+    ghiChu: cleanNote(row.ghi_chu),
+    nguoiBam: row.nguoi_bam || "",
+  };
 }
 function mapDbRowToProcessLogRow(row: ProcessDbRow): ProcessLogRow {
-  return { id: row.id, runId: row.run_id, maKH: row.ma_kh || "", thoiGian: row.thoi_gian, processName: row.process_name, eventType: row.event_type, cuaVao: row.cua_vao || "Không ghi nhận", loaiKH: row.loai_kh || "", quay: row.quay || "", ghiChu: row.ghi_chu || "", nguoiBam: row.nguoi_bam || "" };
+  return {
+    id: row.id,
+    runId: row.run_id,
+    maKH: row.ma_kh || "",
+    thoiGian: row.thoi_gian,
+    processName: row.process_name,
+    eventType: row.event_type,
+    cuaVao: row.cua_vao || "Không ghi nhận",
+    loaiKH: row.loai_kh || "",
+    quay: row.quay || "",
+    ghiChu: cleanNote(row.ghi_chu),
+    nguoiBam: row.nguoi_bam || "",
+  };
 }
-function sortEventsAsc(a: EventRow, b: EventRow) { const ta = parseDateTime(a.thoiGian)?.getTime() || 0; const tb = parseDateTime(b.thoiGian)?.getTime() || 0; return ta !== tb ? ta - tb : a.id - b.id; }
-function sortEventsDesc(a: EventRow, b: EventRow) { return sortEventsAsc(b, a); }
-function sortProcessLogAsc(a: ProcessLogRow, b: ProcessLogRow) { const ta = parseDateTime(a.thoiGian)?.getTime() || 0; const tb = parseDateTime(b.thoiGian)?.getTime() || 0; return ta !== tb ? ta - tb : a.id - b.id; }
-function sortProcessLogDesc(a: ProcessLogRow, b: ProcessLogRow) { return sortProcessLogAsc(b, a); }
-function toNullableNumber(value: number | "") { return value === "" || Number.isNaN(Number(value)) ? null : Number(value); }
+function sortEventsAsc(a: EventRow, b: EventRow) {
+  const ta = parseDateTime(a.thoiGian)?.getTime() || 0;
+  const tb = parseDateTime(b.thoiGian)?.getTime() || 0;
+  if (ta !== tb) return ta - tb;
+  return a.id - b.id;
+}
+function sortEventsDesc(a: EventRow, b: EventRow) {
+  return sortEventsAsc(b, a);
+}
+function sortProcessLogAsc(a: ProcessLogRow, b: ProcessLogRow) {
+  const ta = parseDateTime(a.thoiGian)?.getTime() || 0;
+  const tb = parseDateTime(b.thoiGian)?.getTime() || 0;
+  if (ta !== tb) return ta - tb;
+  return a.id - b.id;
+}
+function sortProcessLogDesc(a: ProcessLogRow, b: ProcessLogRow) {
+  return sortProcessLogAsc(b, a);
+}
 function getDecisionOptions(decisionName: DecisionName) {
   if (decisionName === "Turn or not 1") return TURN_OR_NOT_1_OPTIONS;
   if (decisionName === "Turn or not 2") return TURN_OR_NOT_2_OPTIONS;
-  if (decisionName === "Turn or not 7") return TURN_OPTIONS;
   if (decisionName.startsWith("Turn or not")) return TURN_OPTIONS;
   if (decisionName.startsWith("continue or not")) return CONTINUE_OPTIONS;
   if (decisionName.startsWith("Can I pay now")) return ["Khách vào Q1", "Khách vào Q2", "Khách vào Q3"];
   return CUSTOMER_DECISION_OPTIONS;
 }
-function getDefaultDecisionOption(decisionName: DecisionName) { return getDecisionOptions(decisionName)[0] || ""; }
+function getDefaultDecisionOption(decisionName: DecisionName) {
+  return getDecisionOptions(decisionName)[0] || "";
+}
 function getDecisionMode(decisionName: DecisionName) {
   if (decisionName === "Turn or not 1" || decisionName === "Turn or not 2") return "N-way by Chance";
   if (decisionName.startsWith("Turn or not") || decisionName.startsWith("continue or not")) return "2-way by Chance";
   if (decisionName.startsWith("Can I pay now")) return "Chọn quầy thực tế / By Chance";
   return "N-way by Chance";
 }
-function getChosenCounterFromOption(option: string): ChosenCounter { if (option.includes("Q1")) return "Q1"; if (option.includes("Q2")) return "Q2"; if (option.includes("Q3")) return "Q3"; return ""; }
-function getShortestQueueCounter(q1: number | "", q2: number | "", q3: number | ""): ChosenCounter {
-  if (q1 === "" || q2 === "" || q3 === "") return "";
-  const min = Math.min(q1, q2, q3);
-  if (q1 === min) return "Q1";
-  if (q2 === min) return "Q2";
-  return "Q3";
+function getChosenCounterFromOption(option: string): ChosenCounter {
+  if (option.includes("Q1")) return "Q1";
+  if (option.includes("Q2")) return "Q2";
+  if (option.includes("Q3")) return "Q3";
+  return "";
 }
 
 function buildProcessSummaryRows(processLog: ProcessLogRow[]): ProcessSummaryRow[] {
@@ -386,30 +538,60 @@ function buildProcessSummaryRows(processLog: ProcessLogRow[]): ProcessSummaryRow
     if (!grouped.has(row.runId)) grouped.set(row.runId, []);
     grouped.get(row.runId)!.push(row);
   }
+
   const result: ProcessSummaryRow[] = [];
   grouped.forEach((rows, runId) => {
     const ordered = rows.sort(sortProcessLogAsc);
     const first = ordered[0];
     const start = ordered.find((r) => r.eventType === "START");
     const end = ordered.find((r) => r.eventType === "END" && (!start || (parseDateTime(r.thoiGian)?.getTime() || 0) >= (parseDateTime(start.thoiGian)?.getTime() || 0)));
+
     const duration = diffSecondsPrecise(start?.thoiGian || "", end?.thoiGian || "");
     const status: ProcessSummaryRow["status"] = !start ? "THIEU_START" : !end ? "DANG_CHAY" : duration === "" || Number(duration) <= 0 ? "LOI_THOI_GIAN" : "OK";
-    result.push({ runId, maKH: first.maKH, processName: first.processName, arenaModule: first.processName, cuaVao: first.cuaVao, loaiKH: first.loaiKH, quay: first.quay, startTime: formatDateTimeVNms(start?.thoiGian || ""), endTime: formatDateTimeVNms(end?.thoiGian || ""), processDurationS: duration, processInterarrivalS: "", status, errorNote: status === "OK" ? "Đủ dữ liệu" : status === "DANG_CHAY" ? "Đã START, chưa END" : "Kiểm tra START/END", ghiChu: first.ghiChu, nguoiBam: first.nguoiBam });
+
+    result.push({
+      runId,
+      maKH: first.maKH,
+      processName: first.processName,
+      arenaModule: first.processName,
+      cuaVao: first.cuaVao,
+      loaiKH: first.loaiKH,
+      quay: first.quay,
+      startTime: formatDateTimeVNms(start?.thoiGian || ""),
+      rawStartTime: start?.thoiGian || "",
+      endTime: formatDateTimeVNms(end?.thoiGian || ""),
+      rawEndTime: end?.thoiGian || "",
+      processDurationS: duration,
+      processInterarrivalS: "",
+      status,
+      errorNote: status === "OK" ? "Đủ dữ liệu" : status === "DANG_CHAY" ? "Đã START, chưa END" : "Kiểm tra START/END",
+      ghiChu: first.ghiChu,
+      nguoiBam: first.nguoiBam,
+    });
   });
+
   const byProcess = new Map<string, ProcessSummaryRow[]>();
   for (const row of result) {
     if (!row.startTime || row.status !== "OK") continue;
     if (!byProcess.has(row.processName)) byProcess.set(row.processName, []);
     byProcess.get(row.processName)!.push(row);
   }
-  byProcess.forEach((items) => {
-    items.sort((a, b) => (parseDateTime(a.startTime)?.getTime() || 0) - (parseDateTime(b.startTime)?.getTime() || 0));
-    for (let i = 1; i < items.length; i++) items[i].processInterarrivalS = diffSecondsPrecise(items[i - 1].startTime, items[i].startTime);
-  });
-  return result.sort((a, b) => (parseDateTime(b.startTime)?.getTime() || 0) - (parseDateTime(a.startTime)?.getTime() || 0));
-}
 
-function addInterarrivalByGroup(rows: SummaryRow[], getGroup: (r: SummaryRow) => string, getTime: (r: SummaryRow) => string, field: keyof Pick<SummaryRow, "systemInterarrivalByEntranceS" | "systemInterarrivalByTypeS" | "queueInterarrivalByCounterS" | "queueInterarrivalByProcessS">) {
+  byProcess.forEach((items) => {
+    items.sort((a, b) => (parseDateTime(a.rawStartTime)?.getTime() || 0) - (parseDateTime(b.rawStartTime)?.getTime() || 0));
+    for (let i = 1; i < items.length; i++) {
+      items[i].processInterarrivalS = diffSecondsPrecise(items[i - 1].rawStartTime, items[i].rawStartTime);
+    }
+  });
+
+  return result.sort((a, b) => (parseDateTime(b.rawStartTime)?.getTime() || 0) - (parseDateTime(a.rawStartTime)?.getTime() || 0));
+}
+function addInterarrivalByGroup(
+  rows: SummaryRow[],
+  getGroup: (r: SummaryRow) => string,
+  getTime: (r: SummaryRow) => string,
+  field: keyof Pick<SummaryRow, "systemInterarrivalByEntranceS" | "systemInterarrivalByTypeS" | "queueInterarrivalByCounterS" | "queueInterarrivalByProcessS">,
+) {
   const grouped = new Map<string, SummaryRow[]>();
   for (const row of rows) {
     const time = getTime(row);
@@ -420,11 +602,25 @@ function addInterarrivalByGroup(rows: SummaryRow[], getGroup: (r: SummaryRow) =>
   }
   grouped.forEach((items) => {
     items.sort((a, b) => (parseDateTime(getTime(a))?.getTime() || 0) - (parseDateTime(getTime(b))?.getTime() || 0));
-    for (let i = 1; i < items.length; i++) items[i][field] = diffSecondsPrecise(getTime(items[i - 1]), getTime(items[i]));
+    for (let i = 1; i < items.length; i++) {
+      items[i][field] = diffSecondsPrecise(getTime(items[i - 1]), getTime(items[i]));
+    }
   });
 }
 function makeLongIA(rows: SummaryRow[], valueField: keyof SummaryRow, groupField: keyof SummaryRow, label: string) {
-  return rows.filter((row) => row.dataStatus === "OK").map((row) => ({ phanTich: label, nhomDuLieu: String(row[groupField]), maKH: row.maKH, loaiKH: row.loaiLabel, cuaVao: row.cuaVao, quay: row.quay, processKey: row.processKey, giaTriGiay: row[valueField] as number | "" })).filter((row) => row.giaTriGiay !== "");
+  return rows
+    .filter((row) => row.dataStatus === "OK")
+    .map((row) => ({
+      phanTich: label,
+      nhomDuLieu: String(row[groupField]),
+      maKH: row.maKH,
+      loaiKH: row.loaiLabel,
+      cuaVao: row.cuaVao,
+      quay: row.quay,
+      processKey: row.processKey,
+      giaTriGiay: row[valueField] as number | "",
+    }))
+    .filter((row) => row.giaTriGiay !== "");
 }
 function makeWideIA(rows: SummaryRow[], getGroup: (r: SummaryRow) => string, getValue: (r: SummaryRow) => number | "") {
   const grouped = new Map<string, number[]>();
@@ -447,7 +643,18 @@ function makeWideIA(rows: SummaryRow[], getGroup: (r: SummaryRow) => string, get
   return result.length ? result : [{ ghiChu: "Chưa có đủ dữ liệu hợp lệ" } as unknown as Record<string, number | "">];
 }
 function makeProcessLongIA(rows: ProcessSummaryRow[]) {
-  return rows.filter((r) => r.status === "OK" && r.processDurationS !== "").map((r) => ({ phanTich: "Delay/Process time theo từng Process module trong Arena", processName: r.processName, arenaModule: r.arenaModule, maKH: r.maKH, loaiKH: r.loaiKH, cuaVao: r.cuaVao, quay: r.quay, processDurationS: toNumberOrBlank(r.processDurationS) }));
+  return rows
+    .filter((r) => r.status === "OK" && r.processDurationS !== "")
+    .map((r) => ({
+      phanTich: "Delay/Process time theo từng Process module trong Arena",
+      processName: r.processName,
+      arenaModule: r.arenaModule,
+      maKH: r.maKH,
+      loaiKH: r.loaiKH,
+      cuaVao: r.cuaVao,
+      quay: r.quay,
+      processDurationS: toNumberOrBlank(r.processDurationS),
+    }));
 }
 function makeProcessWideIA(rows: ProcessSummaryRow[]) {
   const grouped = new Map<string, number[]>();
@@ -478,13 +685,26 @@ function summarizeDecisionPercent(decisionLog: DecisionRow[]) {
     const total = rows.length;
     const counts = new Map<string, number>();
     rows.forEach((r) => counts.set(r.optionSelected, (counts.get(r.optionSelected) || 0) + 1));
-    getDecisionOptions(typed).forEach((option, index) => result.push({ decisionName, arenaMode: getDecisionMode(typed), branchOrder: index + 1, optionSelected: option, count: counts.get(option) || 0, total, percent: total ? Number((((counts.get(option) || 0) / total) * 100).toFixed(2)) : 0 }));
+    getDecisionOptions(typed).forEach((option, index) => {
+      const count = counts.get(option) || 0;
+      result.push({
+        decisionName,
+        arenaMode: getDecisionMode(typed),
+        branchOrder: index + 1,
+        optionSelected: option,
+        count,
+        total,
+        percent: total ? Number(((count / total) * 100).toFixed(2)) : 0,
+      });
+    });
   });
   return result.length ? result : [{ ghiChu: "Chưa có dữ liệu Decision_Log" }];
 }
 function autoFitColumns(ws: XLSX.WorkSheet, rows: Record<string, unknown>[]) {
   const keys = rows.length ? Object.keys(rows[0]) : [];
-  ws["!cols"] = keys.map((key) => ({ wch: Math.min(Math.max(key.length + 2, ...rows.map((r) => String(r[key] ?? "").length + 2), 12), 45) }));
+  ws["!cols"] = keys.map((key) => ({
+    wch: Math.min(Math.max(key.length + 2, ...rows.map((r) => String(r[key] ?? "").length + 2), 12), 45),
+  }));
 }
 function appendSheet(wb: XLSX.WorkBook, name: string, rows: Record<string, unknown>[]) {
   const safeRows = rows.length ? rows : [{ ghiChu: "Không có dữ liệu" }];
@@ -517,19 +737,22 @@ export default function Page() {
   const processSummaryRows = useMemo(() => buildProcessSummaryRows(processLog), [processLog]);
   const currentFlow = useMemo(() => (loaiKH ? getFlow(loaiKH) : []), [loaiKH]);
   const validCounters = useMemo(() => (loaiKH ? getValidCounters(loaiKH) : ALL_COUNTERS), [loaiKH]);
+
   const currentCustomerEvents = useMemo(() => eventLog.filter((r) => r.maKH === currentMaKH).sort(sortEventsAsc), [eventLog, currentMaKH]);
-  const currentCustomerDecisions = useMemo(() => decisionLog.filter((r) => r.maKH === currentMaKH).sort((a, b) => (parseDateTime(b.thoiGian)?.getTime() || 0) - (parseDateTime(a.thoiGian)?.getTime() || 0)), [decisionLog, currentMaKH]);
+  const currentCustomerDecisions = useMemo(
+    () => decisionLog.filter((r) => r.maKH === currentMaKH).sort((a, b) => (parseDateTime(b.thoiGian)?.getTime() || 0) - (parseDateTime(a.thoiGian)?.getTime() || 0)),
+    [decisionLog, currentMaKH],
+  );
   const currentCustomerProcesses = useMemo(() => processLog.filter((r) => r.maKH === currentMaKH).sort(sortProcessLogDesc), [processLog, currentMaKH]);
   const currentCustomerProcessSummaries = useMemo(() => processSummaryRows.filter((r) => r.maKH === currentMaKH), [processSummaryRows, currentMaKH]);
-  const completedSelectProcess = useMemo(() => currentCustomerProcessSummaries.find((r) => SELECT_PROCESS_NAMES.includes(r.processName) && r.status === "OK"), [currentCustomerProcessSummaries]);
-  const completedSelectRawTimes = useMemo(() => {
-    if (!completedSelectProcess) return null;
-    const rows = currentCustomerProcesses.filter((r) => r.runId === completedSelectProcess.runId);
-    const start = rows.find((r) => r.eventType === "START");
-    const end = rows.find((r) => r.eventType === "END");
-    return start && end ? { start: start.thoiGian, end: end.thoiGian } : null;
-  }, [completedSelectProcess, currentCustomerProcesses]);
-  const selectedProcessActiveRun = useMemo(() => currentCustomerProcesses.find((r) => r.processName === selectedProcessName && r.eventType === "START" && !currentCustomerProcesses.some((x) => x.runId === r.runId && x.eventType === "END")), [currentCustomerProcesses, selectedProcessName]);
+  const completedSelectProcess = useMemo(
+    () => currentCustomerProcessSummaries.find((r) => SELECT_PROCESS_NAMES.includes(r.processName) && r.status === "OK"),
+    [currentCustomerProcessSummaries],
+  );
+  const selectedProcessActiveRun = useMemo(
+    () => currentCustomerProcesses.find((r) => r.processName === selectedProcessName && r.eventType === "START" && !currentCustomerProcesses.some((x) => x.runId === r.runId && x.eventType === "END")),
+    [currentCustomerProcesses, selectedProcessName],
+  );
   const currentExpectedEvents = useMemo(() => {
     if (!loaiKH) return [];
     const expected = new Set(currentFlow.map((s) => s.code));
@@ -537,57 +760,148 @@ export default function Page() {
   }, [currentCustomerEvents, currentFlow, loaiKH]);
   const nextStep = loaiKH ? currentFlow.find((step) => !currentExpectedEvents.some((r) => r.suKien === step.code)) : undefined;
 
-  function upsertEventRow(newRow: EventRow) { setEventLog((prev) => { const idx = prev.findIndex((x) => x.id === newRow.id); if (idx >= 0) { const copy = [...prev]; copy[idx] = newRow; return copy.sort(sortEventsDesc); } return [newRow, ...prev].sort(sortEventsDesc); }); }
-  function upsertDecisionRow(newRow: DecisionRow) { setDecisionLog((prev) => { const idx = prev.findIndex((x) => x.id === newRow.id); if (idx >= 0) { const copy = [...prev]; copy[idx] = newRow; return copy.sort((a, b) => (parseDateTime(b.thoiGian)?.getTime() || 0) - (parseDateTime(a.thoiGian)?.getTime() || 0)); } return [newRow, ...prev].sort((a, b) => (parseDateTime(b.thoiGian)?.getTime() || 0) - (parseDateTime(a.thoiGian)?.getTime() || 0)); }); }
-  function upsertProcessRow(newRow: ProcessLogRow) { setProcessLog((prev) => { const idx = prev.findIndex((x) => x.id === newRow.id); if (idx >= 0) { const copy = [...prev]; copy[idx] = newRow; return copy.sort(sortProcessLogDesc); } return [newRow, ...prev].sort(sortProcessLogDesc); }); }
+  function upsertEventRow(newRow: EventRow) {
+    setEventLog((prev) => {
+      const idx = prev.findIndex((x) => x.id === newRow.id);
+      if (idx >= 0) {
+        const copy = [...prev];
+        copy[idx] = newRow;
+        return copy.sort(sortEventsDesc);
+      }
+      return [newRow, ...prev].sort(sortEventsDesc);
+    });
+  }
+  function upsertDecisionRow(newRow: DecisionRow) {
+    setDecisionLog((prev) => {
+      const idx = prev.findIndex((x) => x.id === newRow.id);
+      if (idx >= 0) {
+        const copy = [...prev];
+        copy[idx] = newRow;
+        return copy.sort((a, b) => (parseDateTime(b.thoiGian)?.getTime() || 0) - (parseDateTime(a.thoiGian)?.getTime() || 0));
+      }
+      return [newRow, ...prev].sort((a, b) => (parseDateTime(b.thoiGian)?.getTime() || 0) - (parseDateTime(a.thoiGian)?.getTime() || 0));
+    });
+  }
+  function upsertProcessRow(newRow: ProcessLogRow) {
+    setProcessLog((prev) => {
+      const idx = prev.findIndex((x) => x.id === newRow.id);
+      if (idx >= 0) {
+        const copy = [...prev];
+        copy[idx] = newRow;
+        return copy.sort(sortProcessLogDesc);
+      }
+      return [newRow, ...prev].sort(sortProcessLogDesc);
+    });
+  }
 
   async function loadEventLog() {
     setLoading(true);
     const { data, error } = await supabase.from("event_log").select("*").order("thoi_gian", { ascending: false }).order("id", { ascending: false });
-    if (error) { alert(`Không tải được event_log: ${error.message}`); setLoading(false); return; }
-    setEventLog(((data || []) as DbRow[]).map(mapDbRowToEventRow)); setLoading(false);
+    if (error) {
+      alert(`Không tải được event_log: ${error.message}`);
+      setLoading(false);
+      return;
+    }
+    setEventLog(((data || []) as DbRow[]).map(mapDbRowToEventRow));
+    setLoading(false);
   }
   async function loadDecisionLog() {
     const { data, error } = await supabase.from("decision_log").select("*").order("thoi_gian", { ascending: false }).order("id", { ascending: false });
-    if (error) { setDecisionTableReady(false); setDecisionLog([]); return; }
-    setDecisionTableReady(true); setDecisionLog(((data || []) as DecisionDbRow[]).map(mapDbRowToDecisionRow));
+    if (error) {
+      setDecisionTableReady(false);
+      setDecisionLog([]);
+      return;
+    }
+    setDecisionTableReady(true);
+    setDecisionLog(((data || []) as DecisionDbRow[]).map(mapDbRowToDecisionRow));
   }
   async function loadProcessLog() {
     const { data, error } = await supabase.from("process_log").select("*").order("thoi_gian", { ascending: false }).order("id", { ascending: false });
-    if (error) { setProcessTableReady(false); setProcessLog([]); return; }
-    setProcessTableReady(true); setProcessLog(((data || []) as ProcessDbRow[]).map(mapDbRowToProcessLogRow));
+    if (error) {
+      setProcessTableReady(false);
+      setProcessLog([]);
+      return;
+    }
+    setProcessTableReady(true);
+    setProcessLog(((data || []) as ProcessDbRow[]).map(mapDbRowToProcessLogRow));
   }
-  function refreshAllData() { loadEventLog(); loadDecisionLog(); loadProcessLog(); }
+  function refreshAllData() {
+    loadEventLog();
+    loadDecisionLog();
+    loadProcessLog();
+  }
 
   useEffect(() => {
     const savedName = localStorage.getItem("emart_ten_nguoi_bam") || "";
-    if (savedName) setTenNguoiBam(savedName); else {
+    if (savedName) {
+      setTenNguoiBam(savedName);
+    } else {
       const input = window.prompt("Nhập tên người đang bấm giờ:", "") || "";
-      if (input.trim()) { localStorage.setItem("emart_ten_nguoi_bam", input.trim()); setTenNguoiBam(input.trim()); }
+      if (input.trim()) {
+        localStorage.setItem("emart_ten_nguoi_bam", input.trim());
+        setTenNguoiBam(input.trim());
+      }
     }
+
     const savedDevice = localStorage.getItem("emart_device_id");
-    if (savedDevice) setDeviceId(savedDevice); else { const newDevice = generateDeviceId(); localStorage.setItem("emart_device_id", newDevice); setDeviceId(newDevice); }
-    if (!loadedRef.current) { loadedRef.current = true; refreshAllData(); }
-    const channel = supabase.channel("event-log-live-process-first")
+    if (savedDevice) {
+      setDeviceId(savedDevice);
+    } else {
+      const newDevice = generateDeviceId();
+      localStorage.setItem("emart_device_id", newDevice);
+      setDeviceId(newDevice);
+    }
+
+    if (!loadedRef.current) {
+      loadedRef.current = true;
+      refreshAllData();
+    }
+
+    const channel = supabase
+      .channel("emart-live-short-code")
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "event_log" }, (payload) => upsertEventRow(mapDbRowToEventRow(payload.new as DbRow)))
+      .on("postgres_changes", { event: "DELETE", schema: "public", table: "event_log" }, (payload) => {
+        const id = (payload.old as { id?: number })?.id;
+        if (id) setEventLog((prev) => prev.filter((x) => x.id !== id));
+      })
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "decision_log" }, (payload) => upsertDecisionRow(mapDbRowToDecisionRow(payload.new as DecisionDbRow)))
+      .on("postgres_changes", { event: "DELETE", schema: "public", table: "decision_log" }, (payload) => {
+        const id = (payload.old as { id?: number })?.id;
+        if (id) setDecisionLog((prev) => prev.filter((x) => x.id !== id));
+      })
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "process_log" }, (payload) => upsertProcessRow(mapDbRowToProcessLogRow(payload.new as ProcessDbRow)))
+      .on("postgres_changes", { event: "DELETE", schema: "public", table: "process_log" }, (payload) => {
+        const id = (payload.old as { id?: number })?.id;
+        if (id) setProcessLog((prev) => prev.filter((x) => x.id !== id));
+      })
       .subscribe();
-    return () => { supabase.removeChannel(channel); };
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
-  useEffect(() => { setSelectedDecisionOption(getDefaultDecisionOption(selectedDecisionName)); }, [selectedDecisionName]);
-  useEffect(() => { if (!loaiKH) return; const counters = getValidCounters(loaiKH); if (!counters.includes(quay)) setQuay(counters[0]); }, [loaiKH, quay]);
+  useEffect(() => {
+    setSelectedDecisionOption(getDefaultDecisionOption(selectedDecisionName));
+  }, [selectedDecisionName]);
+
+  useEffect(() => {
+    if (!loaiKH) return;
+    const counters = getValidCounters(loaiKH);
+    if (!counters.includes(quay)) setQuay(counters[0]);
+  }, [loaiKH, quay]);
 
   function createNewCustomer() {
-    if (!deviceId) { alert("Thiết bị chưa sẵn sàng, vui lòng thử lại."); return; }
-    const code = generateCustomerCode(deviceId);
-    setCurrentMaKH(code); setLoaiKH(""); setGhiChu(""); setActiveProcessRunId(""); setSelectedProcessName("customer selects items");
+    const code = generateCustomerCode();
+    setCurrentMaKH(code);
+    setLoaiKH("");
+    setGhiChu("");
+    setActiveProcessRunId("");
+    setSelectedProcessName("customer selects items");
   }
   function ensureCustomerCode() {
     if (currentMaKH) return currentMaKH;
-    if (!deviceId) return "";
-    const code = generateCustomerCode(deviceId);
+    const code = generateCustomerCode();
     setCurrentMaKH(code);
     return code;
   }
@@ -597,172 +911,429 @@ export default function Page() {
     const processes = processLog.filter((x) => x.maKH === maKH).sort(sortProcessLogAsc);
     const lastEvent = events[events.length - 1];
     const lastProcess = processes[processes.length - 1];
-    if (lastEvent) { setLoaiKH(lastEvent.loaiKH); setCuaVao(lastEvent.cuaVao === "Không ghi nhận" ? "Entrance 1" : lastEvent.cuaVao); setQuay(lastEvent.quay); setNhanVien(lastEvent.nhanVien || "NV1"); setGhiChu(lastEvent.ghiChu || ""); }
-    else if (lastProcess) { setLoaiKH(lastProcess.loaiKH || ""); setCuaVao(lastProcess.cuaVao === "Không ghi nhận" ? "Entrance 1" : lastProcess.cuaVao); if (lastProcess.quay) setQuay(lastProcess.quay); setGhiChu(lastProcess.ghiChu || ""); }
+
+    if (lastEvent) {
+      setLoaiKH(lastEvent.loaiKH);
+      setCuaVao(lastEvent.cuaVao === "Không ghi nhận" ? "Entrance 1" : lastEvent.cuaVao);
+      setQuay(lastEvent.quay);
+      setNhanVien(lastEvent.nhanVien || "NV1");
+      setGhiChu(lastEvent.ghiChu || "");
+    } else if (lastProcess) {
+      setLoaiKH(lastProcess.loaiKH || "");
+      setCuaVao(lastProcess.cuaVao === "Không ghi nhận" ? "Entrance 1" : lastProcess.cuaVao);
+      if (lastProcess.quay) setQuay(lastProcess.quay);
+      setGhiChu(lastProcess.ghiChu || "");
+    }
   }
 
   async function addProcessEvent(eventType: ProcessEventType) {
-    if (!processTableReady) { alert("Chưa có bảng process_log trong Supabase."); return; }
-    if (!tenNguoiBam.trim()) { alert("Bạn chưa nhập tên người bấm."); return; }
+    if (!processTableReady) {
+      alert("Chưa có bảng process_log trong Supabase.");
+      return;
+    }
+    if (!tenNguoiBam.trim()) {
+      alert("Bạn chưa nhập tên người bấm.");
+      return;
+    }
+
     const maKH = ensureCustomerCode();
-    if (!maKH) { alert("Thiết bị chưa sẵn sàng."); return; }
     let runId = activeProcessRunId;
+
     if (eventType === "START") {
-      if (currentCustomerProcessSummaries.some((r) => r.status === "DANG_CHAY" && r.processName === selectedProcessName)) { alert("Process này đã START nhưng chưa END."); return; }
-      runId = generateProcessRunId(selectedProcessName, deviceId);
+      const running = currentCustomerProcessSummaries.some((r) => r.status === "DANG_CHAY" && r.processName === selectedProcessName);
+      if (running) {
+        alert("Process này đã START nhưng chưa END.");
+        return;
+      }
+      runId = generateProcessRunId(selectedProcessName);
       setActiveProcessRunId(runId);
     } else {
-      const latestStart = [...processLog].filter((row) => row.maKH === maKH && row.processName === selectedProcessName && row.eventType === "START").sort(sortProcessLogDesc).find((start) => !processLog.some((row) => row.runId === start.runId && row.eventType === "END"));
+      const latestStart = [...processLog]
+        .filter((row) => row.maKH === maKH && row.processName === selectedProcessName && row.eventType === "START")
+        .sort(sortProcessLogDesc)
+        .find((start) => !processLog.some((row) => row.runId === start.runId && row.eventType === "END"));
       runId = runId || latestStart?.runId || "";
-      if (!runId) { alert("Chưa có START đang chạy cho Process này."); return; }
+      if (!runId) {
+        alert("Chưa có START đang chạy cho Process này.");
+        return;
+      }
     }
-    const { data, error } = await supabase.from("process_log").insert({ run_id: runId, ma_kh: maKH, thoi_gian: new Date().toISOString(), process_name: selectedProcessName, event_type: eventType, cua_vao: cuaVao, loai_kh: loaiKH || null, quay: loaiKH ? quay : null, ghi_chu: buildGhiChu(ghiChu, cuaVao), nguoi_bam: tenNguoiBam.trim() }).select("*");
-    if (error) { alert(`Lưu Process_Log thất bại: ${error.message}`); return; }
-    const inserted = data?.[0] as ProcessDbRow | undefined; if (inserted) upsertProcessRow(mapDbRowToProcessLogRow(inserted));
+
+    const { data, error } = await supabase
+      .from("process_log")
+      .insert({
+        run_id: runId,
+        ma_kh: maKH,
+        thoi_gian: new Date().toISOString(),
+        process_name: selectedProcessName,
+        event_type: eventType,
+        cua_vao: cuaVao,
+        loai_kh: loaiKH || null,
+        quay: loaiKH ? quay : null,
+        ghi_chu: buildGhiChu(ghiChu, cuaVao),
+        nguoi_bam: tenNguoiBam.trim(),
+      })
+      .select("*");
+
+    if (error) {
+      alert(`Lưu Process_Log thất bại: ${error.message}`);
+      return;
+    }
+    const inserted = data?.[0] as ProcessDbRow | undefined;
+    if (inserted) upsertProcessRow(mapDbRowToProcessLogRow(inserted));
     if (eventType === "END") setActiveProcessRunId("");
   }
 
   async function updateCustomerMeta(selectedType: CustomerType, selectedCounter: CounterType) {
     const maKH = currentMaKH;
+    if (!maKH) return;
+
     await supabase.from("process_log").update({ loai_kh: selectedType, quay: selectedCounter }).eq("ma_kh", maKH);
     await supabase.from("decision_log").update({ loai_kh: selectedType }).eq("ma_kh", maKH);
-    setProcessLog((prev) => prev.map((row) => row.maKH === maKH ? { ...row, loaiKH: selectedType, quay: selectedCounter } : row));
-    setDecisionLog((prev) => prev.map((row) => row.maKH === maKH ? { ...row, loaiKH: selectedType } : row));
+
+    setProcessLog((prev) => prev.map((row) => (row.maKH === maKH ? { ...row, loaiKH: selectedType, quay: selectedCounter } : row)));
+    setDecisionLog((prev) => prev.map((row) => (row.maKH === maKH ? { ...row, loaiKH: selectedType } : row)));
   }
+
   async function insertEventAt(selectedType: CustomerType, selectedCounter: CounterType, eventName: EventName, timeISO: string) {
     if (!currentMaKH) return;
     if (eventLog.some((row) => row.maKH === currentMaKH && row.suKien === eventName)) return;
-    const { data, error } = await supabase.from("event_log").insert({ ma_kh: currentMaKH, loai_kh: selectedType, quy_trinh: buildQuyTrinh(selectedType, selectedCounter, cuaVao), su_kien: eventName, thoi_gian: timeISO, nhan_vien: nhanVien.trim() || "NV1", quay: selectedCounter, ghi_chu: buildGhiChu(ghiChu, cuaVao), nguoi_bam: tenNguoiBam.trim() }).select("*");
-    if (error) { alert(`Lưu mốc ${eventName} thất bại: ${error.message}`); return; }
-    const inserted = data?.[0] as DbRow | undefined; if (inserted) upsertEventRow(mapDbRowToEventRow(inserted));
+
+    const { data, error } = await supabase
+      .from("event_log")
+      .insert({
+        ma_kh: currentMaKH,
+        loai_kh: selectedType,
+        quy_trinh: buildQuyTrinh(selectedType, selectedCounter, cuaVao),
+        su_kien: eventName,
+        thoi_gian: timeISO,
+        nhan_vien: nhanVien.trim() || "NV1",
+        quay: selectedCounter,
+        ghi_chu: buildGhiChu(ghiChu, cuaVao),
+        nguoi_bam: tenNguoiBam.trim(),
+      })
+      .select("*");
+
+    if (error) {
+      alert(`Lưu mốc ${eventName} thất bại: ${error.message}`);
+      return;
+    }
+    const inserted = data?.[0] as DbRow | undefined;
+    if (inserted) upsertEventRow(mapDbRowToEventRow(inserted));
   }
+
   async function classifyCustomer(selectedType: CustomerType) {
-    if (!currentMaKH) { alert("Bạn cần bấm START Process trước để tạo mã khách."); return; }
-    if (!completedSelectProcess) { alert("Bạn cần bấm START và END Process lựa món trước, sau đó mới chọn loại khách/món chính."); return; }
+    if (!currentMaKH) {
+      alert("Bạn cần bấm START Process trước để tạo mã khách.");
+      return;
+    }
+    if (!completedSelectProcess) {
+      alert("Bạn cần bấm START và END Process lựa món trước, sau đó mới chọn loại khách/món chính.");
+      return;
+    }
+
     const selectedCounter = getValidCounters(selectedType)[0];
-    setLoaiKH(selectedType); setQuay(selectedCounter);
+    setLoaiKH(selectedType);
+    setQuay(selectedCounter);
+
     await updateCustomerMeta(selectedType, selectedCounter);
-    if (!completedSelectRawTimes) { alert("Không tìm được thời gian START/END gốc của Process lựa món."); return; }
-    await insertEventAt(selectedType, selectedCounter, "KHACH_VAO_KHU_AN_UONG", completedSelectRawTimes.start);
-    await insertEventAt(selectedType, selectedCounter, getQueueEventForType(selectedType), completedSelectRawTimes.end);
+    await insertEventAt(selectedType, selectedCounter, "KHACH_VAO_KHU_AN_UONG", completedSelectProcess.rawStartTime);
+    await insertEventAt(selectedType, selectedCounter, getQueueEventForType(selectedType), completedSelectProcess.rawEndTime);
     await addDecisionLogInline("Chọn loại khách", selectedType, selectedType, selectedCounter);
   }
+
   async function addDecisionLogInline(decisionName: DecisionName, option: string, forcedType?: CustomerType, forcedCounter?: CounterType) {
     if (!decisionTableReady) return;
-    const maKH = ensureCustomerCode(); if (!maKH) return;
+    const maKH = ensureCustomerCode();
     const isCanPay = decisionName.startsWith("Can I pay now");
     const finalChosenCounter = getChosenCounterFromOption(option);
     const manuallyChosenCounter = isCanPay ? getCounterFromCode(finalChosenCounter) : "";
-    const counterToApply = forcedCounter || (manuallyChosenCounter || undefined);
+    const counterToApply = forcedCounter || manuallyChosenCounter || undefined;
 
-    const { data, error } = await supabase.from("decision_log").insert({
-      ma_kh: maKH,
-      thoi_gian: new Date().toISOString(),
-      cua_vao: cuaVao,
-      decision_name: decisionName,
-      option_selected: option,
-      loai_kh: forcedType || loaiKH || null,
-      q1_length: null,
-      q2_length: null,
-      q3_length: null,
-      chosen_counter: isCanPay ? finalChosenCounter : null,
-      ghi_chu: buildGhiChu(ghiChu, cuaVao),
-      nguoi_bam: tenNguoiBam.trim(),
-    }).select("*");
+    const { data, error } = await supabase
+      .from("decision_log")
+      .insert({
+        ma_kh: maKH,
+        thoi_gian: new Date().toISOString(),
+        cua_vao: cuaVao,
+        decision_name: decisionName,
+        option_selected: option,
+        loai_kh: forcedType || loaiKH || null,
+        q1_length: null,
+        q2_length: null,
+        q3_length: null,
+        chosen_counter: isCanPay ? finalChosenCounter : null,
+        ghi_chu: buildGhiChu(ghiChu, cuaVao),
+        nguoi_bam: tenNguoiBam.trim(),
+      })
+      .select("*");
 
-    if (!error) {
-      const inserted = data?.[0] as DecisionDbRow | undefined;
-      if (inserted) upsertDecisionRow(mapDbRowToDecisionRow(inserted));
+    if (error) {
+      alert(`Lưu Decision_Log thất bại: ${error.message}`);
+      return;
     }
+
+    const inserted = data?.[0] as DecisionDbRow | undefined;
+    if (inserted) upsertDecisionRow(mapDbRowToDecisionRow(inserted));
 
     if (counterToApply) {
       setQuay(counterToApply);
       if (loaiKH) {
         await supabase.from("process_log").update({ quay: counterToApply }).eq("ma_kh", maKH);
-        setProcessLog((prev) => prev.map((row) => row.maKH === maKH ? { ...row, quay: counterToApply } : row));
+        await supabase.from("event_log").update({ quay: counterToApply }).eq("ma_kh", maKH);
+        setProcessLog((prev) => prev.map((row) => (row.maKH === maKH ? { ...row, quay: counterToApply } : row)));
+        setEventLog((prev) => prev.map((row) => (row.maKH === maKH ? { ...row, quay: counterToApply } : row)));
       }
     }
   }
+
   async function addDecisionLog() {
-    if (!decisionTableReady) { alert("Chưa có bảng decision_log trong Supabase."); return; }
-    if (!tenNguoiBam.trim()) { alert("Bạn chưa nhập tên người bấm."); return; }
-    if (!currentMaKH) { alert("Bạn cần bấm START Process trước để có mã khách."); return; }
+    if (!decisionTableReady) {
+      alert("Chưa có bảng decision_log trong Supabase.");
+      return;
+    }
+    if (!tenNguoiBam.trim()) {
+      alert("Bạn chưa nhập tên người bấm.");
+      return;
+    }
+    if (!currentMaKH) {
+      alert("Bạn cần bấm START Process trước để có mã khách.");
+      return;
+    }
     await addDecisionLogInline(selectedDecisionName, selectedDecisionOption);
   }
+
   async function addNextMainEvent() {
-    if (!currentMaKH || !loaiKH) { alert("Bạn cần chọn loại khách sau khi END Process."); return; }
-    if (!nextStep) { alert("Khách này đã đủ mốc chính."); return; }
-    if (nextStep.role === "SYSTEM_START" || nextStep.role === "QUEUE_ARRIVAL") { alert("Hai mốc đầu được tạo tự động từ START/END Process lựa món."); return; }
+    if (!currentMaKH || !loaiKH) {
+      alert("Bạn cần chọn loại khách sau khi END Process.");
+      return;
+    }
+    if (!nextStep) {
+      alert("Khách này đã đủ mốc chính.");
+      return;
+    }
+    if (nextStep.role === "SYSTEM_START" || nextStep.role === "QUEUE_ARRIVAL") {
+      alert("Hai mốc đầu được tạo tự động từ START/END Process lựa món.");
+      return;
+    }
     await insertEventAt(loaiKH, quay, nextStep.code, new Date().toISOString());
   }
+
   async function deleteRow(table: "event_log" | "decision_log" | "process_log", id: number) {
     const { error } = await supabase.from(table).delete().eq("id", id);
-    if (error) { alert(`Xóa thất bại: ${error.message}`); return; }
+    if (error) {
+      alert(`Xóa thất bại: ${error.message}`);
+      return;
+    }
     if (table === "event_log") setEventLog((prev) => prev.filter((x) => x.id !== id));
     if (table === "decision_log") setDecisionLog((prev) => prev.filter((x) => x.id !== id));
     if (table === "process_log") setProcessLog((prev) => prev.filter((x) => x.id !== id));
   }
+
   async function resetCurrentCustomer() {
     if (!currentMaKH) return;
     if (!confirm(`Xóa toàn bộ dữ liệu của ${currentMaKH}?`)) return;
+
     await supabase.from("event_log").delete().eq("ma_kh", currentMaKH);
     await supabase.from("decision_log").delete().eq("ma_kh", currentMaKH);
     await supabase.from("process_log").delete().eq("ma_kh", currentMaKH);
+
     setEventLog((prev) => prev.filter((x) => x.maKH !== currentMaKH));
     setDecisionLog((prev) => prev.filter((x) => x.maKH !== currentMaKH));
     setProcessLog((prev) => prev.filter((x) => x.maKH !== currentMaKH));
-    createNewCustomer();
+    setCurrentMaKH("");
+    setLoaiKH("");
+    setActiveProcessRunId("");
   }
+
   async function clearAllData() {
     if (!confirm("Xóa toàn bộ dữ liệu event_log, decision_log, process_log?")) return;
     await supabase.from("event_log").delete().neq("id", 0);
     await supabase.from("decision_log").delete().neq("id", 0);
     await supabase.from("process_log").delete().neq("id", 0);
-    setEventLog([]); setDecisionLog([]); setProcessLog([]); setCurrentMaKH(""); setLoaiKH(""); setActiveProcessRunId("");
+    setEventLog([]);
+    setDecisionLog([]);
+    setProcessLog([]);
+    setCurrentMaKH("");
+    setLoaiKH("");
+    setActiveProcessRunId("");
   }
 
   const summaryRows = useMemo<SummaryRow[]>(() => {
     const grouped = new Map<string, EventRow[]>();
-    for (const row of [...eventLog].sort(sortEventsAsc)) { if (!grouped.has(row.maKH)) grouped.set(row.maKH, []); grouped.get(row.maKH)!.push(row); }
-    const result: SummaryRow[] = []; let stt = 1;
+    for (const row of [...eventLog].sort(sortEventsAsc)) {
+      if (!grouped.has(row.maKH)) grouped.set(row.maKH, []);
+      grouped.get(row.maKH)!.push(row);
+    }
+
+    const result: SummaryRow[] = [];
+    let stt = 1;
+
     grouped.forEach((rows, maKH) => {
-      const ordered = rows.sort(sortEventsAsc); const firstRow = ordered[0]; const lastRow = ordered[ordered.length - 1]; const loai = lastRow.loaiKH; const flow = getFlow(loai);
-      const findByRole = (role: FlowStep["role"]) => { const step = flow.find((x) => x.role === role); return step ? ordered.find((r) => r.suKien === step.code) : undefined; };
-      const systemStart = findByRole("SYSTEM_START"); const queueArrival = findByRole("QUEUE_ARRIVAL"); const serviceStart = findByRole("SERVICE_START"); const serviceEnd = findByRole("SERVICE_END");
+      const ordered = rows.sort(sortEventsAsc);
+      const firstRow = ordered[0];
+      const lastRow = ordered[ordered.length - 1];
+      const loai = lastRow.loaiKH;
+      const flow = getFlow(loai);
+
+      const findByRole = (role: FlowStep["role"]) => {
+        const step = flow.find((x) => x.role === role);
+        return step ? ordered.find((r) => r.suKien === step.code) : undefined;
+      };
+
+      const systemStart = findByRole("SYSTEM_START");
+      const queueArrival = findByRole("QUEUE_ARRIVAL");
+      const serviceStart = findByRole("SERVICE_START");
+      const serviceEnd = findByRole("SERVICE_END");
+
       const selectProductTimeS = diffSecondsPrecise(systemStart?.thoiGian || "", queueArrival?.thoiGian || "");
       const waitingTimeS = diffSecondsPrecise(queueArrival?.thoiGian || "", serviceStart?.thoiGian || "");
       const serviceTimeS = diffSecondsPrecise(serviceStart?.thoiGian || "", serviceEnd?.thoiGian || "");
       const systemTimeS = diffSecondsPrecise(systemStart?.thoiGian || "", serviceEnd?.thoiGian || "");
+
       const missingSteps = flow.filter((s) => !ordered.some((r) => r.suKien === s.code)).map((s) => s.shortLabel);
       const timeError = selectProductTimeS === "" || waitingTimeS === "" || serviceTimeS === "" || systemTimeS === "" || Number(serviceTimeS) <= 0;
       const dataStatus: SummaryRow["dataStatus"] = missingSteps.length ? "THIEU_BUOC" : timeError ? "LOI_THOI_GIAN" : "OK";
-      result.push({ stt: stt++, maKH, loaiKH: loai, loaiLabel: getLoaiKhachLabel(loai), cuaVao: firstRow.cuaVao, quay: lastRow.quay, ghiChu: lastRow.ghiChu, nguoiBam: lastRow.nguoiBam, processKey: getProcessKey(loai, lastRow.quay), createByEntrance: getCreateByEntrance(firstRow.cuaVao), createByType: getCreateByType(loai), queueName: getArenaQueue(lastRow.quay), resourceName: getArenaResource(lastRow.quay), dataStatus, errorNote: missingSteps.length ? `Thiếu bước: ${missingSteps.join(", ")}` : timeError ? "Kiểm tra thời gian select/wait/service/system" : "Đủ dữ liệu", T_KHACH_VAO: formatDateTimeVNms(systemStart?.thoiGian || ""), T_VAO_HANG: formatDateTimeVNms(queueArrival?.thoiGian || ""), T_BAT_DAU_PHUC_VU: formatDateTimeVNms(serviceStart?.thoiGian || ""), T_ROI_QUAY: formatDateTimeVNms(serviceEnd?.thoiGian || ""), selectProductTimeS, waitingTimeS, serviceTimeS, systemTimeS, systemInterarrivalByEntranceS: "", systemInterarrivalByTypeS: "", queueInterarrivalByCounterS: "", queueInterarrivalByProcessS: "" });
+
+      result.push({
+        stt: stt++,
+        maKH,
+        loaiKH: loai,
+        loaiLabel: getLoaiKhachLabel(loai),
+        cuaVao: firstRow.cuaVao,
+        quay: lastRow.quay,
+        ghiChu: lastRow.ghiChu,
+        nguoiBam: lastRow.nguoiBam,
+        processKey: getProcessKey(loai, lastRow.quay),
+        createByEntrance: getCreateByEntrance(firstRow.cuaVao),
+        createByType: getCreateByType(loai),
+        queueName: getArenaQueue(lastRow.quay),
+        resourceName: getArenaResource(lastRow.quay),
+        dataStatus,
+        errorNote: missingSteps.length ? `Thiếu bước: ${missingSteps.join(", ")}` : timeError ? "Kiểm tra thời gian select/wait/service/system" : "Đủ dữ liệu",
+        T_KHACH_VAO: formatDateTimeVNms(systemStart?.thoiGian || ""),
+        T_VAO_HANG: formatDateTimeVNms(queueArrival?.thoiGian || ""),
+        T_BAT_DAU_PHUC_VU: formatDateTimeVNms(serviceStart?.thoiGian || ""),
+        T_ROI_QUAY: formatDateTimeVNms(serviceEnd?.thoiGian || ""),
+        selectProductTimeS,
+        waitingTimeS,
+        serviceTimeS,
+        systemTimeS,
+        systemInterarrivalByEntranceS: "",
+        systemInterarrivalByTypeS: "",
+        queueInterarrivalByCounterS: "",
+        queueInterarrivalByProcessS: "",
+      });
     });
+
     addInterarrivalByGroup(result, (r) => r.createByEntrance, (r) => r.T_KHACH_VAO, "systemInterarrivalByEntranceS");
     addInterarrivalByGroup(result, (r) => r.createByType, (r) => r.T_KHACH_VAO, "systemInterarrivalByTypeS");
     addInterarrivalByGroup(result, (r) => r.queueName, (r) => r.T_VAO_HANG, "queueInterarrivalByCounterS");
     addInterarrivalByGroup(result, (r) => r.processKey, (r) => r.T_VAO_HANG, "queueInterarrivalByProcessS");
+
     return result.sort((a, b) => (parseDateTime(b.T_KHACH_VAO)?.getTime() || 0) - (parseDateTime(a.T_KHACH_VAO)?.getTime() || 0));
   }, [eventLog]);
 
   const pendingCustomers = useMemo(() => {
     const ids = new Set<string>();
-    processLog.forEach((r) => { if (r.maKH) ids.add(r.maKH); });
-    eventLog.forEach((r) => { if (r.maKH) ids.add(r.maKH); });
-    return Array.from(ids).map((maKH) => {
-      const hasType = eventLog.find((e) => e.maKH === maKH)?.loaiKH || processLog.find((p) => p.maKH === maKH && p.loaiKH)?.loaiKH || "";
-      const latestTime = [...processLog.filter((p) => p.maKH === maKH).map((p) => p.thoiGian), ...eventLog.filter((e) => e.maKH === maKH).map((e) => e.thoiGian)].sort().at(-1) || "";
-      return { maKH, loaiKH: hasType, latestTime };
-    }).sort((a, b) => (parseDateTime(b.latestTime)?.getTime() || 0) - (parseDateTime(a.latestTime)?.getTime() || 0));
+    processLog.forEach((r) => {
+      if (r.maKH) ids.add(r.maKH);
+    });
+    eventLog.forEach((r) => {
+      if (r.maKH) ids.add(r.maKH);
+    });
+
+    return Array.from(ids)
+      .map((maKH) => {
+        const hasType = eventLog.find((e) => e.maKH === maKH)?.loaiKH || processLog.find((p) => p.maKH === maKH && p.loaiKH)?.loaiKH || "";
+        const latestTime =
+          [...processLog.filter((p) => p.maKH === maKH).map((p) => p.thoiGian), ...eventLog.filter((e) => e.maKH === maKH).map((e) => e.thoiGian)].sort().at(-1) || "";
+        return { maKH, loaiKH: hasType, latestTime };
+      })
+      .sort((a, b) => (parseDateTime(b.latestTime)?.getTime() || 0) - (parseDateTime(a.latestTime)?.getTime() || 0));
   }, [processLog, eventLog]);
 
   function exportExcel() {
     const wb = XLSX.utils.book_new();
-    appendSheet(wb, "Event_Log", [...eventLog].sort(sortEventsAsc).map((r, i) => ({ stt: i + 1, maKH: r.maKH, loaiKH: r.loaiKH, loaiLabel: r.loaiLabel, cuaVao: r.cuaVao, quay: r.quay, suKien: r.suKien, suKienLabel: r.suKienLabel, thoiGian: formatDateTimeVNms(r.thoiGian), nhanVien: r.nhanVien, ghiChu: r.ghiChu, nguoiBam: r.nguoiBam })));
-    appendSheet(wb, "Decision_Log", [...decisionLog].sort((a, b) => (parseDateTime(a.thoiGian)?.getTime() || 0) - (parseDateTime(b.thoiGian)?.getTime() || 0)).map((r, i) => ({ stt: i + 1, maKH: r.maKH, thoiGian: formatDateTimeVNms(r.thoiGian), cuaVao: r.cuaVao, decisionName: r.decisionName, optionSelected: r.optionSelected, loaiKH: r.loaiKH, q1Length: r.q1Length, q2Length: r.q2Length, q3Length: r.q3Length, chosenCounter: r.chosenCounter, ghiChu: r.ghiChu, nguoiBam: r.nguoiBam })));
-    appendSheet(wb, "Process_Log", [...processLog].sort(sortProcessLogAsc).map((r, i) => ({ stt: i + 1, maKH: r.maKH, runId: r.runId, processName: r.processName, eventType: r.eventType, thoiGian: formatDateTimeVNms(r.thoiGian), cuaVao: r.cuaVao, loaiKH: r.loaiKH, quay: r.quay, ghiChu: r.ghiChu, nguoiBam: r.nguoiBam })));
-    appendSheet(wb, "Summary", summaryRows.map((r) => ({ ...r, selectProductTimeS: toNumberOrBlank(r.selectProductTimeS), waitingTimeS: toNumberOrBlank(r.waitingTimeS), serviceTimeS: toNumberOrBlank(r.serviceTimeS), systemTimeS: toNumberOrBlank(r.systemTimeS) })) as Record<string, unknown>[]);
-    appendSheet(wb, "Process_Summary", processSummaryRows.map((r) => ({ ...r, processDurationS: toNumberOrBlank(r.processDurationS), processInterarrivalS: toNumberOrBlank(r.processInterarrivalS) })) as Record<string, unknown>[]);
+
+    appendSheet(
+      wb,
+      "Event_Log",
+      [...eventLog].sort(sortEventsAsc).map((r, i) => ({
+        stt: i + 1,
+        maKH: r.maKH,
+        loaiKH: r.loaiKH,
+        loaiLabel: r.loaiLabel,
+        cuaVao: r.cuaVao,
+        quay: r.quay,
+        suKien: r.suKien,
+        suKienLabel: r.suKienLabel,
+        thoiGian: formatDateTimeVNms(r.thoiGian),
+        nhanVien: r.nhanVien,
+        ghiChu: r.ghiChu,
+        nguoiBam: r.nguoiBam,
+      })),
+    );
+
+    appendSheet(
+      wb,
+      "Decision_Log",
+      [...decisionLog]
+        .sort((a, b) => (parseDateTime(a.thoiGian)?.getTime() || 0) - (parseDateTime(b.thoiGian)?.getTime() || 0))
+        .map((r, i) => ({
+          stt: i + 1,
+          maKH: r.maKH,
+          thoiGian: formatDateTimeVNms(r.thoiGian),
+          cuaVao: r.cuaVao,
+          decisionName: r.decisionName,
+          optionSelected: r.optionSelected,
+          loaiKH: r.loaiKH,
+          chosenCounter: r.chosenCounter,
+          ghiChu: r.ghiChu,
+          nguoiBam: r.nguoiBam,
+        })),
+    );
+
+    appendSheet(
+      wb,
+      "Process_Log",
+      [...processLog].sort(sortProcessLogAsc).map((r, i) => ({
+        stt: i + 1,
+        maKH: r.maKH,
+        runId: r.runId,
+        processName: r.processName,
+        eventType: r.eventType,
+        thoiGian: formatDateTimeVNms(r.thoiGian),
+        cuaVao: r.cuaVao,
+        loaiKH: r.loaiKH,
+        quay: r.quay,
+        ghiChu: r.ghiChu,
+        nguoiBam: r.nguoiBam,
+      })),
+    );
+
+    appendSheet(
+      wb,
+      "Summary",
+      summaryRows.map((r) => ({
+        ...r,
+        selectProductTimeS: toNumberOrBlank(r.selectProductTimeS),
+        waitingTimeS: toNumberOrBlank(r.waitingTimeS),
+        serviceTimeS: toNumberOrBlank(r.serviceTimeS),
+        systemTimeS: toNumberOrBlank(r.systemTimeS),
+      })) as Record<string, unknown>[],
+    );
+
+    appendSheet(
+      wb,
+      "Process_Summary",
+      processSummaryRows.map((r) => ({
+        ...r,
+        processDurationS: toNumberOrBlank(r.processDurationS),
+        processInterarrivalS: toNumberOrBlank(r.processInterarrivalS),
+      })) as Record<string, unknown>[],
+    );
+
     appendSheet(wb, "IA_Create_Entrance_Long", makeLongIA(summaryRows, "systemInterarrivalByEntranceS", "createByEntrance", "Interarrival theo cửa vào"));
     appendSheet(wb, "IA_Create_Type_Long", makeLongIA(summaryRows, "systemInterarrivalByTypeS", "createByType", "Interarrival theo loại khách"));
     appendSheet(wb, "IA_Select_Long", makeLongIA(summaryRows, "selectProductTimeS", "createByType", "Thời gian lựa món = END Process - START Process"));
@@ -773,6 +1344,7 @@ export default function Page() {
     appendSheet(wb, "IA_Process_Long", makeProcessLongIA(processSummaryRows));
     appendSheet(wb, "IA_Process_Wide", makeProcessWideIA(processSummaryRows));
     appendSheet(wb, "Decision_Percent", summarizeDecisionPercent(decisionLog));
+
     XLSX.writeFile(wb, `Emart_Arena_Input_${new Date().toISOString().slice(0, 10)}.xlsx`);
   }
 
@@ -785,8 +1357,15 @@ export default function Page() {
     <main style={{ minHeight: "100vh", background: palette.bg, padding: 18, color: palette.text, fontFamily: "system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" }}>
       <section style={{ maxWidth: 1280, margin: "0 auto", display: "grid", gap: 16 }}>
         <header style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
-          <div><h1 style={{ margin: 0, fontSize: 26 }}>Emart Timer - Process trước, phân loại sau</h1><p style={{ margin: "6px 0 0", color: palette.sub }}>START/END Process lựa món trước → chọn loại khách/món chính → bấm phục vụ.</p></div>
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}><button onClick={refreshAllData} style={secondaryButtonStyle}>{loading ? "Đang tải..." : "Tải lại"}</button><button onClick={exportExcel} style={primaryButtonStyle}>Xuất Excel Arena</button><button onClick={clearAllData} style={dangerButtonStyle}>Xóa tất cả</button></div>
+          <div>
+            <h1 style={{ margin: 0, fontSize: 26 }}>Emart Timer - mã khách ngắn</h1>
+            <p style={{ margin: "6px 0 0", color: palette.sub }}>START/END Process lựa món trước → chọn loại khách/món chính → bấm phục vụ. Mã khách dạng KH001, KH002...</p>
+          </div>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            <button onClick={refreshAllData} style={secondaryButtonStyle}>{loading ? "Đang tải..." : "Tải lại"}</button>
+            <button onClick={exportExcel} style={primaryButtonStyle}>Xuất Excel Arena</button>
+            <button onClick={clearAllData} style={dangerButtonStyle}>Xóa tất cả</button>
+          </div>
         </header>
 
         <section style={cardStyle}>
@@ -797,39 +1376,96 @@ export default function Page() {
             <InfoBox label="Summary OK" value={String(okCount)} tone="green" />
             <InfoBox label="Thiếu/Lỗi" value={String(errorCount)} tone={errorCount ? "red" : undefined} />
           </div>
+
           <div style={gridFormStyle}>
-            <Field label="Người bấm"><input value={tenNguoiBam} onChange={(e) => { setTenNguoiBam(e.target.value); localStorage.setItem("emart_ten_nguoi_bam", e.target.value); }} style={inputStyle} /></Field>
-            <Field label="Cửa vào"><select value={cuaVao} onChange={(e) => setCuaVao(e.target.value as RecordableEntrance)} style={inputStyle}>{ENTRANCES.map((x) => <option key={x} value={x}>{x}</option>)}</select></Field>
-            <Field label="Nhân viên"><input value={nhanVien} onChange={(e) => setNhanVien(e.target.value)} style={inputStyle} /></Field>
-            <Field label="Ghi chú"><input value={ghiChu} onChange={(e) => setGhiChu(e.target.value)} style={inputStyle} placeholder="Ví dụ: áo trắng, nhóm 2 người..." /></Field>
+            <Field label="Người bấm">
+              <input value={tenNguoiBam} onChange={(e) => { setTenNguoiBam(e.target.value); localStorage.setItem("emart_ten_nguoi_bam", e.target.value); }} style={inputStyle} />
+            </Field>
+            <Field label="Cửa vào">
+              <select value={cuaVao} onChange={(e) => setCuaVao(e.target.value as RecordableEntrance)} style={inputStyle}>
+                {ENTRANCES.map((x) => <option key={x} value={x}>{x}</option>)}
+              </select>
+            </Field>
+            <Field label="Nhân viên">
+              <input value={nhanVien} onChange={(e) => setNhanVien(e.target.value)} style={inputStyle} />
+            </Field>
+            <Field label="Ghi chú">
+              <input value={ghiChu} onChange={(e) => setGhiChu(e.target.value)} style={inputStyle} placeholder="Ví dụ: áo trắng, nhóm 2 người..." />
+            </Field>
           </div>
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}><button onClick={createNewCustomer} style={primaryButtonStyle}>+ Tạo khách mới</button><button onClick={resetCurrentCustomer} disabled={!currentMaKH} style={currentMaKH ? dangerButtonStyle : disabledButtonStyle}>Reset khách hiện tại</button></div>
+
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            <button onClick={createNewCustomer} style={primaryButtonStyle}>+ Tạo khách mới</button>
+            <button onClick={resetCurrentCustomer} disabled={!currentMaKH} style={currentMaKH ? dangerButtonStyle : disabledButtonStyle}>Reset khách hiện tại</button>
+          </div>
+
+          {pendingCustomers.length > 0 && (
+            <div style={{ marginTop: 14 }}>
+              <b>Chọn lại khách đang bấm:</b>
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 8 }}>
+                {pendingCustomers.slice(0, 20).map((c) => (
+                  <button key={c.maKH} onClick={() => selectCustomerToContinue(c.maKH)} style={c.maKH === currentMaKH ? smallPrimaryButtonStyle : smallButtonStyle}>
+                    {c.maKH} {c.loaiKH ? `- ${c.loaiKH}` : "- chưa loại"}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
         </section>
 
         <section style={cardStyle}>
           <h2 style={sectionTitleStyle}>2. Bấm START/END Process và Decide trước khi biết loại khách</h2>
-          <Notice tone="amber">Dùng START là lúc khách vào khu ăn uống/bắt đầu lựa. Trong lúc khách đang lựa/đi qua các điểm rẽ, có thể bấm Decide ngay trong khối này. Dùng END là lúc khách kết thúc lựa và chuẩn bị vào hàng. Sau END mới chọn loại khách/món chính.</Notice>
-          <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)", gap: 16 }}>
-            <div style={{ border: `1px solid ${palette.line}`, borderRadius: 14, padding: 12, background: palette.card2 }}>
+          <Notice tone="amber">
+            START = khách vào khu ăn uống/bắt đầu lựa. END = khách kết thúc lựa và chuẩn bị vào hàng. Trong lúc khách đi qua điểm rẽ hoặc chọn quầy, bấm Decide ngay trong khối này.
+          </Notice>
+
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(360px, 1fr))", gap: 16 }}>
+            <div style={innerPanelStyle}>
               <h3 style={subSectionTitleStyle}>2.1. START/END Process lựa món</h3>
               {!processTableReady && <Notice tone="red">Chưa có bảng process_log trong Supabase.</Notice>}
+
               <div style={gridFormStyle}>
-                <Field label="Process module"><select value={selectedProcessName} onChange={(e) => { setSelectedProcessName(e.target.value as ProcessName); setActiveProcessRunId(""); }} style={inputStyle}>{ARENA_PROCESS_NAMES.map((name) => <option key={name} value={name}>{name}</option>)}</select></Field>
-                <Field label="Run đang chạy"><input value={activeProcessRunId || selectedProcessActiveRun?.runId || "Chưa có START"} readOnly style={inputStyle} /></Field>
+                <Field label="Process module">
+                  <select value={selectedProcessName} onChange={(e) => { setSelectedProcessName(e.target.value as ProcessName); setActiveProcessRunId(""); }} style={inputStyle}>
+                    {ARENA_PROCESS_NAMES.map((name) => <option key={name} value={name}>{name}</option>)}
+                  </select>
+                </Field>
+                <Field label="Run đang chạy">
+                  <input value={activeProcessRunId || selectedProcessActiveRun?.runId || "Chưa có START"} readOnly style={inputStyle} />
+                </Field>
               </div>
-              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}><button onClick={() => addProcessEvent("START")} style={primaryButtonStyle}>START Process / tạo mã khách</button><button onClick={() => addProcessEvent("END")} disabled={!currentMaKH} style={currentMaKH ? secondaryButtonStyle : disabledButtonStyle}>END Process</button></div>
-              <p style={{ color: palette.sub, margin: "10px 0 0", fontSize: 13 }}>Process lựa món hoàn tất: <b>{completedSelectProcess ? `${completedSelectProcess.processName} (${completedSelectProcess.processDurationS}s)` : "Chưa có"}</b></p>
+
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                <button onClick={() => addProcessEvent("START")} style={primaryButtonStyle}>START Process / tạo mã khách</button>
+                <button onClick={() => addProcessEvent("END")} disabled={!currentMaKH} style={currentMaKH ? secondaryButtonStyle : disabledButtonStyle}>END Process</button>
+              </div>
+
+              <p style={{ color: palette.sub, margin: "10px 0 0", fontSize: 13 }}>
+                Process lựa món hoàn tất: <b>{completedSelectProcess ? `${completedSelectProcess.processName} (${completedSelectProcess.processDurationS}s)` : "Chưa có"}</b>
+              </p>
             </div>
 
-            <div style={{ border: `1px solid ${palette.line}`, borderRadius: 14, padding: 12, background: palette.card2 }}>
+            <div style={innerPanelStyle}>
               <h3 style={subSectionTitleStyle}>2.2. Decide nếu khách đi qua điểm rẽ / chọn quầy</h3>
               {!decisionTableReady && <Notice tone="red">Chưa có bảng decision_log trong Supabase.</Notice>}
-              {!currentMaKH && <Notice tone="blue">Bấm START Process trước để tạo mã khách, sau đó có thể lưu Decide cho đúng khách này.</Notice>}
+              {!currentMaKH && <Notice tone="blue">Bấm START Process trước để tạo mã khách, sau đó lưu Decide cho đúng khách này.</Notice>}
+
               <div style={gridFormStyle}>
-                <Field label="Tên cục Decide"><select value={selectedDecisionName} onChange={(e) => setSelectedDecisionName(e.target.value as DecisionName)} style={inputStyle}>{DECISION_NAMES.map((name) => <option key={name} value={name}>{name}</option>)}</select></Field>
-                <Field label="Nhánh khách chọn"><select value={selectedDecisionOption} onChange={(e) => setSelectedDecisionOption(e.target.value)} style={inputStyle}>{getDecisionOptions(selectedDecisionName).map((op) => <option key={op} value={op}>{op}</option>)}</select></Field>
-                <Field label="Loại dữ liệu Arena"><input value={getDecisionMode(selectedDecisionName)} readOnly style={inputStyle} /></Field>
+                <Field label="Tên cục Decide">
+                  <select value={selectedDecisionName} onChange={(e) => setSelectedDecisionName(e.target.value as DecisionName)} style={inputStyle}>
+                    {DECISION_NAMES.map((name) => <option key={name} value={name}>{name}</option>)}
+                  </select>
+                </Field>
+                <Field label="Nhánh khách chọn">
+                  <select value={selectedDecisionOption} onChange={(e) => setSelectedDecisionOption(e.target.value)} style={inputStyle}>
+                    {getDecisionOptions(selectedDecisionName).map((op) => <option key={op} value={op}>{op}</option>)}
+                  </select>
+                </Field>
+                <Field label="Loại dữ liệu Arena">
+                  <input value={getDecisionMode(selectedDecisionName)} readOnly style={inputStyle} />
+                </Field>
               </div>
+
               {selectedDecisionName.startsWith("Can I pay now") && <Notice tone="blue">Chọn trực tiếp quầy khách thực tế đi vào ở ô “Nhánh khách chọn”. Không cần nhập Q1/Q2/Q3 đang chờ.</Notice>}
               <button onClick={addDecisionLog} disabled={!currentMaKH} style={currentMaKH ? primaryButtonStyle : disabledButtonStyle}>Lưu Decide cho mã khách hiện tại</button>
             </div>
@@ -839,101 +1475,344 @@ export default function Page() {
         <section style={cardStyle}>
           <h2 style={sectionTitleStyle}>3. Chọn loại khách / món chính sau END Process</h2>
           {!completedSelectProcess && <Notice tone="amber">Chưa chọn được loại khách. Hãy bấm START và END Process lựa món trước.</Notice>}
-          {loaiKH && <Notice tone="amber">Khách này đã chọn loại: {getLoaiKhachLabel(loaiKH)}. Hai mốc đầu đã được lấy từ START/END Process.</Notice>}
+          {loaiKH && <Notice tone="green">Khách này đã chọn loại: {getLoaiKhachLabel(loaiKH)}. Hai mốc đầu đã được lấy từ START/END Process.</Notice>}
+
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))", gap: 10 }}>
             {CUSTOMER_TYPES.map((item) => {
               const selected = loaiKH === item.code;
-              return <button key={item.code} onClick={() => classifyCustomer(item.code)} disabled={!canClassify} style={{ ...typeButtonStyle, background: selected ? palette.blueSoft : palette.card, borderColor: selected ? palette.blue : palette.line, cursor: canClassify ? "pointer" : "not-allowed", opacity: canClassify || selected ? 1 : 0.55 }}><b>{item.label}</b><span style={{ color: palette.sub, fontSize: 12 }}>{item.hint}</span></button>;
+              return (
+                <button
+                  key={item.code}
+                  onClick={() => classifyCustomer(item.code)}
+                  disabled={!canClassify}
+                  style={{
+                    ...typeButtonStyle,
+                    background: selected ? palette.blueSoft : palette.card,
+                    borderColor: selected ? palette.blue : palette.line,
+                    cursor: canClassify ? "pointer" : "not-allowed",
+                    opacity: canClassify || selected ? 1 : 0.55,
+                  }}
+                >
+                  <b>{item.label}</b>
+                  <span style={{ color: palette.sub, fontSize: 12 }}>{item.hint}</span>
+                </button>
+              );
             })}
           </div>
+
           <div style={gridFormStyle}>
-            <Field label="Quầy áp dụng"><select value={quay} onChange={(e) => setQuay(e.target.value as CounterType)} style={inputStyle}>{validCounters.map((c) => <option key={c} value={c}>{c}</option>)}</select></Field>
-            <Field label="Loại đang chọn"><input value={getLoaiKhachLabel(loaiKH)} readOnly style={inputStyle} /></Field>
+            <Field label="Quầy áp dụng">
+              <select value={quay} onChange={(e) => setQuay(e.target.value as CounterType)} style={inputStyle}>
+                {validCounters.map((q) => <option key={q} value={q}>{q}</option>)}
+              </select>
+            </Field>
+            <Field label="Loại đang chọn">
+              <input value={getLoaiKhachLabel(loaiKH)} readOnly style={inputStyle} />
+            </Field>
           </div>
         </section>
 
         <section style={cardStyle}>
           <h2 style={sectionTitleStyle}>4. Bấm mốc phục vụ sau khi đã biết loại khách</h2>
-          <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1.25fr) minmax(330px, 0.75fr)", gap: 16 }}>
-            <div style={{ display: "grid", gap: 12 }}>
-              <div style={{ border: `1px solid ${palette.line}`, borderRadius: 14, padding: 12, background: palette.card2 }}>
-                <h3 style={subSectionTitleStyle}>4.1. Mốc thời gian chính</h3>
-                {!loaiKH && <p style={{ color: palette.sub }}>Sau khi phân loại, hệ thống tự sinh 2 mốc đầu từ START/END Process. Bạn chỉ cần bấm Bắt đầu phục vụ và Rời quầy.</p>}
-                {currentFlow.map((step, index) => {
-                  const done = currentCustomerEvents.some((r) => r.suKien === step.code);
-                  const locked = step.role === "SYSTEM_START" || step.role === "QUEUE_ARRIVAL";
-                  const active = nextStep?.code === step.code;
-                  return <div key={step.code} style={{ border: `1px solid ${active ? palette.blue : palette.line}`, borderRadius: 12, padding: 12, marginBottom: 8, background: done ? palette.greenSoft : active ? palette.blueSoft : "white" }}><b>{step.label}</b><div style={{ color: palette.sub, fontSize: 12 }}>{step.code}</div><div style={{ textAlign: "right", fontWeight: 900 }}>{done ? "Đã có dữ liệu" : locked ? "Tự lấy từ Process" : active ? "Đang chờ bấm" : `Sau bước ${index}`}</div></div>;
-                })}
-                <button onClick={addNextMainEvent} disabled={!canPressService} style={canPressService ? primaryButtonStyle : disabledButtonStyle}>Bấm: {nextStep?.shortLabel || "Đã đủ mốc"}</button>
-              </div>
-              <div style={{ border: `1px solid ${palette.line}`, borderRadius: 14, padding: 12, background: palette.card2 }}>
-                <h3 style={subSectionTitleStyle}>4.2. Process phụ sau khi đã phân loại nếu cần</h3>
-                <p style={{ color: palette.sub, margin: "0 0 8px", fontSize: 13 }}>Dùng cho Payment_1/2/3 hoặc các cục Process khác nếu muốn đo riêng ngoài mốc chính.</p>
-                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}><button onClick={() => addProcessEvent("START")} disabled={!currentMaKH} style={currentMaKH ? secondaryButtonStyle : disabledButtonStyle}>START Process phụ</button><button onClick={() => addProcessEvent("END")} disabled={!currentMaKH} style={currentMaKH ? secondaryButtonStyle : disabledButtonStyle}>END Process phụ</button></div>
-              </div>
-            </div>
+          {!loaiKH && <Notice tone="amber">Sau khi chọn loại khách, hệ thống tự tạo mốc “khách vào khu ăn uống” và “vào hàng” từ START/END Process. Bạn chỉ cần bấm 2 mốc phục vụ còn lại.</Notice>}
 
-            <aside style={{ display: "grid", gap: 12, alignContent: "start" }}>
-              <DataCard title="Event của khách hiện tại"><SimpleTable rows={currentCustomerEvents} columns={["thoiGian", "suKien", "loaiKH"]} formatTime /></DataCard>
-              <DataCard title="Decision đã bấm"><SimpleTable rows={currentCustomerDecisions} columns={["thoiGian", "decisionName", "optionSelected", "chosenCounter"]} formatTime /></DataCard>
-              <DataCard title="Process đã bấm"><SimpleTable rows={currentCustomerProcesses} columns={["thoiGian", "processName", "eventType", "runId"]} formatTime /></DataCard>
-            </aside>
+          <div style={{ display: "grid", gap: 10 }}>
+            {loaiKH &&
+              currentFlow.map((step) => {
+                const done = currentCustomerEvents.some((r) => r.suKien === step.code);
+                const active = nextStep?.code === step.code;
+                return (
+                  <div key={step.code} style={{ ...flowStepStyle, borderColor: active ? palette.blue : palette.line, background: done ? palette.greenSoft : active ? palette.blueSoft : palette.card2 }}>
+                    <div>
+                      <b>{step.label}</b>
+                      <div style={{ fontSize: 12, color: palette.sub }}>{step.code}</div>
+                    </div>
+                    <b>{done ? "Đã bấm" : active ? "Đang chờ bấm" : "Sau bước trước"}</b>
+                  </div>
+                );
+              })}
           </div>
+
+          <button onClick={addNextMainEvent} disabled={!canPressService} style={canPressService ? primaryButtonStyle : disabledButtonStyle}>
+            Bấm mốc phục vụ tiếp theo
+          </button>
         </section>
 
         <section style={cardStyle}>
-          <h2 style={sectionTitleStyle}>5. Danh sách khách / Summary</h2>
-          <div style={{ display: "grid", gridTemplateColumns: "minmax(300px, 0.65fr) minmax(0, 1.35fr)", gap: 16 }}>
-            <div><h3 style={subSectionTitleStyle}>Khách đã START Process</h3><SimpleTable rows={pendingCustomers.slice(0, 80)} columns={["maKH", "loaiKH", "latestTime"]} formatTime /></div>
-            <div style={{ overflowX: "auto" }}><table style={tableStyle}><thead><tr style={{ background: palette.card2 }}>{["Mã KH", "Loại", "Cửa", "Quầy", "Select(s)", "Wait(s)", "Service(s)", "System(s)", "Status", "Chọn"].map((h) => <th key={h} style={thStyle}>{h}</th>)}</tr></thead><tbody>{summaryRows.slice(0, 120).map((r) => <tr key={r.maKH}><td style={tdStyle}>{r.maKH}</td><td style={tdStyle}>{r.loaiLabel}</td><td style={tdStyle}>{r.cuaVao}</td><td style={tdStyle}>{getCounterCode(r.quay)}</td><td style={tdStyle}>{toNumberOrBlank(r.selectProductTimeS)}</td><td style={tdStyle}>{toNumberOrBlank(r.waitingTimeS)}</td><td style={tdStyle}>{toNumberOrBlank(r.serviceTimeS)}</td><td style={tdStyle}>{toNumberOrBlank(r.systemTimeS)}</td><td style={{ ...tdStyle, color: r.dataStatus === "OK" ? palette.green : palette.red, fontWeight: 900 }} title={r.errorNote}>{r.dataStatus}</td><td style={tdStyle}><button onClick={() => selectCustomerToContinue(r.maKH)} style={linkButtonStyle}>Chọn</button></td></tr>)}</tbody></table></div>
+          <h2 style={sectionTitleStyle}>5. Summary khách</h2>
+          <div style={{ overflowX: "auto" }}>
+            <table style={tableStyle}>
+              <thead>
+                <tr style={{ background: palette.card2 }}>
+                  {["STT", "Mã KH", "Loại", "Cửa", "Quầy", "Select(s)", "Wait(s)", "Service(s)", "System(s)", "Status", "Ghi chú"].map((h) => <th key={h} style={thStyle}>{h}</th>)}
+                </tr>
+              </thead>
+              <tbody>
+                {summaryRows.slice(0, 50).map((r) => (
+                  <tr key={r.maKH}>
+                    <td style={tdStyle}>{r.stt}</td>
+                    <td style={tdStyle}>{r.maKH}</td>
+                    <td style={tdStyle}>{r.loaiLabel}</td>
+                    <td style={tdStyle}>{r.cuaVao}</td>
+                    <td style={tdStyle}>{getCounterCode(r.quay)}</td>
+                    <td style={tdStyle}>{r.selectProductTimeS}</td>
+                    <td style={tdStyle}>{r.waitingTimeS}</td>
+                    <td style={tdStyle}>{r.serviceTimeS}</td>
+                    <td style={tdStyle}>{r.systemTimeS}</td>
+                    <td style={tdStyle}>{r.dataStatus}</td>
+                    <td style={tdStyle}>{r.errorNote}</td>
+                  </tr>
+                ))}
+                {!summaryRows.length && (
+                  <tr>
+                    <td colSpan={11} style={{ ...tdStyle, color: palette.sub }}>Chưa có dữ liệu Summary.</td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
           </div>
         </section>
 
-        <section style={cardStyle}>
-          <h2 style={sectionTitleStyle}>6. Log gần nhất</h2>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(330px, 1fr))", gap: 16 }}>
-            <LogTable title="Event_Log" rows={eventLog.slice(0, 20)} columns={["thoiGian", "maKH", "suKien", "loaiKH"]} onDelete={(id) => deleteRow("event_log", id)} />
-            <LogTable title="Decision_Log" rows={decisionLog.slice(0, 20)} columns={["thoiGian", "maKH", "decisionName", "optionSelected"]} onDelete={(id) => deleteRow("decision_log", id)} />
-            <LogTable title="Process_Log" rows={processLog.slice(0, 20)} columns={["thoiGian", "maKH", "processName", "eventType"]} onDelete={(id) => deleteRow("process_log", id)} />
-          </div>
+        <section style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(360px, 1fr))", gap: 16 }}>
+          <LogTable title="Decision_Log của khách hiện tại" rows={currentCustomerDecisions} columns={["Thời gian", "Decide", "Nhánh", "Quầy", "Xóa"]} renderRow={(r) => (
+            <tr key={r.id}>
+              <td style={tdStyle}>{formatDateTimeVNms(r.thoiGian)}</td>
+              <td style={tdStyle}>{r.decisionName}</td>
+              <td style={tdStyle}>{r.optionSelected}</td>
+              <td style={tdStyle}>{r.chosenCounter}</td>
+              <td style={tdStyle}><button onClick={() => deleteRow("decision_log", r.id)} style={miniDangerButtonStyle}>Xóa</button></td>
+            </tr>
+          )} />
+          <LogTable title="Process_Log của khách hiện tại" rows={currentCustomerProcesses} columns={["Thời gian", "Process", "Type", "Run", "Xóa"]} renderRow={(r) => (
+            <tr key={r.id}>
+              <td style={tdStyle}>{formatDateTimeVNms(r.thoiGian)}</td>
+              <td style={tdStyle}>{r.processName}</td>
+              <td style={tdStyle}>{r.eventType}</td>
+              <td style={tdStyle}>{r.runId}</td>
+              <td style={tdStyle}><button onClick={() => deleteRow("process_log", r.id)} style={miniDangerButtonStyle}>Xóa</button></td>
+            </tr>
+          )} />
         </section>
       </section>
     </main>
   );
 }
 
-function Field({ label, children }: { label: string; children: ReactNode }) { return <label style={{ display: "grid", gap: 6, fontSize: 13, fontWeight: 700 }}><span>{label}</span>{children}</label>; }
-function InfoBox({ label, value, tone }: { label: string; value: string; tone?: "green" | "red" | "amber" }) {
-  const color = tone === "green" ? palette.green : tone === "red" ? palette.red : tone === "amber" ? palette.amber : palette.blue;
-  const bg = tone === "green" ? palette.greenSoft : tone === "red" ? palette.redSoft : tone === "amber" ? palette.amberSoft : palette.blueSoft;
-  return <div style={{ background: bg, border: `1px solid ${color}`, borderRadius: 12, padding: 10 }}><div style={{ color: palette.sub, fontSize: 12, fontWeight: 700 }}>{label}</div><div style={{ color, fontSize: 20, fontWeight: 900, wordBreak: "break-word" }}>{value}</div></div>;
-}
-function Notice({ tone, children }: { tone: "amber" | "red" | "blue"; children: ReactNode }) {
-  const color = tone === "red" ? palette.red : tone === "amber" ? palette.amber : palette.blue;
-  const bg = tone === "red" ? palette.redSoft : tone === "amber" ? palette.amberSoft : palette.blueSoft;
-  return <div style={{ background: bg, color, border: `1px solid ${color}`, borderRadius: 12, padding: 10, marginBottom: 12, fontWeight: 800 }}>{children}</div>;
-}
-function DataCard({ title, children }: { title: string; children: ReactNode }) { return <div style={{ border: `1px solid ${palette.line}`, borderRadius: 14, padding: 12, background: palette.card2 }}><h3 style={subSectionTitleStyle}>{title}</h3>{children}</div>; }
-function SimpleTable({ rows, columns, formatTime }: { rows: Record<string, unknown>[]; columns: string[]; formatTime?: boolean }) {
-  if (!rows.length) return <p style={{ color: palette.sub, fontSize: 13 }}>Chưa có dữ liệu.</p>;
-  return <div style={{ overflowX: "auto" }}><table style={tableStyle}><thead><tr style={{ background: "white" }}>{columns.map((c) => <th key={c} style={thStyle}>{c}</th>)}</tr></thead><tbody>{rows.map((row, i) => <tr key={String(row.id || row.maKH || i)}>{columns.map((c) => <td key={c} style={tdStyle}>{formatTime && (c === "thoiGian" || c === "latestTime") ? formatDateTimeVNms(String(row[c] || "")) : String(row[c] ?? "")}</td>)}</tr>)}</tbody></table></div>;
-}
-function LogTable({ title, rows, columns, onDelete }: { title: string; rows: Record<string, unknown>[]; columns: string[]; onDelete: (id: number) => void }) {
-  return <div><h3 style={{ margin: "0 0 8px", fontSize: 16 }}>{title}</h3><div style={{ overflowX: "auto" }}><table style={tableStyle}><thead><tr style={{ background: palette.card2 }}>{[...columns, "Xóa"].map((c) => <th key={c} style={thStyle}>{c}</th>)}</tr></thead><tbody>{rows.map((row, i) => <tr key={String(row.id || i)}>{columns.map((c) => <td key={c} style={tdStyle}>{c === "thoiGian" ? formatDateTimeVNms(String(row[c] || "")) : String(row[c] ?? "")}</td>)}<td style={tdStyle}><button onClick={() => onDelete(Number(row.id))} style={dangerButtonStyle}>Xóa</button></td></tr>)}</tbody></table></div></div>;
+function Field({ label, children, block = false }: { label: string; children: ReactNode; block?: boolean }) {
+  return (
+    <label style={{ display: "grid", gap: 6, gridColumn: block ? "1 / -1" : undefined }}>
+      <span style={{ fontSize: 13, fontWeight: 700 }}>{label}</span>
+      {children}
+    </label>
+  );
 }
 
-const cardStyle: CSSProperties = { background: palette.card, border: `1px solid ${palette.line}`, borderRadius: 16, padding: 16, boxShadow: "0 1px 2px rgba(0,0,0,0.04)" };
-const sectionTitleStyle: CSSProperties = { margin: "0 0 12px", fontSize: 18 };
-const subSectionTitleStyle: CSSProperties = { margin: "0 0 10px", fontSize: 16 };
-const gridFormStyle: CSSProperties = { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))", gap: 12, marginTop: 12, marginBottom: 12 };
-const inputStyle: CSSProperties = { width: "100%", boxSizing: "border-box", border: `1px solid ${palette.line}`, borderRadius: 10, padding: "10px 12px", fontSize: 14, background: "white" };
-const primaryButtonStyle: CSSProperties = { border: "none", background: palette.blue, color: "white", borderRadius: 10, padding: "10px 14px", fontWeight: 800, cursor: "pointer" };
-const secondaryButtonStyle: CSSProperties = { border: `1px solid ${palette.blue}`, background: palette.blueSoft, color: palette.blue, borderRadius: 10, padding: "10px 14px", fontWeight: 800, cursor: "pointer" };
-const dangerButtonStyle: CSSProperties = { border: `1px solid ${palette.red}`, background: palette.redSoft, color: palette.red, borderRadius: 10, padding: "8px 12px", fontWeight: 800, cursor: "pointer" };
-const disabledButtonStyle: CSSProperties = { border: `1px solid ${palette.line}`, background: palette.card2, color: palette.sub, borderRadius: 10, padding: "10px 14px", fontWeight: 800, cursor: "not-allowed" };
-const typeButtonStyle: CSSProperties = { display: "grid", gap: 6, textAlign: "left", border: `1px solid ${palette.line}`, borderRadius: 14, padding: 12, color: palette.text };
-const tableStyle: CSSProperties = { width: "100%", borderCollapse: "collapse", fontSize: 13 };
-const thStyle: CSSProperties = { textAlign: "left", borderBottom: `1px solid ${palette.line}`, padding: 8, whiteSpace: "nowrap" };
-const tdStyle: CSSProperties = { borderBottom: `1px solid ${palette.line}`, padding: 8, verticalAlign: "top", whiteSpace: "nowrap" };
-const linkButtonStyle: CSSProperties = { border: "none", background: "transparent", color: palette.blue, fontWeight: 800, cursor: "pointer", padding: 0 };
+function InfoBox({ label, value, tone }: { label: string; value: string; tone?: "green" | "amber" | "red" | "blue" }) {
+  const color =
+    tone === "green" ? palette.green :
+    tone === "amber" ? palette.amber :
+    tone === "red" ? palette.red :
+    tone === "blue" ? palette.blue :
+    palette.text;
+  const bg =
+    tone === "green" ? palette.greenSoft :
+    tone === "amber" ? palette.amberSoft :
+    tone === "red" ? palette.redSoft :
+    tone === "blue" ? palette.blueSoft :
+    palette.card2;
+
+  return (
+    <div style={{ border: `1px solid ${palette.line}`, borderRadius: 14, padding: 12, background: bg }}>
+      <div style={{ color: palette.sub, fontSize: 12, fontWeight: 700 }}>{label}</div>
+      <div style={{ color, fontSize: 18, fontWeight: 800, marginTop: 4 }}>{value}</div>
+    </div>
+  );
+}
+
+function Notice({ children, tone = "blue" }: { children: ReactNode; tone?: "blue" | "amber" | "red" | "green" }) {
+  const color =
+    tone === "green" ? palette.green :
+    tone === "amber" ? palette.amber :
+    tone === "red" ? palette.red :
+    palette.blue;
+  const bg =
+    tone === "green" ? palette.greenSoft :
+    tone === "amber" ? palette.amberSoft :
+    tone === "red" ? palette.redSoft :
+    palette.blueSoft;
+  return <div style={{ border: `1px solid ${color}`, background: bg, color, borderRadius: 12, padding: 10, fontSize: 13, fontWeight: 650, margin: "8px 0" }}>{children}</div>;
+}
+
+function LogTable<T>({ title, rows, columns, renderRow }: { title: string; rows: T[]; columns: string[]; renderRow: (row: T) => ReactNode }) {
+  return (
+    <section style={cardStyle}>
+      <h2 style={sectionTitleStyle}>{title}</h2>
+      <div style={{ overflowX: "auto" }}>
+        <table style={tableStyle}>
+          <thead>
+            <tr style={{ background: palette.card2 }}>
+              {columns.map((h) => <th key={h} style={thStyle}>{h}</th>)}
+            </tr>
+          </thead>
+          <tbody>
+            {rows.slice(0, 20).map(renderRow)}
+            {!rows.length && (
+              <tr>
+                <td colSpan={columns.length} style={{ ...tdStyle, color: palette.sub }}>Chưa có dữ liệu cho khách hiện tại.</td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  );
+}
+
+const cardStyle: CSSProperties = {
+  background: palette.card,
+  border: `1px solid ${palette.line}`,
+  borderRadius: 18,
+  padding: 18,
+  boxShadow: "0 1px 2px rgba(15, 23, 42, 0.04)",
+};
+
+const innerPanelStyle: CSSProperties = {
+  border: `1px solid ${palette.line}`,
+  borderRadius: 14,
+  padding: 12,
+  background: palette.card2,
+};
+
+const sectionTitleStyle: CSSProperties = {
+  margin: "0 0 12px",
+  fontSize: 20,
+};
+
+const subSectionTitleStyle: CSSProperties = {
+  margin: "0 0 10px",
+  fontSize: 16,
+};
+
+const gridFormStyle: CSSProperties = {
+  display: "grid",
+  gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))",
+  gap: 12,
+  margin: "12px 0",
+};
+
+const inputStyle: CSSProperties = {
+  width: "100%",
+  boxSizing: "border-box",
+  border: `1px solid ${palette.line}`,
+  borderRadius: 12,
+  padding: "11px 12px",
+  fontWeight: 650,
+  background: "#fff",
+  color: palette.text,
+};
+
+const primaryButtonStyle: CSSProperties = {
+  border: "none",
+  borderRadius: 12,
+  padding: "12px 16px",
+  background: palette.blue,
+  color: "#fff",
+  fontWeight: 800,
+  cursor: "pointer",
+};
+
+const secondaryButtonStyle: CSSProperties = {
+  border: `1px solid ${palette.blue}`,
+  borderRadius: 12,
+  padding: "11px 16px",
+  background: palette.blueSoft,
+  color: palette.blue,
+  fontWeight: 800,
+  cursor: "pointer",
+};
+
+const dangerButtonStyle: CSSProperties = {
+  border: `1px solid ${palette.red}`,
+  borderRadius: 12,
+  padding: "11px 16px",
+  background: palette.redSoft,
+  color: palette.red,
+  fontWeight: 800,
+  cursor: "pointer",
+};
+
+const disabledButtonStyle: CSSProperties = {
+  border: `1px solid ${palette.line}`,
+  borderRadius: 12,
+  padding: "11px 16px",
+  background: palette.card2,
+  color: palette.sub,
+  fontWeight: 800,
+  cursor: "not-allowed",
+};
+
+const smallButtonStyle: CSSProperties = {
+  border: `1px solid ${palette.line}`,
+  borderRadius: 999,
+  padding: "8px 12px",
+  background: "#fff",
+  color: palette.text,
+  fontWeight: 700,
+  cursor: "pointer",
+};
+
+const smallPrimaryButtonStyle: CSSProperties = {
+  ...smallButtonStyle,
+  borderColor: palette.blue,
+  background: palette.blueSoft,
+  color: palette.blue,
+};
+
+const miniDangerButtonStyle: CSSProperties = {
+  border: `1px solid ${palette.red}`,
+  borderRadius: 8,
+  padding: "5px 9px",
+  background: palette.redSoft,
+  color: palette.red,
+  fontWeight: 700,
+  cursor: "pointer",
+};
+
+const typeButtonStyle: CSSProperties = {
+  border: `1px solid ${palette.line}`,
+  borderRadius: 14,
+  padding: 14,
+  display: "grid",
+  gap: 6,
+  textAlign: "left",
+};
+
+const flowStepStyle: CSSProperties = {
+  border: `1px solid ${palette.line}`,
+  borderRadius: 14,
+  padding: 12,
+  display: "flex",
+  justifyContent: "space-between",
+  gap: 12,
+  alignItems: "center",
+};
+
+const tableStyle: CSSProperties = {
+  width: "100%",
+  borderCollapse: "collapse",
+  fontSize: 13,
+};
+
+const thStyle: CSSProperties = {
+  borderBottom: `1px solid ${palette.line}`,
+  padding: 10,
+  textAlign: "left",
+  whiteSpace: "nowrap",
+};
+
+const tdStyle: CSSProperties = {
+  borderBottom: `1px solid ${palette.line}`,
+  padding: 10,
+  verticalAlign: "top",
+  whiteSpace: "nowrap",
+};
