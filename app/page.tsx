@@ -1447,6 +1447,23 @@ export default function Page() {
               <p style={{ color: palette.sub, margin: "10px 0 0", fontSize: 13 }}>
                 Process lựa món hoàn tất: <b>{completedSelectProcess ? `${completedSelectProcess.processName} (${completedSelectProcess.processDurationS}s)` : "Chưa có"}</b>
               </p>
+
+              <div style={{ marginTop: 14 }}>
+                <LogTable
+                  title="Process_Log của khách hiện tại"
+                  rows={currentCustomerProcesses}
+                  columns={["Thời gian", "Process", "Type", "Mã KH", "Xóa"]}
+                  renderRow={(r) => (
+                    <tr key={r.id}>
+                      <td style={tdStyle}>{formatDateTimeVNms(r.thoiGian)}</td>
+                      <td style={tdStyle}>{r.processName}</td>
+                      <td style={tdStyle}>{r.eventType}</td>
+                      <td style={tdStyle}>{r.maKH || currentMaKH}</td>
+                      <td style={tdStyle}><button onClick={() => deleteRow("process_log", r.id)} style={miniDangerButtonStyle}>Xóa</button></td>
+                    </tr>
+                  )}
+                />
+              </div>
             </div>
 
             <div style={innerPanelStyle}>
@@ -1591,15 +1608,6 @@ export default function Page() {
               <td style={tdStyle}>{r.optionSelected}</td>
               <td style={tdStyle}>{r.chosenCounter}</td>
               <td style={tdStyle}><button onClick={() => deleteRow("decision_log", r.id)} style={miniDangerButtonStyle}>Xóa</button></td>
-            </tr>
-          )} />
-          <LogTable title="Process_Log của khách hiện tại" rows={currentCustomerProcesses} columns={["Thời gian", "Process", "Type", "Run", "Xóa"]} renderRow={(r) => (
-            <tr key={r.id}>
-              <td style={tdStyle}>{formatDateTimeVNms(r.thoiGian)}</td>
-              <td style={tdStyle}>{r.processName}</td>
-              <td style={tdStyle}>{r.eventType}</td>
-              <td style={tdStyle}>{r.runId}</td>
-              <td style={tdStyle}><button onClick={() => deleteRow("process_log", r.id)} style={miniDangerButtonStyle}>Xóa</button></td>
             </tr>
           )} />
         </section>
