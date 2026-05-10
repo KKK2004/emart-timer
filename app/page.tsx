@@ -316,14 +316,38 @@ function getTodayKey() {
   const d = new Date();
   return `${d.getFullYear()}${pad2(d.getMonth() + 1)}${pad2(d.getDate())}`;
 }
-function getNextCustomerNo() {
-  const key = `emart_customer_seq_${getTodayKey()}`;
+function normalizeOperatorName(name: string) {
+  return name
+    .trim()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/đ/g, "d")
+    .replace(/Đ/g, "D")
+    .toUpperCase()
+    .replace(/[^A-Z0-9\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+function getOperatorCode(name: string) {
+  const normalized = normalizeOperatorName(name);
+  const compact = normalized.replace(/[^A-Z0-9]/g, "");
+  const base = (compact || "NV").padEnd(2, "X").slice(0, 2);
+  let hash = 0;
+  for (const char of normalized || "NV") {
+    hash = (hash * 31 + char.charCodeAt(0)) % 1296;
+  }
+  const hashPart = hash.toString(36).toUpperCase().padStart(2, "0").slice(-2);
+  return `${base}${hashPart}`;
+}
+function getNextCustomerNo(operatorName: string) {
+  const normalized = normalizeOperatorName(operatorName) || "NO_NAME";
+  const key = `emart_customer_seq_${getTodayKey()}_${normalized.replace(/[^A-Z0-9]/g, "_")}`;
   const current = Number(localStorage.getItem(key) || "0") + 1;
   localStorage.setItem(key, String(current));
   return current;
 }
-function generateCustomerCode() {
-  return `KH${String(getNextCustomerNo()).padStart(3, "0")}`;
+function generateCustomerCode(operatorName: string) {
+  return `${getOperatorCode(operatorName)}${String(getNextCustomerNo(operatorName)).padStart(3, "0")}`;
 }
 function generateProcessRunId(processName: ProcessName) {
   const now = new Date();
@@ -892,7 +916,11 @@ export default function Page() {
   }, [loaiKH, quay]);
 
   function createNewCustomer() {
-    const code = generateCustomerCode();
+    if (!tenNguoiBam.trim()) {
+      alert("Bạn cần nhập tên người bấm trước khi tạo mã khách. Mỗi tên người bấm sẽ có dãy mã khách riêng.");
+      return;
+    }
+    const code = generateCustomerCode(tenNguoiBam.trim());
     setCurrentMaKH(code);
     setLoaiKH("");
     setGhiChu("");
@@ -1360,7 +1388,7 @@ export default function Page() {
         <header style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
           <div>
             <h1 style={{ margin: 0, fontSize: 26 }}>Emart Timer - mã khách ngắn</h1>
-            <p style={{ margin: "6px 0 0", color: palette.sub }}>Tạo mã khách ở mục 1 trước. Mã KH001, KH002... sẽ được dùng chung cho START/END Process, Decide, phân loại và phục vụ.</p>
+            <p style={{ margin: "6px 0 0", color: palette.sub }}>Tạo mã khách ở mục 1 trước. Mã khách sẽ tách theo tên người bấm, ví dụ mỗi người có một dãy mã riêng, và mã đó dùng chung cho START/END Process, Decide, phân loại và phục vụ.</p>
           </div>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
             <button onClick={refreshAllData} style={secondaryButtonStyle}>{loading ? "Đang tải..." : "Tải lại"}</button>
@@ -1400,7 +1428,7 @@ export default function Page() {
             <button onClick={resetCurrentCustomer} disabled={!currentMaKH} style={currentMaKH ? dangerButtonStyle : disabledButtonStyle}>Reset khách hiện tại</button>
           </div>
           <p style={{ margin: "10px 0 0", color: palette.sub, fontSize: 13 }}>
-            Mã khách đang hiển thị ở mục này sẽ được áp dụng cho tất cả thao tác bên dưới: START/END Process, Decide, chọn loại khách và bấm phục vụ.
+            Mã khách đang hiển thị ở mục này được tạo theo tên người bấm và sẽ áp dụng cho tất cả thao tác bên dưới: START/END Process, Decide, chọn loại khách và bấm phục vụ.
           </p>
 
           {pendingCustomers.length > 0 && (
