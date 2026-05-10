@@ -316,38 +316,14 @@ function getTodayKey() {
   const d = new Date();
   return `${d.getFullYear()}${pad2(d.getMonth() + 1)}${pad2(d.getDate())}`;
 }
-function normalizeOperatorName(name: string) {
-  return name
-    .trim()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/đ/g, "d")
-    .replace(/Đ/g, "D")
-    .toUpperCase()
-    .replace(/[^A-Z0-9\s]/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-function getOperatorCode(name: string) {
-  const normalized = normalizeOperatorName(name);
-  const compact = normalized.replace(/[^A-Z0-9]/g, "");
-  const base = (compact || "NV").padEnd(2, "X").slice(0, 2);
-  let hash = 0;
-  for (const char of normalized || "NV") {
-    hash = (hash * 31 + char.charCodeAt(0)) % 1296;
-  }
-  const hashPart = hash.toString(36).toUpperCase().padStart(2, "0").slice(-2);
-  return `${base}${hashPart}`;
-}
-function getNextCustomerNo(operatorName: string) {
-  const normalized = normalizeOperatorName(operatorName) || "NO_NAME";
-  const key = `emart_customer_seq_${getTodayKey()}_${normalized.replace(/[^A-Z0-9]/g, "_")}`;
+function getNextCustomerNo() {
+  const key = `emart_customer_seq_${getTodayKey()}`;
   const current = Number(localStorage.getItem(key) || "0") + 1;
   localStorage.setItem(key, String(current));
   return current;
 }
-function generateCustomerCode(operatorName: string) {
-  return `${getOperatorCode(operatorName)}${String(getNextCustomerNo(operatorName)).padStart(3, "0")}`;
+function generateCustomerCode() {
+  return `KH${String(getNextCustomerNo()).padStart(3, "0")}`;
 }
 function generateProcessRunId(processName: ProcessName) {
   const now = new Date();
@@ -745,6 +721,7 @@ export default function Page() {
   const [nhanVien, setNhanVien] = useState("NV1");
   const [tenNguoiBam, setTenNguoiBam] = useState("");
   const [ghiChu, setGhiChu] = useState("");
+  const [processNote, setProcessNote] = useState("");
   const [deviceId, setDeviceId] = useState("");
   const [eventLog, setEventLog] = useState<EventRow[]>([]);
   const [decisionLog, setDecisionLog] = useState<DecisionRow[]>([]);
@@ -916,14 +893,11 @@ export default function Page() {
   }, [loaiKH, quay]);
 
   function createNewCustomer() {
-    if (!tenNguoiBam.trim()) {
-      alert("Bạn cần nhập tên người bấm trước khi tạo mã khách. Mỗi tên người bấm sẽ có dãy mã khách riêng.");
-      return;
-    }
-    const code = generateCustomerCode(tenNguoiBam.trim());
+    const code = generateCustomerCode();
     setCurrentMaKH(code);
     setLoaiKH("");
     setGhiChu("");
+    setProcessNote("");
     setActiveProcessRunId("");
     setSelectedProcessName("customer selects items");
   }
@@ -945,11 +919,13 @@ export default function Page() {
       setQuay(lastEvent.quay);
       setNhanVien(lastEvent.nhanVien || "NV1");
       setGhiChu(lastEvent.ghiChu || "");
+      setProcessNote(lastProcess?.ghiChu || lastEvent.ghiChu || "");
     } else if (lastProcess) {
       setLoaiKH(lastProcess.loaiKH || "");
       setCuaVao(lastProcess.cuaVao === "Không ghi nhận" ? "Entrance 1" : lastProcess.cuaVao);
       if (lastProcess.quay) setQuay(lastProcess.quay);
       setGhiChu(lastProcess.ghiChu || "");
+      setProcessNote(lastProcess.ghiChu || "");
     }
   }
 
@@ -998,7 +974,7 @@ export default function Page() {
         cua_vao: cuaVao,
         loai_kh: loaiKH || null,
         quay: loaiKH ? quay : null,
-        ghi_chu: buildGhiChu(ghiChu, cuaVao),
+        ghi_chu: buildGhiChu(processNote || ghiChu, cuaVao),
         nguoi_bam: tenNguoiBam.trim(),
       })
       .select("*");
@@ -1271,20 +1247,27 @@ export default function Page() {
     eventLog.forEach((r) => {
       if (r.maKH) ids.add(r.maKH);
     });
+    decisionLog.forEach((r) => {
+      if (r.maKH) ids.add(r.maKH);
+    });
 
     return Array.from(ids)
       .map((maKH) => {
-        const relatedProcesses = processLog.filter((p) => p.maKH === maKH);
-        const relatedEvents = eventLog.filter((e) => e.maKH === maKH);
-        const relatedDecisions = decisionLog.filter((d) => d.maKH === maKH);
-        const hasType = relatedEvents.find((e) => e.loaiKH)?.loaiKH || relatedProcesses.find((p) => p.loaiKH)?.loaiKH || relatedDecisions.find((d) => d.loaiKH)?.loaiKH || "";
+        const customerProcesses = processLog.filter((p) => p.maKH === maKH).sort(sortProcessLogDesc);
+        const customerEvents = eventLog.filter((e) => e.maKH === maKH).sort(sortEventsDesc);
+        const customerDecisions = decisionLog
+          .filter((d) => d.maKH === maKH)
+          .sort((a, b) => (parseDateTime(b.thoiGian)?.getTime() || 0) - (parseDateTime(a.thoiGian)?.getTime() || 0));
+
+        const hasType = customerEvents.find((e) => e.loaiKH)?.loaiKH || customerProcesses.find((p) => p.loaiKH)?.loaiKH || customerDecisions.find((d) => d.loaiKH)?.loaiKH || "";
+        const note =
+          customerProcesses.find((p) => p.ghiChu)?.ghiChu ||
+          customerEvents.find((e) => e.ghiChu)?.ghiChu ||
+          customerDecisions.find((d) => d.ghiChu)?.ghiChu ||
+          "";
         const latestTime =
-          [...relatedProcesses.map((p) => p.thoiGian), ...relatedEvents.map((e) => e.thoiGian), ...relatedDecisions.map((d) => d.thoiGian)].sort().at(-1) || "";
-        const latestNoteSource = [...relatedProcesses, ...relatedEvents, ...relatedDecisions]
-          .filter((row) => row.ghiChu && row.ghiChu.trim())
-          .sort((a, b) => (parseDateTime(b.thoiGian)?.getTime() || 0) - (parseDateTime(a.thoiGian)?.getTime() || 0))[0];
-        const note = latestNoteSource?.ghiChu || "";
-        return { maKH, loaiKH: hasType, latestTime, note };
+          [...customerProcesses.map((p) => p.thoiGian), ...customerEvents.map((e) => e.thoiGian), ...customerDecisions.map((d) => d.thoiGian)].sort().at(-1) || "";
+        return { maKH, loaiKH: hasType, note, latestTime };
       })
       .sort((a, b) => (parseDateTime(b.latestTime)?.getTime() || 0) - (parseDateTime(a.latestTime)?.getTime() || 0));
   }, [processLog, eventLog, decisionLog]);
@@ -1395,7 +1378,7 @@ export default function Page() {
         <header style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
           <div>
             <h1 style={{ margin: 0, fontSize: 26 }}>Emart Timer - mã khách ngắn</h1>
-            <p style={{ margin: "6px 0 0", color: palette.sub }}>Tạo mã khách ở mục 1 trước. Mã khách sẽ tách theo tên người bấm, ví dụ mỗi người có một dãy mã riêng, và mã đó dùng chung cho START/END Process, Decide, phân loại và phục vụ.</p>
+            <p style={{ margin: "6px 0 0", color: palette.sub }}>Tạo mã khách ở mục 1 trước. Mã KH001, KH002... sẽ được dùng chung cho START/END Process, Decide, phân loại và phục vụ.</p>
           </div>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
             <button onClick={refreshAllData} style={secondaryButtonStyle}>{loading ? "Đang tải..." : "Tải lại"}</button>
@@ -1435,7 +1418,7 @@ export default function Page() {
             <button onClick={resetCurrentCustomer} disabled={!currentMaKH} style={currentMaKH ? dangerButtonStyle : disabledButtonStyle}>Reset khách hiện tại</button>
           </div>
           <p style={{ margin: "10px 0 0", color: palette.sub, fontSize: 13 }}>
-            Mã khách đang hiển thị ở mục này được tạo theo tên người bấm và sẽ áp dụng cho tất cả thao tác bên dưới: START/END Process, Decide, chọn loại khách và bấm phục vụ.
+            Mã khách đang hiển thị ở mục này sẽ được áp dụng cho tất cả thao tác bên dưới: START/END Process, Decide, chọn loại khách và bấm phục vụ.
           </p>
 
           {pendingCustomers.length > 0 && (
@@ -1443,7 +1426,7 @@ export default function Page() {
               <b>Chọn lại khách đang bấm:</b>
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 8 }}>
                 {pendingCustomers.slice(0, 20).map((c) => (
-                  <button key={c.maKH} onClick={() => selectCustomerToContinue(c.maKH)} style={c.maKH === currentMaKH ? smallPrimaryButtonStyle : smallButtonStyle} title={c.note || "Chưa có ghi chú"}>
+                  <button key={c.maKH} onClick={() => selectCustomerToContinue(c.maKH)} style={c.maKH === currentMaKH ? smallPrimaryButtonStyle : smallButtonStyle}>
                     {c.maKH} {c.loaiKH ? `- ${c.loaiKH}` : "- chưa loại"}{c.note ? ` - ${c.note}` : ""}
                   </button>
                 ))}
@@ -1472,10 +1455,10 @@ export default function Page() {
                 <Field label="Mã khách hàng đang chạy">
                   <input value={currentMaKH || "Chưa tạo mã khách"} readOnly style={inputStyle} />
                 </Field>
-                <Field label="Ghi chú phân biệt khách">
+                <Field label="Ghi chú phân biệt khách" block>
                   <input
-                    value={ghiChu}
-                    onChange={(e) => setGhiChu(e.target.value)}
+                    value={processNote}
+                    onChange={(e) => setProcessNote(e.target.value)}
                     style={inputStyle}
                     placeholder="Ví dụ: áo trắng, đi 2 người, cầm pizza..."
                   />
@@ -1501,8 +1484,8 @@ export default function Page() {
                       <td style={tdStyle}>{formatDateTimeVNms(r.thoiGian)}</td>
                       <td style={tdStyle}>{r.processName}</td>
                       <td style={tdStyle}>{r.eventType}</td>
-                      <td style={tdStyle}>{r.maKH || currentMaKH}</td>
-                      <td style={tdStyle}>{r.ghiChu || ""}</td>
+                      <td style={tdStyle}>{r.maKH}</td>
+                      <td style={tdStyle}>{r.ghiChu}</td>
                       <td style={tdStyle}><button onClick={() => deleteRow("process_log", r.id)} style={miniDangerButtonStyle}>Xóa</button></td>
                     </tr>
                   )}
