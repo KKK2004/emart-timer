@@ -1274,13 +1274,20 @@ export default function Page() {
 
     return Array.from(ids)
       .map((maKH) => {
-        const hasType = eventLog.find((e) => e.maKH === maKH)?.loaiKH || processLog.find((p) => p.maKH === maKH && p.loaiKH)?.loaiKH || "";
+        const relatedProcesses = processLog.filter((p) => p.maKH === maKH);
+        const relatedEvents = eventLog.filter((e) => e.maKH === maKH);
+        const relatedDecisions = decisionLog.filter((d) => d.maKH === maKH);
+        const hasType = relatedEvents.find((e) => e.loaiKH)?.loaiKH || relatedProcesses.find((p) => p.loaiKH)?.loaiKH || relatedDecisions.find((d) => d.loaiKH)?.loaiKH || "";
         const latestTime =
-          [...processLog.filter((p) => p.maKH === maKH).map((p) => p.thoiGian), ...eventLog.filter((e) => e.maKH === maKH).map((e) => e.thoiGian)].sort().at(-1) || "";
-        return { maKH, loaiKH: hasType, latestTime };
+          [...relatedProcesses.map((p) => p.thoiGian), ...relatedEvents.map((e) => e.thoiGian), ...relatedDecisions.map((d) => d.thoiGian)].sort().at(-1) || "";
+        const latestNoteSource = [...relatedProcesses, ...relatedEvents, ...relatedDecisions]
+          .filter((row) => row.ghiChu && row.ghiChu.trim())
+          .sort((a, b) => (parseDateTime(b.thoiGian)?.getTime() || 0) - (parseDateTime(a.thoiGian)?.getTime() || 0))[0];
+        const note = latestNoteSource?.ghiChu || "";
+        return { maKH, loaiKH: hasType, latestTime, note };
       })
       .sort((a, b) => (parseDateTime(b.latestTime)?.getTime() || 0) - (parseDateTime(a.latestTime)?.getTime() || 0));
-  }, [processLog, eventLog]);
+  }, [processLog, eventLog, decisionLog]);
 
   function exportExcel() {
     const wb = XLSX.utils.book_new();
@@ -1436,8 +1443,8 @@ export default function Page() {
               <b>Chọn lại khách đang bấm:</b>
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 8 }}>
                 {pendingCustomers.slice(0, 20).map((c) => (
-                  <button key={c.maKH} onClick={() => selectCustomerToContinue(c.maKH)} style={c.maKH === currentMaKH ? smallPrimaryButtonStyle : smallButtonStyle}>
-                    {c.maKH} {c.loaiKH ? `- ${c.loaiKH}` : "- chưa loại"}
+                  <button key={c.maKH} onClick={() => selectCustomerToContinue(c.maKH)} style={c.maKH === currentMaKH ? smallPrimaryButtonStyle : smallButtonStyle} title={c.note || "Chưa có ghi chú"}>
+                    {c.maKH} {c.loaiKH ? `- ${c.loaiKH}` : "- chưa loại"}{c.note ? ` - ${c.note}` : ""}
                   </button>
                 ))}
               </div>
@@ -1465,6 +1472,14 @@ export default function Page() {
                 <Field label="Mã khách hàng đang chạy">
                   <input value={currentMaKH || "Chưa tạo mã khách"} readOnly style={inputStyle} />
                 </Field>
+                <Field label="Ghi chú phân biệt khách">
+                  <input
+                    value={ghiChu}
+                    onChange={(e) => setGhiChu(e.target.value)}
+                    style={inputStyle}
+                    placeholder="Ví dụ: áo trắng, đi 2 người, cầm pizza..."
+                  />
+                </Field>
               </div>
 
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
@@ -1480,13 +1495,14 @@ export default function Page() {
                 <LogTable
                   title="Process_Log của khách hiện tại"
                   rows={currentCustomerProcesses}
-                  columns={["Thời gian", "Process", "Type", "Mã KH", "Xóa"]}
+                  columns={["Thời gian", "Process", "Type", "Mã KH", "Ghi chú", "Xóa"]}
                   renderRow={(r) => (
                     <tr key={r.id}>
                       <td style={tdStyle}>{formatDateTimeVNms(r.thoiGian)}</td>
                       <td style={tdStyle}>{r.processName}</td>
                       <td style={tdStyle}>{r.eventType}</td>
                       <td style={tdStyle}>{r.maKH || currentMaKH}</td>
+                      <td style={tdStyle}>{r.ghiChu || ""}</td>
                       <td style={tdStyle}><button onClick={() => deleteRow("process_log", r.id)} style={miniDangerButtonStyle}>Xóa</button></td>
                     </tr>
                   )}
